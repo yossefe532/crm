@@ -1,24 +1,23 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useAuth } from "../../lib/auth/AuthContext"
+import { usePush } from "../../lib/hooks/usePush"
 
 export const NotificationManager = () => {
   const { token, userId } = useAuth()
   const [permission, setPermission] = useState<NotificationPermission>("default")
+  const { isSubscribed, subscribe } = usePush()
 
   useEffect(() => {
     if (typeof window === "undefined" || !("Notification" in window)) return
-    
     setPermission(Notification.permission)
-    
-    // Auto-request permission if not denied
     if (Notification.permission === "default" && userId) {
       requestPermission()
     }
-  }, [userId])
+  }, [userId, requestPermission])
 
-  const requestPermission = async () => {
+  const requestPermission = useCallback(async () => {
     if (!("Notification" in window)) return
     
     try {
@@ -26,33 +25,17 @@ export const NotificationManager = () => {
       setPermission(result)
       
       if (result === "granted") {
-        registerServiceWorker()
+        // Subscribe to push if not subscribed
+        if (!isSubscribed) {
+          await subscribe()
+        }
       }
     } catch (error) {
       console.error("Error requesting notification permission:", error)
     }
-  }
+  }, [isSubscribed, subscribe])
 
-  const registerServiceWorker = async () => {
-    if (!("serviceWorker" in navigator)) return
-    
-    try {
-      const registration = await navigator.serviceWorker.ready
-      
-      // Check subscription
-      let subscription = await registration.pushManager.getSubscription()
-      
-      if (!subscription) {
-        // Subscribe
-        // Note: In a real app, you would fetch the VAPID public key from the server here
-        // For now, we assume the backend handles the subscription on the /api/push/subscribe endpoint
-        // or we just rely on local notifications for now as we don't have the VAPID key in context
-        console.log("Service Worker ready for push notifications")
-      }
-    } catch (error) {
-      console.error("Error registering service worker for push:", error)
-    }
-  }
+  // No need for manual SW registration here; usePush handles it
 
   // Render a permission request banner if permission is default and user is logged in
   if (permission === "default" && userId) {
