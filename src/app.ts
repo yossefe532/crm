@@ -25,10 +25,22 @@ export const createApp = () => {
   const app = express()
   app.use((req, res, next) => {
     const origin = req.headers.origin as string | undefined
-    const allowedOrigins = new Set(["http://localhost:3000", "http://127.0.0.1:3000"])
-    if (origin && allowedOrigins.has(origin)) {
-      res.setHeader("Access-Control-Allow-Origin", origin)
+    const allowedOrigins = new Set([
+      "http://localhost:3000", 
+      "http://127.0.0.1:3000",
+      process.env.FRONTEND_URL, // السماح لرابط الفرونت إند من المتغيرات البيئية
+      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined // السماح لرابط فيرسيل التلقائي
+    ].filter(Boolean))
+    
+    // إذا لم يكن هناك origin (مثل Postman) أو كان الـ origin مسموحاً به
+    if (!origin || allowedOrigins.has(origin)) {
+      res.setHeader("Access-Control-Allow-Origin", origin || "*")
     }
+    
+    // للتسهيل في مرحلة التطوير، إذا أردت السماح للجميع (غير مستحسن للإنتاج الدقيق لكن مفيد للتجربة الأولية)
+    // يمكن تفعيل السطر التالي وإلغاء الشرط السابق
+    // res.setHeader("Access-Control-Allow-Origin", origin || "*")
+
     res.setHeader("Vary", "Origin")
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS")
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-user-id, x-tenant-id, x-roles")
