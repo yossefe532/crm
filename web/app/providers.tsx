@@ -12,7 +12,17 @@ const CustomCursor = dynamic(() => import("../components/ui/CustomCursor").then(
 })
 
 export const Providers = ({ children }: { children: ReactNode }) => {
-  const [client] = useState(() => new QueryClient())
+  const [client] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        refetchOnWindowFocus: true, // Refetch when window regains focus
+        refetchOnMount: true,       // Refetch when component mounts
+        refetchOnReconnect: true,   // Refetch when network reconnects
+        staleTime: 1000 * 60 * 5,   // 5 minutes stale time by default
+        gcTime: 1000 * 60 * 60 * 24, // 24 hours garbage collection
+      },
+    },
+  }))
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return

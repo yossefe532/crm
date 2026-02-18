@@ -9,6 +9,7 @@ import { useUsers } from "../../lib/hooks/useUsers"
 import { useTeams } from "../../lib/hooks/useTeams"
 import { useAuth } from "../../lib/auth/AuthContext"
 import { leadService } from "../../lib/services/leadService"
+import { coreService } from "../../lib/services/coreService"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
 export const LeadCreateForm = () => {
@@ -55,27 +56,35 @@ export const LeadCreateForm = () => {
 
   const mutation = useMutation({
     mutationFn: async () => {
-      return leadService.create(
-        {
-          leadCode: leadCode.trim() || undefined,
-          name: name.trim(),
-          phone: phone.trim(),
-          email: email.trim() || undefined,
-          budgetMin: budgetMin ? Number(budgetMin) : undefined,
-          budgetMax: budgetMax ? Number(budgetMax) : undefined,
-          desiredLocation: desiredLocation.trim() || undefined,
-          propertyType: propertyType.trim() || undefined,
-          profession: profession.trim() || undefined,
-          notes: notes.trim() || undefined,
-          priority,
-          assignedUserId: role === "sales" ? userId : (assignedUserId || undefined),
-          teamId: teamId || undefined
-        },
-        token || undefined
-      )
+      const payload = {
+        leadCode: leadCode.trim() || undefined,
+        name: name.trim(),
+        phone: phone.trim(),
+        email: email.trim() || undefined,
+        budgetMin: budgetMin ? Number(budgetMin) : undefined,
+        budgetMax: budgetMax ? Number(budgetMax) : undefined,
+        desiredLocation: desiredLocation.trim() || undefined,
+        propertyType: propertyType.trim() || undefined,
+        profession: profession.trim() || undefined,
+        notes: notes.trim() || undefined,
+        priority,
+        assignedUserId: role === "sales" ? userId : (assignedUserId || undefined),
+        teamId: teamId || undefined
+      }
+
+      if (role === "sales") {
+        return coreService.createUserRequest({
+          requestType: "create_lead",
+          payload
+        }, token || undefined)
+      }
+
+      return leadService.create(payload, token || undefined)
     },
     onSuccess: (data: any) => {
-      if (data?.message && data?.request) {
+      if (data?.requestType === "create_lead") {
+        setMessage("تم إرسال طلب إضافة العميل للموافقة")
+      } else if (data?.message && data?.request) {
         setMessage(data.message)
       } else {
         setMessage("تم إضافة العميل بنجاح")

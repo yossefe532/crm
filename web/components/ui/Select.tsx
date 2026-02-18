@@ -29,7 +29,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
             block w-full rounded-lg border border-base-200 bg-base-0 px-3 py-2 text-base sm:text-sm text-base-900 shadow-sm transition-colors
             focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500
             disabled:cursor-not-allowed disabled:bg-base-50 disabled:text-base-500
-            dark:border-base-700 dark:bg-base-900 dark:text-white dark:focus:border-brand-500 dark:focus:ring-brand-500
+            dark:border-base-700 dark:bg-[#111111] dark:text-white dark:focus:border-brand-500 dark:focus:ring-brand-500
             ${error ? "border-rose-300 focus:border-rose-500 focus:ring-rose-500" : ""}
             ${className}
           `}

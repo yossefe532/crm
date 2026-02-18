@@ -92,25 +92,6 @@ export const leadService = {
       })
     }
     
-    if (user.roles.includes("sales")) {
-      const teamMemberships = await prisma.teamMember.findMany({ where: { tenantId, userId: user.id, leftAt: null, deletedAt: null }, select: { teamId: true } })
-      const teamIds = teamMemberships.map((m) => m.teamId)
-      return prisma.lead.findMany({
-        where: {
-          ...baseWhere,
-          ...search,
-          OR: [
-            { assignedUserId: user.id },
-            { teamId: { in: teamIds } }
-          ]
-        },
-        skip,
-        take,
-        orderBy: { createdAt: "desc" },
-        include: { _count: { select: { callLogs: true } } }
-      })
-    }
-    
     return prisma.lead.findMany({ 
       where: { 
         ...baseWhere, 
@@ -166,23 +147,6 @@ export const leadService = {
           OR: [
             { teamId: { in: teamIds } },
             { assignedUserId: user.id }
-          ]
-        },
-        include
-      })
-    }
-    
-    if (user.roles.includes("sales")) {
-      const teamMemberships = await prisma.teamMember.findMany({ where: { tenantId, userId: user.id, leftAt: null, deletedAt: null }, select: { teamId: true } })
-      const teamIds = teamMemberships.map((m) => m.teamId)
-      return prisma.lead.findFirst({
-        where: {
-          tenantId,
-          id: leadId,
-          deletedAt: null,
-          OR: [
-            { assignedUserId: user.id },
-            { teamId: { in: teamIds } }
           ]
         },
         include

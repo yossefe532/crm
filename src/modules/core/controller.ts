@@ -418,17 +418,37 @@ export const coreController = {
   createUserRequest: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
     const roles = req.user?.roles || []
+    const userId = req.user?.id || ""
+
+    // Handle "create_lead" request (Sales -> Team Leader/Owner)
+    if (req.body?.requestType === "create_lead") {
+      if (!roles.includes("sales")) throw { status: 403, message: "غير مصرح للمبيعات فقط" }
+      const payload = req.body.payload
+      if (!payload || !payload.name || !payload.phone) throw { status: 400, message: "بيانات العميل غير مكتملة" }
+      
+      const request = await coreService.createUserRequest(tenantId, { 
+        requestedBy: userId, 
+        requestType: "create_lead", 
+        payload 
+      })
+      await logActivity({ tenantId, actorUserId: userId, action: "user_request.created", entityType: "user_request", entityId: request.id })
+      res.json(request)
+      return
+    }
+
+    // Existing "create_sales" request (Team Leader -> Owner)
     const name = String(req.body?.name || "").trim()
     const email = String(req.body?.email || "").trim().toLowerCase()
     const phone = req.body?.phone ? String(req.body.phone) : undefined
+    
     if (!roles.includes("team_leader")) throw { status: 403, message: "غير مصرح" }
     if (!name) throw { status: 400, message: "الاسم مطلوب" }
     if (!isValidEmail(email)) throw { status: 400, message: "صيغة البريد الإلكتروني غير صحيحة" }
-    const leaderTeam = await coreService.getTeamByLeader(tenantId, req.user?.id || "")
+    const leaderTeam = await coreService.getTeamByLeader(tenantId, userId)
     if (!leaderTeam) throw { status: 400, message: "لا يوجد فريق مرتبط بهذا القائد" }
     const payload = { name, email, phone, role: "sales", teamId: leaderTeam.id }
-    const request = await coreService.createUserRequest(tenantId, { requestedBy: req.user?.id || "", requestType: "create_sales", payload })
-    await logActivity({ tenantId, actorUserId: req.user?.id, action: "user_request.created", entityType: "user_request", entityId: request.id })
+    const request = await coreService.createUserRequest(tenantId, { requestedBy: userId, requestType: "create_sales", payload })
+    await logActivity({ tenantId, actorUserId: userId, action: "user_request.created", entityType: "user_request", entityId: request.id })
     res.json(request)
   },
   listUserRequests: async (req: Request, res: Response) => {

@@ -36,7 +36,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               block w-full rounded-lg border bg-base-0 px-3 py-2 text-base sm:text-sm text-base-900 shadow-sm transition-colors
               placeholder:text-base-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500
               disabled:cursor-not-allowed disabled:bg-base-50 disabled:text-base-500
-              dark:border-base-700 dark:bg-base-900 dark:text-white dark:placeholder:text-base-400 dark:focus:border-brand-500 dark:focus:ring-brand-500
+              dark:border-base-700 dark:bg-[#111111] dark:text-white dark:placeholder:text-base-400 dark:focus:border-brand-500 dark:focus:ring-brand-500
               ${error ? "border-rose-300 focus:border-rose-500 focus:ring-rose-500" : "border-base-200"}
               ${startIcon ? "pr-10" : ""}
               ${endIcon ? "pl-10" : ""}

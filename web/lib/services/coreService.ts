@@ -29,7 +29,7 @@ export const coreService = {
     apiClient.get<Array<{ id: string; action: string; entityType: string; entityId?: string | null; createdAt: string }>>(`/core/users/${userId}/audit`, token),
   createUser: (payload: { name: string; email: string; phone?: string; password?: string; role: string; teamId?: string; teamName?: string }, token?: string) =>
     apiClient.post<{ user: User; temporaryPassword?: string }>("/core/users", payload, token),
-  createUserRequest: (payload: { name: string; email: string; phone?: string; teamId?: string }, token?: string) =>
+  createUserRequest: (payload: { name?: string; email?: string; phone?: string; teamId?: string; requestType?: string; payload?: any }, token?: string) =>
     apiClient.post<{ id: string; status: string }>("/core/user-requests", payload, token),
   listUserRequests: (token?: string) =>
     apiClient.get<Array<{ id: string; status: string; requestType: string; payload: any; createdAt: string; requester?: User }>>("/core/user-requests", token),

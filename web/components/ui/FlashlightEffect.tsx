@@ -26,7 +26,7 @@ export default function FlashlightEffect() {
       if (!isDark) return
       
       // Optimization: Disable on mobile/touch devices
-      if (window.innerWidth < 768) return
+      if (window.innerWidth < 768) return null
 
       const { clientX: x, clientY: y } = e
       

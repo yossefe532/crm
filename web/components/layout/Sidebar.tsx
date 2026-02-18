@@ -28,6 +28,7 @@ const navByRole = {
     { href: "/analytics/goals", label: "الأهداف" },
     { href: "/meetings", label: "الاجتماعات" },
     { href: "/leads", label: "العملاء المحتملون" },
+    { href: "/requests", label: "الطلبات" },
     { href: "/connect", label: "التواصل" },
     { href: "/settings/users", label: "إدارة المستخدمين" },
     { href: "/account", label: "إدارة الحساب" }

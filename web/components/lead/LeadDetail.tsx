@@ -113,6 +113,10 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
               <p className="text-xs text-base-500">المهنة</p>
               <p className="text-sm font-medium text-base-900">{lead.profession || "غير محددة"}</p>
             </div>
+            <div>
+              <p className="text-xs text-base-500">المصدر</p>
+              <p className="text-sm font-medium text-base-900">{lead.sourceLabel || "غير محدد"}</p>
+            </div>
           </div>
           {lead.phone && (
             <div className="flex flex-wrap gap-2">

@@ -19,6 +19,8 @@ import { leadService } from "../../lib/services/leadService"
 import { StageProgress } from "../lead/StageProgress"
 import { StageControls } from "../lead/StageControls"
 import { useRouter } from "next/navigation"
+import { Modal } from "../ui/Modal"
+import { LeadDetail } from "../lead/LeadDetail"
 
 export const LeadList = () => {
   const { data, isLoading, isError } = useLeads()
@@ -32,6 +34,7 @@ export const LeadList = () => {
   const [userFilter, setUserFilter] = useState("all")
   const [assignmentTargets, setAssignmentTargets] = useState<Record<string, string>>({})
   const [message, setMessage] = useState<string | null>(null)
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
   const stageLabelMap: Record<string, string> = {
     new: "جديد",
     call: "مكالمة هاتفية",
@@ -131,7 +134,12 @@ export const LeadList = () => {
           <div key={lead.id} className="rounded-xl border border-base-100 p-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-semibold text-base-900">{lead.name}</p>
+                <p 
+                  className="text-sm font-semibold text-base-900 cursor-pointer hover:text-brand-600 transition-colors"
+                  onClick={() => setSelectedLeadId(lead.id)}
+                >
+                  {lead.name}
+                </p>
                 <div className="mt-1 flex items-center gap-2">
                   <p className="text-xs text-base-500">مُسند إلى:</p>
                   {lead.assignedUserId ? (
@@ -221,6 +229,15 @@ export const LeadList = () => {
           </div>
         ))}
       </div>
+
+      <Modal
+        isOpen={!!selectedLeadId}
+        onClose={() => setSelectedLeadId(null)}
+        title="تفاصيل العميل"
+        size="2xl"
+      >
+        {selectedLeadId && <LeadDetail leadId={selectedLeadId} />}
+      </Modal>
     </Card>
   )
 }

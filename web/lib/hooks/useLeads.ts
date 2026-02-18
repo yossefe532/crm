@@ -14,6 +14,7 @@ export const useLeads = (query?: string) => {
         callCount: lead.callCount ?? lead._count?.callLogs ?? 0
       }))
     },
-    staleTime: 60000
+    refetchInterval: 30000, // Auto-refetch every 30 seconds
+    staleTime: 10000,       // Consider data stale after 10 seconds
   })
 }

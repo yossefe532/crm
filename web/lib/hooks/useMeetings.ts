@@ -8,6 +8,7 @@ export const useMeetings = () => {
   return useQuery<Meeting[]>({
     queryKey: ["meetings"],
     queryFn: async () => meetingService.list(token || undefined),
-    staleTime: 60000
+    refetchInterval: 60000, // Auto-refetch every 1 minute
+    staleTime: 30000,       // Consider data stale after 30 seconds
   })
 }

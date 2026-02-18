@@ -27,7 +27,11 @@ export const DashboardShell = ({ children }: { children: ReactNode }) => {
       if (!link || !link.href) return
       const url = new URL(link.href, window.location.origin)
       if (url.origin !== window.location.origin) return
-      if (url.pathname === window.location.pathname) return
+      if (url.pathname === window.location.pathname && url.search === window.location.search) return
+      // Don't show loader for anchor links or if explicitly disabled
+      if (link.hasAttribute("data-no-loader")) return
+      if (url.hash) return
+      
       setIsLoading(true)
     }
     document.addEventListener("click", handleClick, true)

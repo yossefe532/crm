@@ -62,7 +62,7 @@ export const ChatWindow = () => {
     }
     
     loadMessages()
-    const interval = setInterval(loadMessages, 5000)
+    const interval = setInterval(loadMessages, 3000) // Poll every 3 seconds for faster chat
     return () => clearInterval(interval)
   }, [activeId, token])
 
