@@ -232,7 +232,7 @@ export default function UsersSettingsPage() {
                 </div>
               </div>
               {role === "owner" && !isOwnerAccount && (
-                <div className="grid gap-2 md:grid-cols-3">
+                <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
                   <Input
                     className="text-right disabled:bg-base-50 disabled:text-base-400"
                     placeholder="البريد الإلكتروني"
@@ -265,7 +265,7 @@ export default function UsersSettingsPage() {
                 </div>
               )}
               {role === "owner" && !isOwnerAccount && (
-                <div className="grid gap-3 md:grid-cols-[1fr_auto_auto]">
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_auto_auto]">
                   <Select
                     className="text-right"
                     value={transferTargets[user.id] || ""}

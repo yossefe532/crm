@@ -31,7 +31,7 @@ export default function AnalyticsPage() {
     <div className="space-y-6">
       <AnalyticsDashboard />
       <PerformanceCharts />
-      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+      <div className="grid gap-6 md:grid-cols-1 xl:grid-cols-[1fr_1fr]">
         <DisciplineHeatmap />
         <TeamPerformance />
       <Card title="أداء الموظفين">
