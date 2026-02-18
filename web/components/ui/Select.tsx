@@ -1,6 +1,6 @@
 "use client"
 
-import { SelectHTMLAttributes, forwardRef } from "react"
+import { SelectHTMLAttributes, forwardRef, useId } from "react"
 
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string
@@ -9,15 +9,19 @@ export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className = "", label, error, options, children, disabled, ...props }, ref) => {
+  ({ className = "", label, error, options, children, disabled, id, ...props }, ref) => {
+    const generatedId = useId()
+    const selectId = id || generatedId
+
     return (
       <div className="w-full">
         {label && (
-          <label className="mb-1.5 block text-sm font-medium text-base-700 dark:text-base-200">
+          <label htmlFor={selectId} className="mb-1.5 block text-sm font-medium text-base-700 dark:text-base-200">
             {label}
           </label>
         )}
         <select
+          id={selectId}
           ref={ref}
           disabled={disabled}
           className={`

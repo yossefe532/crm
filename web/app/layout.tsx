@@ -20,6 +20,16 @@ export const metadata: Metadata = {
   title: "نظام إدارة علاقات العملاء العقاري",
   description: "لوحة تحكم احترافية لإدارة العملاء العقاريين",
   manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: ["/favicon-32x32.png"],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -33,10 +43,6 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ar" dir="rtl">
-      <head>
-        <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/icons/maskable-icon.svg" />
-      </head>
       <body className="font-ar bg-base-50">
         <FlashlightEffect />
         <Providers>{children}</Providers>

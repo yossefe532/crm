@@ -117,24 +117,21 @@ export const UserCreateForm = () => {
         }}
       >
         <Input
-          aria-label="الاسم"
-          title="الاسم"
+          label="الاسم"
           className="text-right"
           placeholder="الاسم"
           value={name}
           onChange={(event) => setName(event.target.value)}
         />
         <Input
-          aria-label="البريد الإلكتروني"
-          title="البريد الإلكتروني"
+          label="البريد الإلكتروني"
           className="text-right"
           placeholder="البريد الإلكتروني"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
         />
         <Input
-          aria-label="رقم الهاتف"
-          title="رقم الهاتف"
+          label="رقم الهاتف"
           className="text-right"
           placeholder="رقم الهاتف"
           value={phone}
@@ -142,8 +139,7 @@ export const UserCreateForm = () => {
         />
         {role === "owner" && (
           <Input
-            aria-label="كلمة مرور مؤقتة"
-            title="كلمة مرور مؤقتة"
+            label="كلمة مرور مؤقتة"
             className="text-right"
             placeholder="كلمة مرور (اختياري)"
             value={password}
@@ -152,8 +148,7 @@ export const UserCreateForm = () => {
         )}
         {role === "owner" && (
           <Select
-            aria-label="الدور"
-            title="الدور"
+            label="الدور"
             className="text-right"
             value={userRole}
             onChange={(event) => setUserRole(event.target.value)}
@@ -167,8 +162,7 @@ export const UserCreateForm = () => {
         )}
         {userRole === "sales" && role === "owner" && (
           <Select
-            aria-label="الفريق"
-            title="الفريق"
+            label="الفريق"
             className="text-right"
             value={teamId}
             onChange={(event) => setTeamId(event.target.value)}
@@ -183,8 +177,7 @@ export const UserCreateForm = () => {
         )}
         {userRole === "team_leader" && role === "owner" && (
           <Input
-            aria-label="اسم الفريق"
-            title="اسم الفريق"
+            label="اسم الفريق"
             className="text-right"
             placeholder="اسم الفريق الجديد (اختياري)"
             value={teamName}

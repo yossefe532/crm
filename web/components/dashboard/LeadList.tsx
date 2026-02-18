@@ -86,9 +86,9 @@ export const LeadList = () => {
     <Card title="إدارة العملاء المحتملين">
       <div className="space-y-4">
         {role === "owner" && (
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3">
             <Select
-              className="sm:w-auto"
+              className="w-full sm:w-auto"
               value={teamFilter}
               onChange={(event) => setTeamFilter(event.target.value)}
             >
@@ -99,7 +99,7 @@ export const LeadList = () => {
               ))}
             </Select>
             <Select
-              className="sm:w-auto"
+              className="w-full sm:w-auto"
               value={userFilter}
               onChange={(event) => setUserFilter(event.target.value)}
             >
@@ -141,9 +141,9 @@ export const LeadList = () => {
               </div>
             </div>
             {(role === "owner" || role === "team_leader") && (
-              <div className="mt-4 flex flex-wrap items-center gap-3">
+              <div className="mt-4 flex flex-col sm:flex-row flex-wrap items-center gap-3">
                 <Select
-                  className="sm:w-auto"
+                  className="w-full sm:w-auto"
                   value={assignmentTargets[lead.id] ?? lead.assignedUserId ?? ""}
                   onChange={(event) => {
                     const val = event.target.value

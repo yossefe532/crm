@@ -128,16 +128,14 @@ export default function LoginPage() {
         </div>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <Input
-            aria-label={t("email")}
-            title={t("email")}
+            label={t("email")}
             className="text-right"
             placeholder={t("email")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
           <Input
-            aria-label={t("password")}
-            title={t("password")}
+            label={t("password")}
             className="text-right"
             placeholder={t("password")}
             type={showPassword ? "text" : "password"}

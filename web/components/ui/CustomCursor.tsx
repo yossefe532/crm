@@ -27,7 +27,7 @@ export const CustomCursor = () => {
     const cursor = cursorRef.current
     if (!cursor) return
     const root = document.documentElement
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || window.matchMedia("(pointer: coarse)").matches) {
       cursor.style.display = "none"
       root.classList.remove("cursor-custom")
       return

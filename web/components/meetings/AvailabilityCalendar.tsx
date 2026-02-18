@@ -26,8 +26,10 @@ export const AvailabilityCalendar = () => {
 
   return (
     <Card title="توفر التقويم">
-      <div className="h-[420px]">
-        <Calendar localizer={localizer} events={events} startAccessor="start" endAccessor="end" culture="ar" />
+      <div className="h-[420px] overflow-x-auto">
+        <div className="min-w-[600px] h-full">
+          <Calendar localizer={localizer} events={events} startAccessor="start" endAccessor="end" culture="ar" />
+        </div>
       </div>
     </Card>
   )

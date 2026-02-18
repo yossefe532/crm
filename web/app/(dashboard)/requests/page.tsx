@@ -76,7 +76,7 @@ export default function RequestsPage() {
           <p className="text-gray-500">لا يوجد طلبات معلقة</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-right">
+            <table className="w-full min-w-[700px] text-right">
               <thead>
                 <tr className="border-b border-base-200 text-sm text-base-500">
                   <th className="pb-3 pr-4">نوع الطلب</th>
@@ -137,7 +137,7 @@ export default function RequestsPage() {
           <p className="text-gray-500">لا يوجد سجل طلبات</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-right">
+            <table className="w-full min-w-[700px] text-right">
               <thead>
                 <tr className="border-b border-base-200 text-sm text-base-500">
                   <th className="pb-3 pr-4">نوع الطلب</th>

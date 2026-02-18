@@ -17,8 +17,8 @@ export const AnalyticsDashboard = () => {
   if (!data) return <div className="text-center p-8 text-red-500">فشل تحميل البيانات</div>
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-6 md:grid-cols-3">
+    <div className="space-y-4 md:space-y-6">
+      <div className="grid gap-4 md:gap-6 md:grid-cols-3">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <Stat
             label="معدل التحويل"
@@ -39,7 +39,7 @@ export const AnalyticsDashboard = () => {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
         <Card title="توزيع العملاء حسب المرحلة">
           <div className="space-y-4">
             {data.distribution.map((item) => (
@@ -61,10 +61,10 @@ export const AnalyticsDashboard = () => {
         </Card>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
         <Card title="أداء فريق المبيعات">
           <div className="overflow-x-auto">
-            <table className="w-full text-right">
+            <table className="w-full min-w-[600px] text-right">
               <thead>
                 <tr className="border-b border-gray-200 text-sm text-gray-500">
                   <th className="pb-3 font-medium px-4">المندوب</th>
@@ -92,7 +92,7 @@ export const AnalyticsDashboard = () => {
 
         <Card title="أداء الفرق (Team Leaders)">
           <div className="overflow-x-auto">
-            <table className="w-full text-right">
+            <table className="w-full min-w-[600px] text-right">
               <thead>
                 <tr className="border-b border-gray-200 text-sm text-gray-500">
                   <th className="pb-3 font-medium px-4">الفريق</th>

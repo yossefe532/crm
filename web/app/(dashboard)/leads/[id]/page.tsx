@@ -303,37 +303,42 @@ export default function LeadDetailPage() {
       )}
       {activeStage === "call" && (
         <Card title="مرحلة المكالمة الهاتفية">
-          <div className="grid gap-3 md:grid-cols-[1fr_1fr]">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Input
+              label="نتيجة المكالمة"
               className="text-right"
-              placeholder="نتيجة المكالمة (إجباري)"
+              placeholder="مثال: تم الاتفاق مبدئياً"
               value={callOutcome}
               onChange={(event) => setCallOutcome(event.target.value)}
             />
             <Input
+              label="مدة المكالمة (ثواني)"
+              type="number"
               className="text-right"
-              placeholder="مدة المكالمة بالثواني (اختياري)"
+              placeholder="مثال: 120"
               value={callDuration}
               onChange={(event) => setCallDuration(event.target.value)}
             />
             <Input
-              className="md:col-span-2 text-right"
-              placeholder="انطباع مختصر عن العميل (إجباري)"
+              label="انطباع مختصر"
+              className="sm:col-span-2 text-right"
+              placeholder="مثال: عميل مهتم جداً"
               value={stageInsight}
               onChange={(event) => setStageInsight(event.target.value)}
             />
             <Textarea
-              className="md:col-span-2 min-h-[120px] text-right"
-              placeholder="تفاصيل المكالمة والانطباع الكامل (إجباري)"
+              label="التفاصيل الكاملة"
+              className="sm:col-span-2 min-h-[120px] text-right"
+              placeholder="اكتب تفاصيل المكالمة هنا..."
               value={stageDetails}
               onChange={(event) => setStageDetails(event.target.value)}
             />
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" disabled={callMutation.isPending || stageMutation.isPending} onClick={saveCallStage}>
+          <div className="mt-4 flex flex-col sm:flex-row gap-3">
+            <Button className="w-full sm:w-auto" type="button" disabled={callMutation.isPending || stageMutation.isPending} onClick={saveCallStage}>
               {callMutation.isPending ? "جاري الحفظ..." : "حفظ المكالمة"}
             </Button>
-            <Button type="button" variant="secondary" onClick={() => setActiveStage(null)}>
+            <Button className="w-full sm:w-auto" type="button" variant="secondary" onClick={() => setActiveStage(null)}>
               إلغاء
             </Button>
           </div>
@@ -342,34 +347,37 @@ export default function LeadDetailPage() {
       {activeStage === "meeting" && (
         <div ref={meetingRef}>
           <Card title="مرحلة الاجتماع">
-            <div className="grid gap-3 md:grid-cols-[1fr_1fr]">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Input
+                label="عنوان الاجتماع"
                 className="text-right"
-                placeholder="عنوان الاجتماع"
+                placeholder="مثال: اجتماع مناقشة العرض"
                 value={meetingTitle}
                 onChange={(event) => setMeetingTitle(event.target.value)}
               />
               <Input
+                label="تاريخ البدء"
                 type="datetime-local"
                 className="text-right"
                 value={meetingStartsAt}
                 onChange={(event) => setMeetingStartsAt(event.target.value)}
               />
               <Input
+                label="تاريخ الانتهاء"
                 type="datetime-local"
                 className="text-right"
                 value={meetingEndsAt}
                 onChange={(event) => setMeetingEndsAt(event.target.value)}
               />
             </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button type="button" disabled={meetingMutation.isPending || stageMutation.isPending} onClick={saveMeetingStage}>
+            <div className="mt-4 flex flex-col sm:flex-row gap-3">
+              <Button className="w-full sm:w-auto" type="button" disabled={meetingMutation.isPending || stageMutation.isPending} onClick={saveMeetingStage}>
                 {meetingMutation.isPending ? "جاري الحفظ..." : "حفظ الاجتماع"}
               </Button>
-              <Button type="button" variant="secondary" onClick={() => router.push("/meetings")}>
+              <Button className="w-full sm:w-auto" type="button" variant="secondary" onClick={() => router.push("/meetings")}>
                 فتح تبويب الاجتماعات
               </Button>
-              <Button type="button" variant="secondary" onClick={() => setActiveStage(null)}>
+              <Button className="w-full sm:w-auto" type="button" variant="secondary" onClick={() => setActiveStage(null)}>
                 إلغاء
               </Button>
             </div>
@@ -378,37 +386,41 @@ export default function LeadDetailPage() {
       )}
       {activeStage === "site_visit" && (
         <Card title="مرحلة رؤية الموقع">
-          <div className="grid gap-3 md:grid-cols-[1fr_1fr]">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Input
+              label="تاريخ الزيارة"
               type="date"
               className="text-right"
               value={siteVisitDate}
               onChange={(event) => setSiteVisitDate(event.target.value)}
             />
             <Input
+              label="الأماكن التي تمت زيارتها"
               className="text-right"
-              placeholder="هل شاهد أكثر من مكان؟ وما هي الأماكن؟"
+              placeholder="مثال: المشروع أ، الوحدة ب"
               value={siteVisitLocations}
               onChange={(event) => setSiteVisitLocations(event.target.value)}
             />
             <Textarea
-              className="md:col-span-2 min-h-[120px] text-right"
-              placeholder="انطباع العميل عن كل مكان بالتفصيل (إجباري)"
+              label="انطباع العميل"
+              className="sm:col-span-2 min-h-[120px] text-right"
+              placeholder="اكتب انطباع العميل عن الأماكن..."
               value={siteVisitImpressions}
               onChange={(event) => setSiteVisitImpressions(event.target.value)}
             />
             <Textarea
-              className="md:col-span-2 min-h-[120px] text-right"
-              placeholder="تفاصيل إضافية عن الزيارة (إجباري)"
+              label="تفاصيل إضافية"
+              className="sm:col-span-2 min-h-[120px] text-right"
+              placeholder="أي تفاصيل أخرى..."
               value={siteVisitDetails}
               onChange={(event) => setSiteVisitDetails(event.target.value)}
             />
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" disabled={stageMutation.isPending || noteMutation.isPending} onClick={saveSiteVisitStage}>
+          <div className="mt-4 flex flex-col sm:flex-row gap-3">
+            <Button className="w-full sm:w-auto" type="button" disabled={stageMutation.isPending || noteMutation.isPending} onClick={saveSiteVisitStage}>
               حفظ الزيارة
             </Button>
-            <Button type="button" variant="secondary" onClick={() => setActiveStage(null)}>
+            <Button className="w-full sm:w-auto" type="button" variant="secondary" onClick={() => setActiveStage(null)}>
               إلغاء
             </Button>
           </div>
@@ -416,31 +428,35 @@ export default function LeadDetailPage() {
       )}
       {activeStage === "closing" && (
         <Card title="مرحلة الإغلاق">
-          <div className="grid gap-3 md:grid-cols-[1fr_2fr]">
+          <div className="grid gap-4 sm:grid-cols-2">
             <Input
+              label="قيمة الإغلاق"
+              type="number"
               className="text-right"
-              placeholder="قيمة الإغلاق"
+              placeholder="0.00"
               value={closeAmount}
               onChange={(event) => setCloseAmount(event.target.value)}
             />
             <Input
+              label="عنوان العقار"
               className="text-right"
-              placeholder="عنوان المكان المباع (إجباري)"
+              placeholder="عنوان المكان المباع"
               value={closeAddress}
               onChange={(event) => setCloseAddress(event.target.value)}
             />
             <Textarea
-              className="md:col-span-2 min-h-[120px] text-right"
-              placeholder="تفاصيل الإغلاق الإضافية"
+              label="ملاحظات الإغلاق"
+              className="sm:col-span-2 min-h-[120px] text-right"
+              placeholder="تفاصيل إضافية..."
               value={closeNote}
               onChange={(event) => setCloseNote(event.target.value)}
             />
           </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" disabled={closeMutation.isPending} onClick={saveClosingStage}>
+          <div className="mt-4 flex flex-col sm:flex-row gap-3">
+            <Button className="w-full sm:w-auto" type="button" disabled={closeMutation.isPending} onClick={saveClosingStage}>
               {closeMutation.isPending ? "جاري الإغلاق..." : "حفظ الإغلاق"}
             </Button>
-            <Button type="button" variant="secondary" onClick={() => setActiveStage(null)}>
+            <Button className="w-full sm:w-auto" type="button" variant="secondary" onClick={() => setActiveStage(null)}>
               إلغاء
             </Button>
           </div>

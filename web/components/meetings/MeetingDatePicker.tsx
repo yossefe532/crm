@@ -143,8 +143,7 @@ export const MeetingDatePicker = () => {
             }}
           >
             <Select
-              aria-label="العميل"
-              title="العميل"
+              label="العميل"
               className="text-right"
               value={leadId}
               onChange={(event) => setLeadId(event.target.value)}
@@ -158,8 +157,7 @@ export const MeetingDatePicker = () => {
               ))}
             </Select>
             <Input
-              aria-label="عنوان الاجتماع"
-              title="عنوان الاجتماع"
+              label="عنوان الاجتماع"
               className="text-right"
               placeholder="عنوان الاجتماع"
               value={title}
@@ -167,8 +165,7 @@ export const MeetingDatePicker = () => {
               disabled={role !== "sales"}
             />
             <Input
-              aria-label="بداية الاجتماع"
-              title="بداية الاجتماع"
+              label="بداية الاجتماع"
               type="datetime-local"
               className="text-right"
               value={startsAt}
@@ -176,8 +173,7 @@ export const MeetingDatePicker = () => {
               disabled={role !== "sales"}
             />
             <Input
-              aria-label="نهاية الاجتماع"
-              title="نهاية الاجتماع"
+              label="نهاية الاجتماع"
               type="datetime-local"
               className="text-right"
               value={endsAt}

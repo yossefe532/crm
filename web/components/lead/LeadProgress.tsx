@@ -42,11 +42,11 @@ export const LeadProgress = ({ stages, activeIndex = 0, onStageChange, readOnly 
       {/* Mobile View (Vertical) */}
       <div className="flex flex-col gap-0 md:hidden relative pb-4">
          {/* Vertical Progress Line Background */}
-         <div className="absolute top-4 bottom-4 right-[19px] w-1 bg-base-200 -z-10 rounded-full" />
+         <div className={`absolute top-4 bottom-4 w-1 bg-base-200 -z-10 rounded-full ${dir === "rtl" ? "right-[19px]" : "left-[19px]"}`} />
          
          {/* Vertical Progress Line Active */}
          <div 
-          className="absolute top-4 right-[19px] w-1 bg-brand-500 -z-10 rounded-full transition-all duration-500 ease-out"
+          className={`absolute top-4 w-1 bg-brand-500 -z-10 rounded-full transition-all duration-500 ease-out ${dir === "rtl" ? "right-[19px]" : "left-[19px]"}`}
           style={{ height: `${(activeIndex / (stages.length - 1)) * 100}%` }}
         />
 

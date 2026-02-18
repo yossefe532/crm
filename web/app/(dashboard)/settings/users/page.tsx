@@ -198,11 +198,11 @@ export default function UsersSettingsPage() {
             const isOwnerAccount = (user.roles || []).includes("owner") || (role === "owner" && user.id === currentUserId) || user.email === "admin@crm-doctor.com" // Fallback protection
             return (
             <div key={user.id} className={`space-y-3 rounded-lg border px-3 py-2 ${isOwnerAccount ? "border-amber-200 bg-amber-50" : "border-base-100"}`}>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                   <Avatar name={user.name || user.email} size="md" className="hidden sm:inline-block" />
-                  <div>
-                    <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold text-base-900">{user.name || user.email}</p>
                       {isOwnerAccount && <span className="rounded bg-amber-200 px-1.5 py-0.5 text-[10px] text-amber-800">حساب المالك</span>}
                       {user.id === currentUserId && <span className="rounded bg-brand-100 px-1.5 py-0.5 text-[10px] text-brand-700">أنت</span>}
@@ -210,7 +210,7 @@ export default function UsersSettingsPage() {
                     <p className="text-xs text-base-500">{user.phone || "بدون رقم"}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
                   <span className="text-xs text-base-500">{user.status}</span>
                   {role === "owner" && !isOwnerAccount && (
                     <Button 
@@ -379,13 +379,13 @@ export default function UsersSettingsPage() {
         </div>
       </Card>
       {role === "owner" && teamSetup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-lg rounded-2xl bg-base-0 p-6">
-            <div className="mb-4 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/40 p-0 sm:p-4">
+          <div className="w-full max-w-lg rounded-t-2xl sm:rounded-2xl bg-base-0 p-4 sm:p-6 max-h-[85vh] sm:max-h-[80vh] flex flex-col">
+            <div className="mb-4 flex items-center justify-between shrink-0">
               <h3 className="text-lg font-semibold text-base-900">تأسيس فريق جديد</h3>
               <Button variant="ghost" onClick={() => setTeamSetup(null)}>×</Button>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-3 overflow-y-auto custom-scrollbar flex-1">
               <Input
                 aria-label="اسم الفريق"
                 className="text-right"

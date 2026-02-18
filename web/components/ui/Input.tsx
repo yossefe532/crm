@@ -1,6 +1,6 @@
 "use client"
 
-import { InputHTMLAttributes, forwardRef, ReactNode } from "react"
+import { InputHTMLAttributes, forwardRef, ReactNode, useId } from "react"
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string
@@ -10,11 +10,14 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className = "", label, error, startIcon, endIcon, disabled, ...props }, ref) => {
+  ({ className = "", label, error, startIcon, endIcon, disabled, id, ...props }, ref) => {
+    const generatedId = useId()
+    const inputId = id || generatedId
+
     return (
       <div className="w-full">
         {label && (
-          <label className="mb-1.5 block text-sm font-medium text-base-700 dark:text-base-200">
+          <label htmlFor={inputId} className="mb-1.5 block text-sm font-medium text-base-700 dark:text-base-200">
             {label}
           </label>
         )}
@@ -25,6 +28,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             </div>
           )}
           <input
+            id={inputId}
             ref={ref}
             disabled={disabled}
             className={`

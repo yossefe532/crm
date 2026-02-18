@@ -130,88 +130,77 @@ export const LeadCreateForm = () => {
         }}
       >
         <Input
-          aria-label="كود العميل"
-          title="كود العميل"
+          label="كود العميل"
           className="text-right"
           placeholder="كود العميل (اختياري)"
           value={leadCode}
           onChange={(event) => setLeadCode(event.target.value)}
         />
         <Input
-          aria-label="اسم العميل"
-          title="اسم العميل"
+          label="اسم العميل"
           className="text-right"
           placeholder="اسم العميل"
           value={name}
           onChange={(event) => setName(event.target.value)}
         />
         <Input
-          aria-label="رقم الهاتف"
-          title="رقم الهاتف"
+          label="رقم الهاتف"
           className="text-right"
           placeholder="رقم الهاتف"
           value={phone}
           onChange={(event) => setPhone(event.target.value)}
         />
         <Input
-          aria-label="البريد الإلكتروني"
-          title="البريد الإلكتروني"
+          label="البريد الإلكتروني"
           className="text-right"
           placeholder="البريد الإلكتروني"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
         />
         <Input
-          aria-label="الحد الأدنى للميزانية"
-          title="الحد الأدنى للميزانية"
+          label="الحد الأدنى للميزانية"
           className="text-right"
           placeholder="الحد الأدنى للميزانية"
           value={budgetMin}
           onChange={(event) => setBudgetMin(event.target.value)}
         />
         <Input
-          aria-label="الحد الأقصى للميزانية"
-          title="الحد الأقصى للميزانية"
+          label="الحد الأقصى للميزانية"
           className="text-right"
           placeholder="الحد الأقصى للميزانية"
           value={budgetMax}
           onChange={(event) => setBudgetMax(event.target.value)}
         />
         <Input
-          aria-label="المنطقة المفضلة"
-          title="المنطقة المفضلة"
+          label="المنطقة المفضلة"
           className="text-right"
           placeholder="المنطقة المفضلة"
           value={desiredLocation}
           onChange={(event) => setDesiredLocation(event.target.value)}
         />
         <Input
-          aria-label="نوع العقار"
-          title="نوع العقار"
+          label="نوع العقار"
           className="text-right"
           placeholder="نوع العقار"
           value={propertyType}
           onChange={(event) => setPropertyType(event.target.value)}
         />
         <Input
-          aria-label="مهنة العميل"
-          title="مهنة العميل"
+          label="مهنة العميل"
           className="text-right"
           placeholder="مهنة العميل"
           value={profession}
           onChange={(event) => setProfession(event.target.value)}
         />
         <Input
-          aria-label="ملاحظات"
-          title="ملاحظات"
+          label="ملاحظات"
           className="text-right"
           placeholder="ملاحظات عن العميل"
           value={notes}
           onChange={(event) => setNotes(event.target.value)}
         />
         <Select
-          aria-label="الأولوية"
-          title="الأولوية"
+          label="الأولوية"
           className="text-right"
           value={priority}
           onChange={(event) => setPriority(event.target.value)}
@@ -222,8 +211,7 @@ export const LeadCreateForm = () => {
         </Select>
         {(role === "owner" || role === "team_leader") && (
           <Select
-            aria-label="تعيين إلى مندوب"
-            title="تعيين إلى مندوب"
+            label="تعيين إلى مندوب"
             className="text-right"
             value={assignedUserId}
             onChange={(event) => setAssignedUserId(event.target.value)}
@@ -238,8 +226,7 @@ export const LeadCreateForm = () => {
         )}
         {(role === "owner" || role === "team_leader") && (
           <Select
-            aria-label="الفريق"
-            title="الفريق"
+            label="الفريق"
             className="text-right"
             value={role === "team_leader" ? teamLeaderTeam?.id || "" : teamId}
             onChange={(event) => setTeamId(event.target.value)}

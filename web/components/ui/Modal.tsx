@@ -32,14 +32,14 @@ export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
   if (!mounted || !isOpen) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-0 sm:p-6">
       <div 
         className="fixed inset-0 bg-base-900/50 backdrop-blur-sm transition-opacity" 
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="relative w-full max-w-lg transform rounded-xl bg-base-0 p-6 shadow-xl transition-all dark:bg-base-800">
-        <div className="mb-4 flex items-center justify-between border-b border-base-100 pb-4 dark:border-base-700">
+      <div className="relative w-full max-w-lg transform rounded-t-2xl sm:rounded-xl bg-base-0 p-4 sm:p-6 shadow-xl transition-all dark:bg-base-800 max-h-[85vh] sm:max-h-[80vh] flex flex-col">
+        <div className="mb-4 flex items-center justify-between border-b border-base-100 pb-4 dark:border-base-700 shrink-0">
           <h3 className="text-lg font-semibold text-base-900 dark:text-base-50">
             {title}
           </h3>
@@ -53,7 +53,7 @@ export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
             </svg>
           </button>
         </div>
-        <div className="max-h-[80vh] overflow-y-auto custom-scrollbar">
+        <div className="overflow-y-auto custom-scrollbar flex-1">
           {children}
         </div>
       </div>

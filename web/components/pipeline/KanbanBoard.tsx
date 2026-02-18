@@ -69,10 +69,10 @@ export const KanbanBoard = ({ leads }: { leads?: Lead[] }) => {
 
   return (
     <Card title="قناة العملاء">
-      <div className="overflow-x-auto pb-2">
-        <div className="flex gap-4 lg:grid lg:grid-cols-5">
+      <div className="overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide">
+        <div className="flex gap-4 lg:grid lg:grid-cols-5 w-max lg:w-full px-4 lg:px-0">
           {lanes.map((lane) => (
-            <div key={lane.id} className="w-[280px] flex-shrink-0 rounded-xl border border-base-100 bg-base-50 p-3 lg:w-auto">
+            <div key={lane.id} className="w-[85vw] max-w-[300px] flex-shrink-0 snap-center rounded-xl border border-base-100 bg-base-50 p-3 lg:w-auto first:ml-0 last:mr-0">
               <div className="mb-4 flex items-center justify-between">
                 <h4 className="text-sm font-semibold text-base-900">{lane.title}</h4>
                 <Badge>{lane.leads.length}</Badge>
