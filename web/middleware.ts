@@ -8,13 +8,13 @@ export function middleware(request: NextRequest) {
   const role = request.cookies.get("auth_role")?.value
   const forceReset = request.cookies.get("auth_force_reset")?.value === "true"
 
-  // Handle root path redirect
+  // Allow public access to root path
   if (pathname === "/") {
     if (token && role) {
       const destination = role === "owner" ? "/owner" : role === "team_leader" ? "/team" : "/sales"
       return NextResponse.redirect(new URL(destination, request.url))
     }
-    return NextResponse.redirect(new URL("/login", request.url))
+    return NextResponse.next()
   }
 
   if (!protectedPaths.some((path) => pathname.startsWith(path))) {
