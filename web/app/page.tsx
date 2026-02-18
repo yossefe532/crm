@@ -1,20 +1,18 @@
 "use client"
 
-import Link from "next/link"
+import { useEffect } from "react"
 
 export default function Home() {
+  useEffect(() => {
+    // Hard redirect using window location
+    window.location.href = "/login"
+  }, [])
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl text-center">
-        <h1 className="mb-2 text-3xl font-bold text-gray-900">CRM Doctor</h1>
-        <p className="mb-8 text-gray-500">نظام إدارة علاقات العملاء المتكامل</p>
-        
-        <Link 
-          href="/login" 
-          className="block w-full rounded-lg bg-blue-600 px-5 py-3 text-center text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-colors"
-        >
-          تسجيل الدخول
-        </Link>
+    <div className="flex min-h-screen items-center justify-center bg-black text-white">
+      <div className="text-center">
+        <h1 className="text-2xl font-bold mb-4">جاري التحويل...</h1>
+        <p className="text-gray-400">إذا لم يتم تحويلك تلقائياً، <a href="/login" className="text-blue-500 underline">اضغط هنا</a></p>
       </div>
     </div>
   )
