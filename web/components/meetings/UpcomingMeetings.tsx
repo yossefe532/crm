@@ -36,7 +36,22 @@ export const UpcomingMeetings = () => {
   return (
     <Card title="الاجتماعات القادمة">
       <div className="space-y-3">
-        {isLoading && <p className="text-sm text-base-500">جاري تحميل الاجتماعات...</p>}
+        {isLoading && (
+          <div className="space-y-3">
+            {[1,2,3].map((i) => (
+              <div key={i} className="rounded-xl border border-base-100 bg-base-0 px-4 py-3">
+                <div className="animate-pulse space-y-2">
+                  <div className="h-4 w-1/3 rounded bg-base-200" />
+                  <div className="h-3 w-1/4 rounded bg-base-200" />
+                  <div className="mt-3 flex gap-2">
+                    <div className="h-6 w-16 rounded bg-base-200" />
+                    <div className="h-6 w-20 rounded bg-base-200" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         {isError && <p className="text-sm text-rose-500">تعذر تحميل الاجتماعات</p>}
         {(data || []).map((meeting) => (
           <div key={meeting.id} className="flex flex-col gap-4 rounded-xl border border-base-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between bg-base-0 hover:shadow-sm transition-shadow">

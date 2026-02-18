@@ -48,6 +48,7 @@ export type Lead = {
   notes?: string | null
   callCount?: number
   callLogs?: CallLog[]
+  meetings?: Meeting[]
   createdAt: string
   updatedAt: string
 }
