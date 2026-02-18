@@ -1,0 +1,11 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.router = void 0;
+const express_1 = require("express");
+const asyncHandler_1 = require("../../utils/asyncHandler");
+const controller_1 = require("./controller");
+const rbac_1 = require("../../middleware/rbac");
+exports.router = (0, express_1.Router)();
+exports.router.post("/rules", (0, rbac_1.requirePermission)("reminders.create"), (0, asyncHandler_1.asyncHandler)(controller_1.reminderController.createRule));
+exports.router.post("/schedules", (0, rbac_1.requirePermission)("reminders.create"), (0, asyncHandler_1.asyncHandler)(controller_1.reminderController.schedule));
+exports.router.post("/sent", (0, rbac_1.requirePermission)("reminders.update"), (0, asyncHandler_1.asyncHandler)(controller_1.reminderController.markSent));

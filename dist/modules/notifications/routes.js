@@ -1,0 +1,17 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.router = void 0;
+const express_1 = require("express");
+const asyncHandler_1 = require("../../utils/asyncHandler");
+const controller_1 = require("./controller");
+const rbac_1 = require("../../middleware/rbac");
+exports.router = (0, express_1.Router)();
+exports.router.get("/vapid-key", (0, asyncHandler_1.asyncHandler)(controller_1.notificationController.getVapidKey));
+exports.router.post("/subscribe", (0, asyncHandler_1.asyncHandler)(controller_1.notificationController.subscribe));
+exports.router.post("/broadcast", (0, asyncHandler_1.asyncHandler)(controller_1.notificationController.broadcast));
+exports.router.get("/events", (0, rbac_1.requirePermission)("notifications.read"), (0, asyncHandler_1.asyncHandler)(controller_1.notificationController.listEvents));
+exports.router.get("/policies", (0, rbac_1.requirePermission)("notifications.read"), (0, asyncHandler_1.asyncHandler)(controller_1.notificationController.getPolicy));
+exports.router.put("/policies", (0, rbac_1.requirePermission)("notifications.create"), (0, asyncHandler_1.asyncHandler)(controller_1.notificationController.updatePolicy));
+exports.router.post("/events", (0, rbac_1.requirePermission)("notifications.create"), (0, asyncHandler_1.asyncHandler)(controller_1.notificationController.publishEvent));
+exports.router.post("/rules", (0, rbac_1.requirePermission)("notifications.create"), (0, asyncHandler_1.asyncHandler)(controller_1.notificationController.createRule));
+exports.router.post("/deliveries", (0, rbac_1.requirePermission)("notifications.create"), (0, asyncHandler_1.asyncHandler)(controller_1.notificationController.queueDelivery));

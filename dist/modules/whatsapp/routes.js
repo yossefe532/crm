@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.router = void 0;
+const express_1 = require("express");
+const asyncHandler_1 = require("../../utils/asyncHandler");
+const controller_1 = require("./controller");
+const rbac_1 = require("../../middleware/rbac");
+exports.router = (0, express_1.Router)();
+exports.router.post("/send", (0, rbac_1.requirePermission)("whatsapp.send"), (0, asyncHandler_1.asyncHandler)(controller_1.whatsappController.sendTemplate));
+exports.router.post("/webhooks", (0, asyncHandler_1.asyncHandler)(controller_1.whatsappController.receiveWebhook));

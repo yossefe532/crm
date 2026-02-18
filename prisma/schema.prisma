@@ -1,0 +1,1761 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  status    String   @default("active")
+  timezone  String   @default("UTC")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  users         User[]
+  teams         Team[]
+  roles         Role[]
+  auditLogs     AuditLog[]
+  moduleConfigs ModuleConfig[]
+  moduleEventSubscriptions ModuleEventSubscription[]
+  rolePermissions RolePermission[]
+  userRoles     UserRole[]
+  userPermissions UserPermission[]
+  files         File[]
+  iconAssets    IconAsset[]
+  notes         Note[]
+  userRequests  UserRequest[]
+  financeEntries FinanceEntry[]
+  leadSources   LeadSource[]
+  contacts      Contact[]
+  contactChannels ContactChannel[]
+  leads         Lead[]
+  leadContacts  LeadContact[]
+  leadTags      LeadTag[]
+  leadTagLinks  LeadTagLink[]
+  leadAssignments LeadAssignment[]
+  leadActivityLogs LeadActivityLog[]
+  leadTasks     LeadTask[]
+  callLogs      CallLog[]
+  leadStateDefinitions LeadStateDefinition[]
+  leadStateTransitions LeadStateTransition[]
+  leadStateHistory LeadStateHistory[]
+  leadDeadlines LeadDeadline[]
+  leadExtensions LeadExtension[]
+  leadFailures LeadFailure[]
+  leadClosures LeadClosure[]
+  properties    Property[]
+  propertyUnits PropertyUnit[]
+  listings      Listing[]
+  listingMedia  ListingMedia[]
+  inquiries     Inquiry[]
+  deals         Deal[]
+  offers        Offer[]
+  meetings      Meeting[]
+  meetingParticipants MeetingParticipant[]
+  meetingRooms  MeetingRoom[]
+  meetingRescheduleRequests MeetingRescheduleRequest[]
+  meetingReminders MeetingReminder[]
+  reassignmentRules ReassignmentRule[]
+  reassignmentPools ReassignmentPool[]
+  poolMembers   PoolMember[]
+  negligencePoints NegligencePoint[]
+  reassignmentEvents ReassignmentEvent[]
+  whatsappAccounts WhatsappAccount[]
+  whatsappTemplates WhatsappTemplate[]
+  whatsappMessages WhatsappMessage[]
+  whatsappWebhooks WhatsappWebhook[]
+  whatsappOptOuts WhatsappOptOut[]
+  reminderRules ReminderRule[]
+  reminderSchedules ReminderSchedule[]
+  remindersSent RemindersSent[]
+  commissionPlans CommissionPlan[]
+  commissionRules CommissionRule[]
+  commissionLedger CommissionLedger[]
+  commissionApprovals CommissionApproval[]
+  blacklistEntries BlacklistEntry[]
+  blacklistMatches BlacklistMatch[]
+  riskScores    RiskScore[]
+  leadScores    LeadScore[]
+  leadMetricsDaily LeadMetricsDaily[]
+  disciplineIndexSnapshots DisciplineIndexSnapshot[]
+  rankingSnapshots RankingSnapshot[]
+  notificationEvents NotificationEvent[]
+  notificationRules NotificationRule[]
+  notificationDeliveries NotificationDelivery[]
+  notificationQuotas NotificationQuota[]
+  goalPlans    GoalPlan[]
+  goalTargets  GoalTarget[]
+  scheduledJobs ScheduledJob[]
+  jobRuns       JobRun[]
+  userProfiles  UserProfile[]
+  teamMembers   TeamMember[]
+  conversations Conversation[]
+  conversationParticipants ConversationParticipant[]
+  messages      Message[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("tenants")
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid @map("tenant_id")
+  email        String   @unique
+  phone        String?
+  passwordHash String   @map("password_hash")
+  mustChangePassword Boolean @default(true) @map("must_change_password")
+  status       String   @default("active")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  tenant        Tenant @relation(fields: [tenantId], references: [id])
+  profile       UserProfile?
+  teamsLed      Team[] @relation("TeamLeader")
+  teamMembers   TeamMember[]
+  roleLinks     UserRole[]
+  leadAssignments LeadAssignment[]
+  leadActivities LeadActivityLog[]
+  callLogs      CallLog[]
+  meetings      Meeting[] @relation("MeetingOrganizer")
+  meetingReschedules MeetingRescheduleRequest[]
+  reassignmentFrom ReassignmentEvent[] @relation("ReassignFrom")
+  reassignmentTo   ReassignmentEvent[] @relation("ReassignTo")
+  negligencePoints NegligencePoint[]
+  commissionApprovals CommissionApproval[]
+  commissionLedger CommissionLedger[]
+  leadMetricsDaily LeadMetricsDaily[]
+  disciplineIndexSnapshots DisciplineIndexSnapshot[]
+  notificationQuotas NotificationQuota[]
+  poolMembers PoolMember[]
+  filesCreated File[]
+  iconAssetsCreated IconAsset[]
+  notesCreated Note[]
+  leadExtensionsRequested LeadExtension[] @relation("ExtensionRequester")
+  leadExtensionsApproved LeadExtension[] @relation("ExtensionApprover")
+  assignedLeads Lead[]
+  assignedTasks LeadTask[]
+  auditLogs     AuditLog[]
+  leadStateChanges LeadStateHistory[]
+  leadFailures LeadFailure[]
+  leadClosuresClosed LeadClosure[] @relation("LeadClosureActor")
+  leadClosuresDecided LeadClosure[] @relation("LeadClosureDecider")
+  userRequestsRequested UserRequest[] @relation("UserRequestRequester")
+  userRequestsDecided UserRequest[] @relation("UserRequestDecider")
+  financeEntries FinanceEntry[]
+  userPermissions UserPermission[]
+  conversationParticipants ConversationParticipant[]
+  messagesSent Message[]
+
+  @@index([tenantId, email])
+  @@index([tenantId, status])
+  @@index([lastLoginAt])
+  @@map("users")
+}
+
+model UserProfile {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  userId    String   @unique @db.Uuid @map("user_id")
+  firstName String?  @map("first_name")
+  lastName  String?  @map("last_name")
+  avatarFileId String? @db.Uuid @map("avatar_file_id")
+  locale    String   @default("en")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  user  User @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  avatarFile File? @relation(fields: [avatarFileId], references: [id])
+
+  @@index([tenantId, userId])
+  @@map("user_profiles")
+}
+
+model Team {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid @map("tenant_id")
+  name         String
+  leaderUserId String?  @db.Uuid @map("leader_user_id")
+  status       String   @default("active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  leader User? @relation("TeamLeader", fields: [leaderUserId], references: [id])
+  members TeamMember[]
+  leads   Lead[]
+  leadMetricsDaily LeadMetricsDaily[]
+
+  @@index([tenantId, leaderUserId])
+  @@index([tenantId, status])
+  @@unique([tenantId, name])
+  @@map("teams")
+}
+
+model TeamMember {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  teamId    String   @db.Uuid @map("team_id")
+  userId    String   @db.Uuid @map("user_id")
+  role      String   @default("member")
+  joinedAt  DateTime @default(now()) @map("joined_at")
+  leftAt    DateTime? @map("left_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  team   Team @relation(fields: [teamId], references: [id])
+  user   User @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, teamId])
+  @@index([tenantId, userId])
+  @@map("team_members")
+}
+
+model Role {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid @map("tenant_id")
+  name         String
+  scope        String   @default("tenant")
+  parentRoleId String?  @db.Uuid @map("parent_role_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  parent Role? @relation("RoleParent", fields: [parentRoleId], references: [id])
+  children Role[] @relation("RoleParent")
+  permissions RolePermission[]
+  userRoles UserRole[]
+
+  @@index([tenantId, name])
+  @@index([parentRoleId])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  description String?
+  moduleKey   String?  @map("module_key")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  rolePermissions RolePermission[]
+  modulePermissions ModulePermission[]
+  userPermissions UserPermission[]
+
+  @@index([moduleKey])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid @map("tenant_id")
+  roleId       String   @db.Uuid @map("role_id")
+  permissionId String   @db.Uuid @map("permission_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  role Role @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, roleId])
+  @@index([tenantId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @db.Uuid @map("tenant_id")
+  userId     String   @db.Uuid @map("user_id")
+  roleId     String   @db.Uuid @map("role_id")
+  assignedBy String?  @db.Uuid @map("assigned_by")
+  assignedAt DateTime @default(now()) @map("assigned_at")
+  revokedAt  DateTime? @map("revoked_at")
+
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, userId])
+  @@index([tenantId, roleId])
+  @@map("user_roles")
+}
+
+model UserPermission {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.Uuid @map("tenant_id")
+  userId       String   @db.Uuid @map("user_id")
+  permissionId String   @db.Uuid @map("permission_id")
+  grantedBy    String?  @db.Uuid @map("granted_by")
+  grantedAt    DateTime @default(now()) @map("granted_at")
+
+  user User @relation(fields: [userId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, userId])
+  @@index([tenantId, permissionId])
+  @@map("user_permissions")
+}
+
+model AuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid @map("tenant_id")
+  actorUserId String?  @db.Uuid @map("actor_user_id")
+  action      String
+  entityType  String   @map("entity_type")
+  entityId    String?  @db.Uuid @map("entity_id")
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  actor  User? @relation(fields: [actorUserId], references: [id])
+
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, actorUserId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Module {
+  id        String   @id @default(uuid()) @db.Uuid
+  key       String   @unique
+  name      String
+  version   String
+  status    String   @default("enabled")
+  manifest  Json?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  configs ModuleConfig[]
+  permissions ModulePermission[]
+  eventSubscriptions ModuleEventSubscription[]
+
+  @@index([status])
+  @@map("modules")
+}
+
+model ModuleConfig {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  moduleId  String   @db.Uuid @map("module_id")
+  config    Json?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  module Module @relation(fields: [moduleId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, moduleId])
+  @@index([tenantId, isActive])
+  @@map("module_configs")
+}
+
+model ModulePermission {
+  id           String   @id @default(uuid()) @db.Uuid
+  moduleId     String   @db.Uuid @map("module_id")
+  permissionId String   @db.Uuid @map("permission_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  module Module @relation(fields: [moduleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+
+  @@index([moduleId])
+  @@index([permissionId])
+  @@map("module_permissions")
+}
+
+model ModuleEventSubscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  moduleId  String   @db.Uuid @map("module_id")
+  eventKey  String   @map("event_key")
+  handlerRef String  @map("handler_ref")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  module Module @relation(fields: [moduleId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, moduleId])
+  @@index([eventKey])
+  @@index([tenantId, isActive])
+  @@map("module_event_subscriptions")
+}
+
+model File {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @db.Uuid @map("tenant_id")
+  storageKey String   @map("storage_key")
+  filename   String
+  contentType String  @map("content_type")
+  sizeBytes  BigInt   @map("size_bytes")
+  createdBy  String?  @db.Uuid @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  deletedAt  DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  creator User? @relation(fields: [createdBy], references: [id])
+  userProfiles UserProfile[]
+  listingMedia ListingMedia[]
+  callLogs CallLog[]
+  messages Message[]
+
+  @@index([tenantId, createdBy])
+  @@index([tenantId, createdAt])
+  @@map("files")
+}
+
+model IconAsset {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  entityType String  @map("entity_type")
+  entityId  String   @db.Uuid @map("entity_id")
+  label     String?
+  url       String
+  createdBy String?  @db.Uuid @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  creator User? @relation(fields: [createdBy], references: [id])
+
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, createdBy])
+  @@index([tenantId, url])
+  @@map("icon_assets")
+}
+
+model Note {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  entityType String  @map("entity_type")
+  entityId  String   @db.Uuid @map("entity_id")
+  body      String
+  createdBy String?  @db.Uuid @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  creator User? @relation(fields: [createdBy], references: [id])
+
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, createdBy])
+  @@map("notes")
+}
+
+model LeadSource {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  name      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  leads Lead[]
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, name])
+  @@map("lead_sources")
+}
+
+model Contact {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  firstName String?  @map("first_name")
+  lastName  String?  @map("last_name")
+  primaryEmail String? @map("primary_email")
+  primaryPhone String? @map("primary_phone")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  channels ContactChannel[]
+  leadContacts LeadContact[]
+  properties Property[]
+  whatsappMessages WhatsappMessage[]
+  whatsappOptOuts WhatsappOptOut[]
+
+  @@index([tenantId, primaryEmail])
+  @@index([tenantId, primaryPhone])
+  @@map("contacts")
+}
+
+model ContactChannel {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @db.Uuid @map("tenant_id")
+  contactId  String   @db.Uuid @map("contact_id")
+  channelType String  @map("channel_type")
+  channelValue String @map("channel_value")
+  isPrimary  Boolean  @default(false) @map("is_primary")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  contact Contact @relation(fields: [contactId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, contactId])
+  @@index([tenantId, channelType])
+  @@map("contact_channels")
+}
+
+model Lead {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @db.Uuid @map("tenant_id")
+  leadCode   String   @map("lead_code")
+  name       String
+  phone      String
+  email      String?
+  budget     Decimal? @db.Decimal(14, 2)
+  areaOfInterest String? @map("area_of_interest")
+  sourceLabel String? @map("source_label")
+  sourceId   String?  @db.Uuid @map("source_id")
+  assignedUserId String? @db.Uuid @map("assigned_user_id")
+  teamId     String?  @db.Uuid @map("team_id")
+  status     String   @default("new")
+  priority   String   @default("normal")
+  budgetMin  Decimal? @db.Decimal(14, 2) @map("budget_min")
+  budgetMax  Decimal? @db.Decimal(14, 2) @map("budget_max")
+  desiredLocation String? @map("desired_location")
+  propertyType String? @map("property_type")
+  profession String?
+  notes      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  source LeadSource? @relation(fields: [sourceId], references: [id])
+  assignedUser User? @relation(fields: [assignedUserId], references: [id])
+  team Team? @relation(fields: [teamId], references: [id])
+  contacts LeadContact[]
+  tags LeadTagLink[]
+  assignments LeadAssignment[]
+  activities LeadActivityLog[]
+  tasks LeadTask[]
+  callLogs CallLog[]
+  stateHistory LeadStateHistory[]
+  deadlines LeadDeadline[]
+  extensions LeadExtension[]
+  failures LeadFailure[]
+  closures LeadClosure[]
+  inquiries Inquiry[]
+  deals Deal[]
+  meetings Meeting[]
+  reminderSchedules ReminderSchedule[]
+  reminderSent RemindersSent[]
+  blacklistMatches BlacklistMatch[]
+  riskScores RiskScore[]
+  leadScores LeadScore[]
+  whatsappMessages WhatsappMessage[]
+  negligencePoints NegligencePoint[]
+  reassignmentEvents ReassignmentEvent[]
+
+  @@index([tenantId, leadCode])
+  @@unique([tenantId, phone])
+  @@index([tenantId, name])
+  @@index([tenantId, email])
+  @@index([tenantId, status])
+  @@index([tenantId, assignedUserId])
+  @@index([tenantId, createdAt])
+  @@map("leads")
+}
+
+model LeadContact {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  contactId String   @db.Uuid @map("contact_id")
+  role      String   @default("primary")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  contact Contact @relation(fields: [contactId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, contactId])
+  @@map("lead_contacts")
+}
+
+model LeadTag {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  links LeadTagLink[]
+
+  @@index([tenantId, name])
+  @@map("lead_tags")
+}
+
+model LeadTagLink {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  tagId     String   @db.Uuid @map("tag_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  tag LeadTag @relation(fields: [tagId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, tagId])
+  @@map("lead_tag_links")
+}
+
+model LeadAssignment {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  assignedUserId String @db.Uuid @map("assigned_user_id")
+  assignedBy String? @db.Uuid @map("assigned_by")
+  reason    String?
+  assignedAt DateTime @default(now()) @map("assigned_at")
+  releasedAt DateTime? @map("released_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  assignedUser User @relation(fields: [assignedUserId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, assignedUserId])
+  @@index([assignedAt])
+  @@map("lead_assignments")
+}
+
+model LeadActivityLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  actorUserId String? @db.Uuid @map("actor_user_id")
+  activityType String @map("activity_type")
+  payload   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  actor User? @relation(fields: [actorUserId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, actorUserId])
+  @@index([createdAt])
+  @@map("lead_activity_logs")
+}
+
+model LeadTask {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  assignedUserId String? @db.Uuid @map("assigned_user_id")
+  taskType  String   @map("task_type")
+  dueAt     DateTime? @map("due_at")
+  status    String   @default("open")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  assignedUser User? @relation(fields: [assignedUserId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, assignedUserId])
+  @@index([tenantId, dueAt])
+  @@index([tenantId, status])
+  @@map("lead_tasks")
+}
+
+model CallLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  callerUserId String? @db.Uuid @map("caller_user_id")
+  callTime  DateTime @default(now()) @map("call_time")
+  durationSeconds Int? @map("duration_seconds")
+  outcome   String?
+  recordingFileId String? @db.Uuid @map("recording_file_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  caller User? @relation(fields: [callerUserId], references: [id])
+  recording File? @relation(fields: [recordingFileId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, callerUserId])
+  @@index([callTime])
+  @@map("call_logs")
+}
+
+model LeadStateDefinition {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  code      String
+  name      String
+  isTerminal Boolean @default(false) @map("is_terminal")
+  slaHours  Int?     @map("sla_hours")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  fromTransitions LeadStateTransition[] @relation("FromState")
+  toTransitions LeadStateTransition[] @relation("ToState")
+  stateHistoryFrom LeadStateHistory[] @relation("HistoryFrom")
+  stateHistoryTo LeadStateHistory[] @relation("HistoryTo")
+  deadlines LeadDeadline[]
+  extensions LeadExtension[]
+
+  @@index([tenantId, code])
+  @@map("lead_state_definitions")
+}
+
+model LeadStateTransition {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  fromStateId String @db.Uuid @map("from_state_id")
+  toStateId String   @db.Uuid @map("to_state_id")
+  guardKey  String?  @map("guard_key")
+  requiresApproval Boolean @default(false) @map("requires_approval")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  fromState LeadStateDefinition @relation("FromState", fields: [fromStateId], references: [id])
+  toState LeadStateDefinition @relation("ToState", fields: [toStateId], references: [id])
+
+  @@index([tenantId, fromStateId])
+  @@index([tenantId, toStateId])
+  @@map("lead_state_transitions")
+}
+
+model LeadStateHistory {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  fromStateId String? @db.Uuid @map("from_state_id")
+  toStateId String   @db.Uuid @map("to_state_id")
+  changedBy String?  @db.Uuid @map("changed_by")
+  changedAt DateTime @default(now()) @map("changed_at")
+  metadata  Json?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  lead Lead @relation(fields: [leadId], references: [id])
+  fromState LeadStateDefinition? @relation("HistoryFrom", fields: [fromStateId], references: [id])
+  toState LeadStateDefinition @relation("HistoryTo", fields: [toStateId], references: [id])
+  changer User? @relation(fields: [changedBy], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, changedAt])
+  @@map("lead_state_history")
+}
+
+model LeadDeadline {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  stateId   String   @db.Uuid @map("state_id")
+  dueAt     DateTime @map("due_at")
+  status    String   @default("active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  lead Lead @relation(fields: [leadId], references: [id])
+  state LeadStateDefinition @relation(fields: [stateId], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, dueAt])
+  @@index([tenantId, status])
+  @@map("lead_deadlines")
+}
+
+model LeadExtension {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  stateId   String   @db.Uuid @map("state_id")
+  requestedBy String? @db.Uuid @map("requested_by")
+  approvedBy String? @db.Uuid @map("approved_by")
+  reason    String?
+  extensionHours Int @map("extension_hours")
+  status    String  @default("pending")
+  requestedAt DateTime @default(now()) @map("requested_at")
+  decidedAt DateTime? @map("decided_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  lead Lead @relation(fields: [leadId], references: [id])
+  state LeadStateDefinition @relation(fields: [stateId], references: [id])
+  requester User? @relation("ExtensionRequester", fields: [requestedBy], references: [id])
+  approver User? @relation("ExtensionApprover", fields: [approvedBy], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, status])
+  @@index([tenantId, requestedAt])
+  @@map("lead_extensions")
+}
+
+model LeadFailure {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  failedBy  String?  @db.Uuid @map("failed_by")
+  failureType String @map("failure_type")
+  reason    String?
+  status    String   @default("pending")
+  createdAt DateTime @default(now()) @map("created_at")
+  resolvedAt DateTime? @map("resolved_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  actor User? @relation(fields: [failedBy], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@map("lead_failures")
+}
+
+model LeadClosure {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  closedBy  String?  @db.Uuid @map("closed_by")
+  amount    Decimal  @db.Decimal(14, 2)
+  note      String?
+  address   String?
+  status    String   @default("pending")
+  decidedBy String?  @db.Uuid @map("decided_by")
+  decidedAt DateTime? @map("decided_at")
+  closedAt  DateTime @default(now()) @map("closed_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  actor User? @relation("LeadClosureActor", fields: [closedBy], references: [id])
+  decider User? @relation("LeadClosureDecider", fields: [decidedBy], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, status])
+  @@index([tenantId, closedAt])
+  @@map("lead_closures")
+}
+
+model UserRequest {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  requestedBy String @db.Uuid @map("requested_by")
+  requestType String @map("request_type")
+  payload   Json
+  status    String   @default("pending")
+  decidedBy String?  @db.Uuid @map("decided_by")
+  decidedAt DateTime? @map("decided_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  requester User @relation("UserRequestRequester", fields: [requestedBy], references: [id])
+  decider User? @relation("UserRequestDecider", fields: [decidedBy], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+  @@map("user_requests")
+}
+
+model FinanceEntry {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  entryType String   @map("entry_type")
+  category  String
+  amount    Decimal  @db.Decimal(14, 2)
+  note      String?
+  occurredAt DateTime @map("occurred_at")
+  createdBy String?  @db.Uuid @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  creator User? @relation(fields: [createdBy], references: [id])
+
+  @@index([tenantId, entryType])
+  @@index([tenantId, occurredAt])
+  @@map("finance_entries")
+}
+
+model Property {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  ownerContactId String? @db.Uuid @map("owner_contact_id")
+  address   String
+  city      String
+  state     String
+  country   String
+  propertyType String @map("property_type")
+  status    String   @default("active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  ownerContact Contact? @relation(fields: [ownerContactId], references: [id])
+  units PropertyUnit[]
+  listings Listing[]
+
+  @@index([tenantId, city])
+  @@index([tenantId, propertyType])
+  @@index([tenantId, status])
+  @@map("properties")
+}
+
+model PropertyUnit {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  propertyId String  @db.Uuid @map("property_id")
+  unitCode  String   @map("unit_code")
+  bedrooms  Int?
+  bathrooms Int?
+  sizeSqm   Decimal? @db.Decimal(10, 2) @map("size_sqm")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  property Property @relation(fields: [propertyId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  listings Listing[]
+
+  @@index([tenantId, propertyId])
+  @@index([tenantId, unitCode])
+  @@map("property_units")
+}
+
+model Listing {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  propertyId String  @db.Uuid @map("property_id")
+  unitId    String?  @db.Uuid @map("unit_id")
+  listingType String @map("listing_type")
+  price     Decimal @db.Decimal(14, 2)
+  currency  String  @default("USD")
+  status    String  @default("active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  property Property @relation(fields: [propertyId], references: [id])
+  unit PropertyUnit? @relation(fields: [unitId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  media ListingMedia[]
+  inquiries Inquiry[]
+  deals Deal[]
+
+  @@index([tenantId, propertyId])
+  @@index([tenantId, status])
+  @@index([tenantId, price])
+  @@map("listings")
+}
+
+model ListingMedia {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  listingId String   @db.Uuid @map("listing_id")
+  fileId    String   @db.Uuid @map("file_id")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  listing Listing @relation(fields: [listingId], references: [id])
+  file File @relation(fields: [fileId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, listingId])
+  @@index([tenantId, sortOrder])
+  @@map("listing_media")
+}
+
+model Inquiry {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  listingId String   @db.Uuid @map("listing_id")
+  inquiryType String @map("inquiry_type")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  listing Listing @relation(fields: [listingId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, listingId])
+  @@map("inquiries")
+}
+
+model Deal {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  listingId String   @db.Uuid @map("listing_id")
+  stage     String   @default("negotiation")
+  dealValue Decimal? @db.Decimal(14, 2) @map("deal_value")
+  status    String   @default("open")
+  closedAt  DateTime? @map("closed_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  listing Listing @relation(fields: [listingId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  offers Offer[]
+  commissions CommissionLedger[]
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, status])
+  @@index([tenantId, closedAt])
+  @@map("deals")
+}
+
+model Offer {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  dealId    String   @db.Uuid @map("deal_id")
+  amount    Decimal  @db.Decimal(14, 2)
+  status    String   @default("submitted")
+  submittedAt DateTime @default(now()) @map("submitted_at")
+  decidedAt DateTime? @map("decided_at")
+
+  deal Deal @relation(fields: [dealId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, dealId])
+  @@index([tenantId, status])
+  @@map("offers")
+}
+
+model Meeting {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  organizerUserId String? @db.Uuid @map("organizer_user_id")
+  title     String
+  startsAt  DateTime @map("starts_at")
+  endsAt    DateTime @map("ends_at")
+  timezone  String
+  status    String   @default("scheduled")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  organizer User? @relation("MeetingOrganizer", fields: [organizerUserId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  participants MeetingParticipant[]
+  rescheduleRequests MeetingRescheduleRequest[]
+  reminders MeetingReminder[]
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, startsAt])
+  @@index([tenantId, organizerUserId])
+  @@map("meetings")
+}
+
+model MeetingParticipant {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  meetingId String   @db.Uuid @map("meeting_id")
+  participantType String @map("participant_type")
+  participantRefId String @db.Uuid @map("participant_ref_id")
+  responseStatus String @default("pending") @map("response_status")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  meeting Meeting @relation(fields: [meetingId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, meetingId])
+  @@index([tenantId, participantType])
+  @@map("meeting_participants")
+}
+
+model MeetingRoom {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  name      String
+  capacity  Int?
+  status    String   @default("active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, status])
+  @@map("meeting_rooms")
+}
+
+model MeetingRescheduleRequest {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  meetingId String   @db.Uuid @map("meeting_id")
+  requestedBy String? @db.Uuid @map("requested_by")
+  proposedStartsAt DateTime @map("proposed_starts_at")
+  proposedEndsAt DateTime @map("proposed_ends_at")
+  status    String  @default("pending")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  meeting Meeting @relation(fields: [meetingId], references: [id])
+  requester User? @relation(fields: [requestedBy], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, meetingId])
+  @@index([tenantId, status])
+  @@map("meeting_reschedule_requests")
+}
+
+model MeetingReminder {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  meetingId String   @db.Uuid @map("meeting_id")
+  scheduledAt DateTime @map("scheduled_at")
+  status    String  @default("queued")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  meeting Meeting @relation(fields: [meetingId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, scheduledAt])
+  @@index([tenantId, status])
+  @@map("meeting_reminders")
+}
+
+model ReassignmentRule {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  name      String
+  triggerKey String @map("trigger_key")
+  conditions Json?
+  action    Json?
+  isActive  Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  events ReassignmentEvent[]
+
+  @@index([tenantId, triggerKey])
+  @@index([tenantId, isActive])
+  @@map("reassignment_rules")
+}
+
+model ReassignmentPool {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  name      String
+  strategy  String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  members PoolMember[]
+
+  @@index([tenantId, name])
+  @@map("reassignment_pools")
+}
+
+model PoolMember {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  poolId    String   @db.Uuid @map("pool_id")
+  userId    String   @db.Uuid @map("user_id")
+  weight    Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  pool ReassignmentPool @relation(fields: [poolId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, poolId])
+  @@index([tenantId, userId])
+  @@map("pool_members")
+}
+
+model NegligencePoint {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  userId    String   @db.Uuid @map("user_id")
+  points    Int
+  reason    String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, userId])
+  @@index([tenantId, leadId])
+  @@map("negligence_points")
+}
+
+model ReassignmentEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  fromUserId String? @db.Uuid @map("from_user_id")
+  toUserId  String   @db.Uuid @map("to_user_id")
+  ruleId    String?  @db.Uuid @map("rule_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  fromUser User? @relation("ReassignFrom", fields: [fromUserId], references: [id])
+  toUser User @relation("ReassignTo", fields: [toUserId], references: [id])
+  rule ReassignmentRule? @relation(fields: [ruleId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, fromUserId])
+  @@index([tenantId, toUserId])
+  @@map("reassignment_events")
+}
+
+model WhatsappAccount {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  provider  String
+  phoneNumber String @map("phone_number")
+  status    String   @default("active")
+  config    Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  messages WhatsappMessage[]
+
+  @@index([tenantId, phoneNumber])
+  @@index([tenantId, status])
+  @@map("whatsapp_accounts")
+}
+
+model WhatsappTemplate {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  name      String
+  language  String
+  body      String
+  variables Json?
+  status    String   @default("approved")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  messages WhatsappMessage[]
+
+  @@index([tenantId, name])
+  @@index([tenantId, status])
+  @@map("whatsapp_templates")
+}
+
+model WhatsappMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  accountId String?  @db.Uuid @map("account_id")
+  leadId    String?  @db.Uuid @map("lead_id")
+  contactId String?  @db.Uuid @map("contact_id")
+  templateId String? @db.Uuid @map("template_id")
+  direction String
+  status    String   @default("queued")
+  payload   Json?
+  providerMessageId String? @map("provider_message_id")
+  sentAt    DateTime? @map("sent_at")
+  deliveredAt DateTime? @map("delivered_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  account WhatsappAccount? @relation(fields: [accountId], references: [id])
+  lead Lead? @relation(fields: [leadId], references: [id])
+  contact Contact? @relation(fields: [contactId], references: [id])
+  template WhatsappTemplate? @relation(fields: [templateId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, status])
+  @@index([tenantId, sentAt])
+  @@map("whatsapp_messages")
+}
+
+model WhatsappWebhook {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  provider  String
+  eventType String   @map("event_type")
+  payload   Json?
+  receivedAt DateTime @default(now()) @map("received_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, eventType])
+  @@index([receivedAt])
+  @@map("whatsapp_webhooks")
+}
+
+model WhatsappOptOut {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  contactId String   @db.Uuid @map("contact_id")
+  reason    String?
+  optedOutAt DateTime @default(now()) @map("opted_out_at")
+
+  contact Contact @relation(fields: [contactId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, contactId])
+  @@map("whatsapp_opt_outs")
+}
+
+model ReminderRule {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  name      String
+  triggerKey String @map("trigger_key")
+  schedule  Json?
+  channel   String
+  isActive  Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  schedules ReminderSchedule[]
+  sent RemindersSent[]
+
+  @@index([tenantId, triggerKey])
+  @@index([tenantId, isActive])
+  @@map("reminder_rules")
+}
+
+model ReminderSchedule {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  ruleId    String   @db.Uuid @map("rule_id")
+  scheduledAt DateTime @map("scheduled_at")
+  status    String   @default("queued")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  rule ReminderRule @relation(fields: [ruleId], references: [id])
+  lead Lead @relation(fields: [leadId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, scheduledAt])
+  @@index([tenantId, status])
+  @@map("reminder_schedules")
+}
+
+model RemindersSent {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  ruleId    String   @db.Uuid @map("rule_id")
+  channel   String
+  sentAt    DateTime @default(now()) @map("sent_at")
+  result    String?
+
+  rule ReminderRule @relation(fields: [ruleId], references: [id])
+  lead Lead @relation(fields: [leadId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, sentAt])
+  @@map("reminders_sent")
+}
+
+model CommissionPlan {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  name      String
+  isActive  Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  rules CommissionRule[]
+
+  @@index([tenantId, isActive])
+  @@map("commission_plans")
+}
+
+model CommissionRule {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  planId    String   @db.Uuid @map("plan_id")
+  rule      Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  plan CommissionPlan @relation(fields: [planId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, planId])
+  @@map("commission_rules")
+}
+
+model CommissionLedger {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  dealId    String   @db.Uuid @map("deal_id")
+  userId    String   @db.Uuid @map("user_id")
+  amount    Decimal  @db.Decimal(14, 2)
+  currency  String   @default("USD")
+  entryType String   @map("entry_type")
+  status    String   @default("pending")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  deal Deal @relation(fields: [dealId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  approvals CommissionApproval[]
+
+  @@index([tenantId, dealId])
+  @@index([tenantId, userId])
+  @@index([tenantId, status])
+  @@map("commission_ledger")
+}
+
+model CommissionApproval {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  ledgerId  String   @db.Uuid @map("ledger_id")
+  approvedBy String? @db.Uuid @map("approved_by")
+  status    String   @default("pending")
+  decidedAt DateTime? @map("decided_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  ledger CommissionLedger @relation(fields: [ledgerId], references: [id])
+  approver User? @relation(fields: [approvedBy], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, ledgerId])
+  @@index([tenantId, status])
+  @@map("commission_approvals")
+}
+
+model BlacklistEntry {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  identifierType String @map("identifier_type")
+  identifierValue String @map("identifier_value")
+  reason    String?
+  severity  String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  matches BlacklistMatch[]
+
+  @@index([tenantId, identifierType, identifierValue])
+  @@index([tenantId, severity])
+  @@map("blacklist_entries")
+}
+
+model BlacklistMatch {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  entryId   String   @db.Uuid @map("entry_id")
+  matchScore Decimal @db.Decimal(5, 2) @map("match_score")
+  status    String   @default("flagged")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  entry BlacklistEntry @relation(fields: [entryId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, status])
+  @@map("blacklist_matches")
+}
+
+model RiskScore {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  score     Decimal  @db.Decimal(5, 2)
+  factors   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, score])
+  @@map("risk_scores")
+}
+
+model LeadScore {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  score     Decimal  @db.Decimal(5, 2)
+  reasons   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  lead Lead @relation(fields: [leadId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, leadId])
+  @@index([tenantId, score])
+  @@map("lead_scores")
+}
+
+model LeadMetricsDaily {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  metricDate DateTime @db.Date @map("metric_date")
+  teamId    String?  @db.Uuid @map("team_id")
+  userId    String?  @db.Uuid @map("user_id")
+  leadsCreated Int @default(0) @map("leads_created")
+  leadsClosed Int @default(0) @map("leads_closed")
+  avgCycleHours Decimal? @db.Decimal(10, 2) @map("avg_cycle_hours")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  team Team? @relation(fields: [teamId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, metricDate])
+  @@index([tenantId, teamId])
+  @@index([tenantId, userId])
+  @@map("lead_metrics_daily")
+}
+
+model DisciplineIndexSnapshot {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  userId    String   @db.Uuid @map("user_id")
+  snapshotDate DateTime @db.Date @map("snapshot_date")
+  score     Decimal @db.Decimal(5, 2)
+  factors   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, snapshotDate])
+  @@index([tenantId, userId])
+  @@map("discipline_index_snapshots")
+}
+
+model RankingSnapshot {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  snapshotDate DateTime @db.Date @map("snapshot_date")
+  rankingType String @map("ranking_type")
+  payload   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, snapshotDate])
+  @@index([tenantId, rankingType])
+  @@map("ranking_snapshots")
+}
+
+model GoalPlan {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  name      String
+  period    String
+  startsAt  DateTime @map("starts_at")
+  endsAt    DateTime @map("ends_at")
+  status    String   @default("active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  targets GoalTarget[]
+
+  @@index([tenantId, period])
+  @@index([tenantId, status])
+  @@map("goal_plans")
+}
+
+model GoalTarget {
+  id          String   @id @default(uuid()) @db.Uuid
+  tenantId    String   @db.Uuid @map("tenant_id")
+  planId      String   @db.Uuid @map("plan_id")
+  subjectType String   @map("subject_type")
+  subjectId   String   @db.Uuid @map("subject_id")
+  metricKey   String   @map("metric_key")
+  targetValue Decimal  @db.Decimal(14, 2) @map("target_value")
+  weight      Decimal? @db.Decimal(5, 2)
+  achievedAt  DateTime? @map("achieved_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  plan GoalPlan @relation(fields: [planId], references: [id])
+
+  @@index([tenantId, planId])
+  @@index([tenantId, subjectType, subjectId])
+  @@index([tenantId, metricKey])
+  @@map("goal_targets")
+}
+
+model NotificationEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  eventKey  String   @map("event_key")
+  payload   Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  deliveries NotificationDelivery[]
+
+  @@index([tenantId, eventKey])
+  @@index([createdAt])
+  @@map("notification_events")
+}
+
+model NotificationRule {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  eventKey  String   @map("event_key")
+  channel   String
+  recipients Json?
+  templateRef String? @map("template_ref")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  deliveries NotificationDelivery[]
+
+  @@index([tenantId, eventKey])
+  @@index([tenantId, isActive])
+  @@map("notification_rules")
+}
+
+model NotificationDelivery {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  ruleId    String?  @db.Uuid @map("rule_id")
+  eventId   String   @db.Uuid @map("event_id")
+  channel   String
+  status    String   @default("queued")
+  scheduledAt DateTime? @map("scheduled_at")
+  sentAt    DateTime? @map("sent_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  rule NotificationRule? @relation(fields: [ruleId], references: [id])
+  event NotificationEvent @relation(fields: [eventId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([tenantId, scheduledAt])
+  @@map("notification_deliveries")
+}
+
+model NotificationQuota {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  userId    String   @db.Uuid @map("user_id")
+  dayKey    String   @map("day_key")
+  sentCount Int      @default(0) @map("sent_count")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([tenantId, userId, dayKey])
+  @@index([tenantId, dayKey])
+  @@map("notification_quota")
+}
+
+model ScheduledJob {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  jobKey    String   @map("job_key")
+  schedule  String
+  isActive  Boolean  @default(true) @map("is_active")
+  lastRunAt DateTime? @map("last_run_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  runs JobRun[]
+
+  @@index([tenantId, jobKey])
+  @@index([tenantId, isActive])
+  @@map("scheduled_jobs")
+}
+
+model JobRun {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  jobId     String   @db.Uuid @map("job_id")
+  startedAt DateTime @map("started_at")
+  finishedAt DateTime? @map("finished_at")
+  status    String
+  result    Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  job ScheduledJob @relation(fields: [jobId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, jobId])
+  @@index([tenantId, status])
+  @@index([startedAt])
+  @@map("job_runs")
+}
+
+model Conversation {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  type      String
+  title     String?
+  entityType String?
+  entityId   String? @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  participants ConversationParticipant[]
+  messages Message[]
+
+  @@index([tenantId, type])
+  @@index([tenantId, entityType, entityId])
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  conversationId String @db.Uuid @map("conversation_id")
+  userId    String   @db.Uuid @map("user_id")
+  role      String   @default("member")
+  joinedAt  DateTime @default(now()) @map("joined_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, conversationId])
+  @@index([tenantId, userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  conversationId String @db.Uuid @map("conversation_id")
+  senderId  String   @db.Uuid @map("sender_id")
+  content   String?
+  contentType String @default("text")
+  mediaFileId String? @db.Uuid @map("media_file_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  readBy    Json?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  sender User @relation(fields: [senderId], references: [id])
+  mediaFile File? @relation(fields: [mediaFileId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, conversationId])
+  @@index([tenantId, senderId])
+  @@index([tenantId, createdAt])
+  @@map("messages")
+}

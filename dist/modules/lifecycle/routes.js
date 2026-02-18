@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.router = void 0;
+const express_1 = require("express");
+const asyncHandler_1 = require("../../utils/asyncHandler");
+const controller_1 = require("./controller");
+const rbac_1 = require("../../middleware/rbac");
+exports.router = (0, express_1.Router)();
+exports.router.post("/states", (0, rbac_1.requirePermission)("lifecycle.create"), (0, asyncHandler_1.asyncHandler)(controller_1.lifecycleController.createState));
+exports.router.post("/transitions", (0, rbac_1.requirePermission)("lifecycle.create"), (0, asyncHandler_1.asyncHandler)(controller_1.lifecycleController.createTransition));
+exports.router.post("/leads/:leadId/transition", (0, rbac_1.requirePermission)("leads.update"), (0, asyncHandler_1.asyncHandler)(controller_1.lifecycleController.transitionLead));
+exports.router.post("/deadlines", (0, rbac_1.requirePermission)("lifecycle.create"), (0, asyncHandler_1.asyncHandler)(controller_1.lifecycleController.createDeadline));
+exports.router.post("/extensions", (0, rbac_1.requirePermission)("leads.update"), (0, asyncHandler_1.asyncHandler)(controller_1.lifecycleController.requestExtension));
+exports.router.post("/extensions/:id/approve", (0, rbac_1.requirePermission)("lifecycle.approve"), (0, asyncHandler_1.asyncHandler)(controller_1.lifecycleController.approveExtension));
+exports.router.post("/extensions/:id/reject", (0, rbac_1.requirePermission)("lifecycle.approve"), (0, asyncHandler_1.asyncHandler)(controller_1.lifecycleController.rejectExtension));

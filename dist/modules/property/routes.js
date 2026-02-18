@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.router = void 0;
+const express_1 = require("express");
+const asyncHandler_1 = require("../../utils/asyncHandler");
+const controller_1 = require("./controller");
+const rbac_1 = require("../../middleware/rbac");
+exports.router = (0, express_1.Router)();
+exports.router.post("/properties", (0, rbac_1.requirePermission)("properties.create"), (0, asyncHandler_1.asyncHandler)(controller_1.propertyController.createProperty));
+exports.router.post("/units", (0, rbac_1.requirePermission)("properties.create"), (0, asyncHandler_1.asyncHandler)(controller_1.propertyController.createUnit));
+exports.router.post("/listings", (0, rbac_1.requirePermission)("listings.create"), (0, asyncHandler_1.asyncHandler)(controller_1.propertyController.createListing));
+exports.router.post("/inquiries", (0, rbac_1.requirePermission)("inquiries.create"), (0, asyncHandler_1.asyncHandler)(controller_1.propertyController.createInquiry));
+exports.router.post("/deals", (0, rbac_1.requirePermission)("deals.create"), (0, asyncHandler_1.asyncHandler)(controller_1.propertyController.createDeal));
+exports.router.post("/offers", (0, rbac_1.requirePermission)("offers.create"), (0, asyncHandler_1.asyncHandler)(controller_1.propertyController.createOffer));

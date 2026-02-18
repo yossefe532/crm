@@ -1,0 +1,41 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.router = void 0;
+const express_1 = require("express");
+const asyncHandler_1 = require("../../utils/asyncHandler");
+const controller_1 = require("./controller");
+const rbac_1 = require("../../middleware/rbac");
+exports.router = (0, express_1.Router)();
+exports.router.post("/tenants", (0, asyncHandler_1.asyncHandler)(controller_1.coreController.createTenant));
+exports.router.get("/tenants", (0, asyncHandler_1.asyncHandler)(controller_1.coreController.listTenants));
+exports.router.post("/users", (0, rbac_1.requirePermission)("users.create"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.createUser));
+exports.router.get("/users", (0, rbac_1.requirePermission)("users.read"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.listUsers));
+exports.router.get("/users/:userId/audit", rbac_1.requireOwner, (0, rbac_1.requirePermission)("users.read"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.listUserAuditLogs));
+exports.router.post("/users/:userId/transfer", rbac_1.requireOwner, (0, rbac_1.requirePermission)("users.update"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.transferUserTeam));
+exports.router.post("/users/:userId/promote", rbac_1.requireOwner, (0, rbac_1.requirePermission)("users.update"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.promoteToTeamLeader));
+exports.router.post("/user-requests", (req, res, next) => {
+    if (req.user?.roles?.includes("team_leader"))
+        return next();
+    return (0, rbac_1.requirePermission)("user_requests.create")(req, res, next);
+}, (0, asyncHandler_1.asyncHandler)(controller_1.coreController.createUserRequest));
+exports.router.get("/user-requests", (0, rbac_1.requirePermission)("user_requests.read"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.listUserRequests));
+exports.router.post("/user-requests/:requestId/decide", (0, rbac_1.requirePermission)("user_requests.decide"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.decideUserRequest));
+exports.router.post("/roles", rbac_1.requireOwner, (0, rbac_1.requirePermission)("roles.create"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.createRole));
+exports.router.get("/roles", rbac_1.requireOwner, (0, rbac_1.requirePermission)("roles.read"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.listRoles));
+exports.router.get("/permissions", rbac_1.requireOwner, (0, rbac_1.requirePermission)("permissions.read"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.listPermissions));
+exports.router.get("/roles/:roleId/permissions", rbac_1.requireOwner, (0, rbac_1.requirePermission)("roles.read"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.listRolePermissions));
+exports.router.put("/roles/:roleId/permissions", rbac_1.requireOwner, (0, rbac_1.requirePermission)("roles.update"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.updateRolePermissions));
+exports.router.post("/teams", (0, rbac_1.requirePermission)("teams.create"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.createTeam));
+exports.router.get("/teams", (0, rbac_1.requirePermission)("teams.read"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.listTeams));
+exports.router.delete("/teams/:teamId", rbac_1.requireOwner, (0, rbac_1.requirePermission)("teams.delete"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.deleteTeam));
+exports.router.post("/files", (0, rbac_1.requirePermission)("files.create"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.createFile));
+exports.router.post("/icons", (0, rbac_1.requirePermission)("icons.create"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.createIcon));
+exports.router.get("/icons", (0, rbac_1.requirePermission)("icons.read"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.listIcons));
+exports.router.post("/notes", (0, rbac_1.requirePermission)("notes.create"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.createNote));
+exports.router.post("/contacts", (0, rbac_1.requirePermission)("contacts.create"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.createContact));
+exports.router.get("/contacts", (0, rbac_1.requirePermission)("contacts.read"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.listContacts));
+exports.router.post("/finance", (0, rbac_1.requirePermission)("finance.create"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.createFinanceEntry));
+exports.router.get("/finance", (0, rbac_1.requirePermission)("finance.read"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.listFinanceEntries));
+// Backup & Import (Owner only)
+exports.router.get("/backup/export", rbac_1.requireOwner, (0, asyncHandler_1.asyncHandler)(controller_1.coreController.exportBackup));
+exports.router.post("/backup/import", rbac_1.requireOwner, (0, asyncHandler_1.asyncHandler)(controller_1.coreController.importBackup));

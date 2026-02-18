@@ -1,0 +1,15 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.router = void 0;
+const express_1 = require("express");
+const asyncHandler_1 = require("../../utils/asyncHandler");
+const controller_1 = require("./controller");
+const rbac_1 = require("../../middleware/rbac");
+exports.router = (0, express_1.Router)();
+exports.router.post("/plans", (0, rbac_1.requirePermission)("goals.create"), (0, asyncHandler_1.asyncHandler)(controller_1.goalsController.createPlan));
+exports.router.get("/plans", (0, rbac_1.requirePermission)("goals.read"), (0, asyncHandler_1.asyncHandler)(controller_1.goalsController.listPlans));
+exports.router.delete("/plans/:planId", (0, rbac_1.requirePermission)("goals.create"), (0, asyncHandler_1.asyncHandler)(controller_1.goalsController.deletePlan));
+exports.router.get("/plans/:planId/targets", (0, rbac_1.requirePermission)("goals.read"), (0, asyncHandler_1.asyncHandler)(controller_1.goalsController.listTargets));
+exports.router.post("/plans/:planId/targets", (0, rbac_1.requirePermission)("goals.update"), (0, asyncHandler_1.asyncHandler)(controller_1.goalsController.setTargets));
+exports.router.get("/plans/:planId/report", (0, rbac_1.requirePermission)("goals.read"), (0, asyncHandler_1.asyncHandler)(controller_1.goalsController.report));
+exports.router.get("/overview", (0, rbac_1.requirePermission)("goals.read"), (0, asyncHandler_1.asyncHandler)(controller_1.goalsController.overview));

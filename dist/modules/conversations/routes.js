@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.router = void 0;
+const express_1 = require("express");
+const asyncHandler_1 = require("../../utils/asyncHandler");
+const controller_1 = require("./controller");
+const rbac_1 = require("../../middleware/rbac");
+exports.router = (0, express_1.Router)();
+exports.router.get("/", (0, rbac_1.requirePermission)("conversations.read"), (0, asyncHandler_1.asyncHandler)(controller_1.conversationController.list));
+exports.router.get("/owner-group", (0, rbac_1.requirePermission)("conversations.read"), (0, asyncHandler_1.asyncHandler)(controller_1.conversationController.getOwnerGroup));
+exports.router.post("/direct", (0, rbac_1.requirePermission)("conversations.create"), (0, asyncHandler_1.asyncHandler)(controller_1.conversationController.createDirect));
+exports.router.post("/team", (0, rbac_1.requirePermission)("conversations.create"), (0, asyncHandler_1.asyncHandler)(controller_1.conversationController.createTeamGroup));
+exports.router.get("/:id/messages", (0, rbac_1.requirePermission)("messages.read"), (0, asyncHandler_1.asyncHandler)(controller_1.conversationController.listMessages));
+exports.router.post("/:id/messages", (0, rbac_1.requirePermission)("messages.send"), (0, asyncHandler_1.asyncHandler)(controller_1.conversationController.sendMessage));

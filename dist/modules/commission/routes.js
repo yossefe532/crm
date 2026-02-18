@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.router = void 0;
+const express_1 = require("express");
+const asyncHandler_1 = require("../../utils/asyncHandler");
+const controller_1 = require("./controller");
+const rbac_1 = require("../../middleware/rbac");
+exports.router = (0, express_1.Router)();
+exports.router.get("/ledger", (0, rbac_1.requirePermission)("commissions.read"), (0, asyncHandler_1.asyncHandler)(controller_1.commissionController.listLedger));
+exports.router.post("/plans", (0, rbac_1.requirePermission)("commissions.create"), (0, asyncHandler_1.asyncHandler)(controller_1.commissionController.createPlan));
+exports.router.post("/rules", (0, rbac_1.requirePermission)("commissions.create"), (0, asyncHandler_1.asyncHandler)(controller_1.commissionController.createRule));
+exports.router.post("/ledger", (0, rbac_1.requirePermission)("commissions.create"), (0, asyncHandler_1.asyncHandler)(controller_1.commissionController.createLedgerEntry));
+exports.router.post("/ledger/:id/approve", (0, rbac_1.requirePermission)("commissions.approve"), (0, asyncHandler_1.asyncHandler)(controller_1.commissionController.approveLedgerEntry));

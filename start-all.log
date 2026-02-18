@@ -1,0 +1,385 @@
+﻿2026-02-13 06:39:43 ---- start-all ----
+2026-02-13 06:39:43 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-13 06:39:43 Root=D:\شغل\crm doctor V2\system
+2026-02-13 06:39:43 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-13 06:40:06 PostgresReachable=false
+2026-02-13 06:40:06 ApiBase=http://localhost:4000/api
+2026-02-13 06:40:07 BackendPid=30024
+2026-02-13 06:40:07 FrontendPid=10456
+2026-02-13 06:40:07 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-13 06:40:09 OpenedBrowser=true
+2026-02-13 06:42:18 ---- start-all ----
+2026-02-13 06:42:18 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-13 06:42:18 Root=D:\شغل\crm doctor V2\system
+2026-02-13 06:42:18 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-13 06:42:37 PostgresReachable=false
+2026-02-13 06:42:37 ApiBase=http://localhost:4000/api
+2026-02-13 06:42:37 BackendPid=11184
+2026-02-13 06:42:37 FrontendPid=19356
+2026-02-13 06:42:37 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-13 06:42:40 OpenedBrowser=true
+2026-02-13 06:42:58 ---- start-all ----
+2026-02-13 06:42:58 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-13 06:42:58 Root=D:\شغل\crm doctor V2\system
+2026-02-13 06:42:58 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-13 06:43:11 BackendPortChangedFrom=4000 To=4001
+2026-02-13 06:43:17 PostgresReachable=false
+2026-02-13 06:43:17 ApiBase=http://localhost:4001/api
+2026-02-13 06:43:17 BackendPid=28272
+2026-02-13 06:43:17 FrontendPid=27740
+2026-02-13 06:43:17 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-13 06:43:20 OpenedBrowser=true
+2026-02-13 06:44:09 ---- start-all ----
+2026-02-13 06:44:09 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-13 06:44:09 Root=D:\شغل\crm doctor V2\system
+2026-02-13 06:44:09 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-13 06:44:22 BackendPortChangedFrom=4000 To=4001
+2026-02-13 06:44:28 PostgresReachable=false
+2026-02-13 06:44:28 ApiBase=http://localhost:4001/api
+2026-02-13 06:44:28 BackendPid=27228
+2026-02-13 06:44:28 FrontendPid=19176
+2026-02-13 06:44:28 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-13 06:44:31 OpenedBrowser=true
+2026-02-13 06:45:02 ---- start-all ----
+2026-02-13 06:45:02 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-13 06:45:02 Root=D:\شغل\crm doctor V2\system
+2026-02-13 06:45:02 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-13 06:45:15 BackendPortChangedFrom=4000 To=4002
+2026-02-13 06:45:20 PostgresReachable=false
+2026-02-13 06:45:20 ApiBase=http://localhost:4002/api
+2026-02-13 06:45:21 BackendPid=30048
+2026-02-13 06:45:21 FrontendPid=30344
+2026-02-13 06:45:21 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-13 06:45:23 OpenedBrowser=true
+2026-02-13 06:46:54 ---- start-all ----
+2026-02-13 06:46:54 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-13 06:46:54 Root=D:\شغل\crm doctor V2\system
+2026-02-13 06:46:54 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-13 06:47:08 BackendPortChangedFrom=4000 To=4002
+2026-02-13 06:47:13 PostgresReachable=false
+2026-02-13 06:47:13 ApiBase=http://localhost:4002/api
+2026-02-13 06:47:14 BackendPid=18964
+2026-02-13 06:47:14 FrontendPid=23080
+2026-02-13 06:47:14 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-13 06:47:16 OpenedBrowser=true
+2026-02-13 06:47:52 ---- start-all ----
+2026-02-13 06:47:52 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-13 06:47:52 Root=D:\شغل\crm doctor V2\system
+2026-02-13 06:47:52 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-13 06:48:06 BackendPortChangedFrom=4000 To=4003
+2026-02-13 06:48:11 PostgresReachable=false
+2026-02-13 06:48:11 ApiBase=http://localhost:4003/api
+2026-02-13 06:48:12 BackendPid=12344
+2026-02-13 06:48:12 FrontendPid=20540
+2026-02-13 06:48:12 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-13 06:48:15 OpenedBrowser=true
+2026-02-13 07:13:31 ---- start-all ----
+2026-02-13 07:13:31 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-13 07:13:31 Root=D:\شغل\crm doctor V2\system
+2026-02-13 07:13:31 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-13 07:13:49 PostgresReachable=false
+2026-02-13 07:13:49 ApiBase=http://localhost:4000/api
+2026-02-13 07:13:49 BackendPid=14496
+2026-02-13 07:13:49 FrontendPid=17540
+2026-02-13 07:13:49 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-13 07:13:51 OpenedBrowser=true
+2026-02-13 05:51:59 ---- start-all ----
+2026-02-13 05:51:59 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-13 05:51:59 Root=D:\شغل\crm doctor V2\system
+2026-02-13 05:51:59 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-13 05:52:19 PostgresReachable=false
+2026-02-13 05:52:19 ApiBase=http://localhost:4000/api
+2026-02-13 05:52:19 WroteWebEnvLocal=true
+2026-02-13 05:52:19 BackendPid=26676
+2026-02-13 05:52:19 FrontendPid=21344
+2026-02-13 05:52:19 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-13 05:52:21 OpenedBrowser=true
+2026-02-13 06:03:30 ---- start-all ----
+2026-02-13 06:03:30 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-13 06:03:30 Root=D:\شغل\crm doctor V2\system
+2026-02-13 06:03:30 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-13 06:03:38 PortInUse=4000
+2026-02-13 06:03:42 ---- start-all ----
+2026-02-13 06:03:42 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-13 06:03:42 Root=D:\شغل\crm doctor V2\system
+2026-02-13 06:03:42 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-13 06:04:00 PostgresReachable=false
+2026-02-13 06:04:00 ApiBase=http://localhost:4000/api
+2026-02-13 06:04:00 WroteWebEnvLocal=true
+2026-02-13 06:04:00 BackendPid=17344
+2026-02-13 06:04:00 FrontendPid=33664
+2026-02-13 06:04:00 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-13 06:04:02 OpenedBrowser=true
+2026-02-13 12:14:55 ---- start-all ----
+2026-02-13 12:14:55 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-13 12:14:55 Root=D:\شغل\crm doctor V2\system
+2026-02-13 12:14:55 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-13 12:15:11 PostgresReachable=true
+2026-02-13 12:15:11 PrismaPrepare=true
+2026-02-13 12:15:18 ApiBase=/api
+2026-02-13 12:15:18 WroteWebEnvLocal=skipped_existing
+2026-02-13 12:15:19 BackendPid=28764
+2026-02-13 12:15:19 FrontendPid=9192
+2026-02-13 12:15:19 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-13 12:15:21 OpenedBrowser=true
+2026-02-14 00:42:38 ---- start-all ----
+2026-02-14 00:42:38 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-14 00:42:38 Root=D:\شغل\crm doctor V2\system
+2026-02-14 00:42:38 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-14 00:42:50 ---- start-all ----
+2026-02-14 00:42:50 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-14 00:42:50 Root=D:\شغل\crm doctor V2\system
+2026-02-14 00:42:50 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-14 00:43:17 PostgresReachable=true
+2026-02-14 00:43:17 PrismaPrepare=true
+2026-02-14 00:43:38 ApiBase=/api
+2026-02-14 00:43:38 WroteWebEnvLocal=skipped_existing
+2026-02-14 00:43:38 BackendPid=9452
+2026-02-14 00:43:38 FrontendPid=16216
+2026-02-14 00:43:38 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-14 00:43:40 OpenedBrowser=true
+2026-02-14 14:43:22 ---- start-all ----
+2026-02-14 14:43:23 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-14 14:43:23 Root=D:\شغل\crm doctor V2\system
+2026-02-14 14:43:23 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-14 14:43:55 PostgresReachable=true
+2026-02-14 14:43:55 PrismaPrepare=true
+2026-02-14 14:44:07 ApiBase=/api
+2026-02-14 14:44:07 WroteWebEnvLocal=skipped_existing
+2026-02-14 14:44:07 BackendPid=1888
+2026-02-14 14:44:07 FrontendPid=16128
+2026-02-14 14:44:07 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-14 14:44:09 OpenedBrowser=true
+2026-02-14 23:34:36 ---- start-all ----
+2026-02-14 23:34:36 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-14 23:34:36 Root=D:\شغل\crm doctor V2\system
+2026-02-14 23:34:36 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-14 23:35:04 PostgresReachable=true
+2026-02-14 23:35:04 PrismaPrepare=true
+2026-02-14 23:35:19 ApiBase=/api
+2026-02-14 23:35:19 WroteWebEnvLocal=skipped_existing
+2026-02-14 23:35:20 BackendPid=14912
+2026-02-14 23:35:20 FrontendPid=16240
+2026-02-14 23:35:20 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-14 23:35:22 OpenedBrowser=true
+2026-02-15 16:36:24 ---- start-all ----
+2026-02-15 16:36:24 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-15 16:36:24 Root=D:\شغل\crm doctor V2\system
+2026-02-15 16:36:24 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-15 16:36:50 PostgresReachable=true
+2026-02-15 16:36:50 PrismaPrepare=true
+2026-02-15 16:37:04 ApiBase=/api
+2026-02-15 16:37:04 WroteWebEnvLocal=skipped_existing
+2026-02-15 16:37:05 BackendPid=768
+2026-02-15 16:37:05 FrontendPid=2996
+2026-02-15 16:37:05 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-15 16:37:07 OpenedBrowser=true
+2026-02-15 19:59:52 ---- start-all ----
+2026-02-15 19:59:52 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-15 19:59:52 Root=D:\شغل\crm doctor V2\system
+2026-02-15 19:59:52 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-15 20:00:15 PostgresReachable=true
+2026-02-15 20:00:15 PrismaPrepare=true
+2026-02-15 20:00:32 ApiBase=/api
+2026-02-15 20:00:32 WroteWebEnvLocal=skipped_existing
+2026-02-15 20:00:32 BackendPid=9432
+2026-02-15 20:00:32 FrontendPid=4956
+2026-02-15 20:00:32 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-15 20:00:34 OpenedBrowser=true
+2026-02-15 20:16:55 ---- start-all ----
+2026-02-15 20:16:55 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-15 20:16:55 Root=D:\شغل\crm doctor V2\system
+2026-02-15 20:16:55 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-15 20:17:09 PostgresReachable=true
+2026-02-15 20:17:09 PrismaPrepare=true
+2026-02-15 20:17:22 ApiBase=/api
+2026-02-15 20:17:22 WroteWebEnvLocal=skipped_existing
+2026-02-15 20:17:22 BackendPid=13064
+2026-02-15 20:17:22 FrontendPid=23228
+2026-02-15 20:17:22 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-15 20:17:24 OpenedBrowser=true
+2026-02-15 21:01:51 ---- start-all ----
+2026-02-15 21:01:51 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-15 21:01:51 Root=D:\شغل\crm doctor V2\system
+2026-02-15 21:01:51 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-15 21:02:09 PostgresReachable=true
+2026-02-15 21:02:09 PrismaPrepare=true
+2026-02-15 21:02:24 ApiBase=/api
+2026-02-15 21:02:24 WroteWebEnvLocal=skipped_existing
+2026-02-15 21:02:24 BackendPid=10052
+2026-02-15 21:02:24 FrontendPid=15404
+2026-02-15 21:02:24 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-15 21:02:27 OpenedBrowser=true
+2026-02-15 21:05:44 ---- start-all ----
+2026-02-15 21:05:44 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-15 21:05:44 Root=D:\شغل\crm doctor V2\system
+2026-02-15 21:05:44 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-15 21:05:48 PortInUse=3000
+2026-02-15 23:22:26 ---- start-all ----
+2026-02-15 23:22:26 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-15 23:22:26 Root=D:\شغل\crm doctor V2\system
+2026-02-15 23:22:26 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-15 23:22:27 PortInUse=3000
+2026-02-15 23:23:09 ---- start-all ----
+2026-02-15 23:23:09 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-15 23:23:09 Root=D:\شغل\crm doctor V2\system
+2026-02-15 23:23:09 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-15 23:23:33 PortInUse=4000
+2026-02-15 23:24:23 ---- start-all ----
+2026-02-15 23:24:23 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-15 23:24:23 Root=D:\شغل\crm doctor V2\system
+2026-02-15 23:24:23 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-15 23:24:41 PostgresReachable=true
+2026-02-15 23:24:41 PrismaPrepare=true
+2026-02-15 23:24:55 ApiBase=/api
+2026-02-15 23:24:55 WroteWebEnvLocal=skipped_existing
+2026-02-15 23:24:56 BackendPid=24120
+2026-02-15 23:24:56 FrontendPid=23564
+2026-02-15 23:24:56 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-15 23:24:58 OpenedBrowser=true
+2026-02-15 23:55:56 ---- start-all ----
+2026-02-15 23:55:56 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-15 23:55:56 Root=D:\شغل\crm doctor V2\system
+2026-02-15 23:55:56 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-15 23:56:12 PostgresReachable=true
+2026-02-15 23:56:12 PrismaPrepare=true
+2026-02-15 23:56:21 ApiBase=/api
+2026-02-15 23:56:21 WroteWebEnvLocal=skipped_existing
+2026-02-15 23:56:21 BackendPid=22756
+2026-02-15 23:56:21 FrontendPid=5124
+2026-02-15 23:56:21 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-15 23:56:23 OpenedBrowser=true
+2026-02-16 18:10:38 ---- start-all ----
+2026-02-16 18:10:38 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-16 18:10:38 Root=D:\شغل\crm doctor V2\system
+2026-02-16 18:10:38 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-16 18:10:58 PostgresReachable=true
+2026-02-16 18:10:58 PrismaPrepare=true
+2026-02-16 18:11:11 ApiBase=/api
+2026-02-16 18:11:11 WroteWebEnvLocal=skipped_existing
+2026-02-16 18:11:11 BackendPid=7536
+2026-02-16 18:11:11 FrontendPid=22472
+2026-02-16 18:11:11 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-16 18:11:13 OpenedBrowser=true
+2026-02-17 15:24:32 ---- start-all ----
+2026-02-17 15:24:32 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-17 15:24:32 Root=D:\شغل\crm doctor V2\system
+2026-02-17 15:24:32 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-17 15:24:55 PostgresReachable=true
+2026-02-17 15:24:55 PrismaPrepare=true
+2026-02-17 15:25:12 ApiBase=/api
+2026-02-17 15:25:12 WroteWebEnvLocal=skipped_existing
+2026-02-17 15:25:12 BackendPid=24432
+2026-02-17 15:25:12 FrontendPid=15340
+2026-02-17 15:25:12 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-17 15:25:14 OpenedBrowser=true
+2026-02-17 18:01:02 ---- start-all ----
+2026-02-17 18:01:02 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-17 18:01:02 Root=D:\شغل\crm doctor V2\system
+2026-02-17 18:01:02 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-17 18:01:21 PostgresReachable=true
+2026-02-17 18:01:21 PrismaPrepare=true
+2026-02-17 18:01:33 ApiBase=/api
+2026-02-17 18:01:33 WroteWebEnvLocal=skipped_existing
+2026-02-17 18:01:34 BackendPid=12800
+2026-02-17 18:01:34 FrontendPid=11800
+2026-02-17 18:01:34 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-17 18:01:36 OpenedBrowser=true
+2026-02-18 01:45:00 ---- start-all ----
+2026-02-18 01:45:00 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-18 01:45:00 Root=D:\شغل\crm doctor V2\system
+2026-02-18 01:45:00 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-18 01:45:12 PortInUse=4000
+2026-02-18 01:45:26 ---- start-all ----
+2026-02-18 01:45:26 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-18 01:45:26 Root=D:\شغل\crm doctor V2\system
+2026-02-18 01:45:26 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-18 01:45:34 PortInUse=4000
+2026-02-18 01:45:42 ---- start-all ----
+2026-02-18 01:45:42 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-18 01:45:42 Root=D:\شغل\crm doctor V2\system
+2026-02-18 01:45:42 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-18 01:45:50 PortInUse=4000
+2026-02-18 01:55:47 ---- start-all ----
+2026-02-18 01:55:47 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-18 01:55:47 Root=D:\شغل\crm doctor V2\system
+2026-02-18 01:55:47 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-18 01:55:49 BackendReusePort=4000
+2026-02-18 01:55:58 BackendMode=reuse
+2026-02-18 01:55:58 BackendPort=4000
+2026-02-18 01:55:58 FrontendPort=3000
+2026-02-18 01:56:00 PostgresReachable=true
+2026-02-18 01:56:00 PrismaPrepare=true
+2026-02-18 01:56:14 ApiBase=/api
+2026-02-18 01:56:14 BackendOrigin=http://localhost:4000
+2026-02-18 01:56:14 WroteWebEnvLocal=skipped_existing
+2026-02-18 01:56:15 BackendPid=22864
+2026-02-18 01:56:15 FrontendPid=16860
+2026-02-18 01:56:15 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-18 01:56:17 OpenedBrowser=true
+2026-02-18 02:13:06 ---- start-all ----
+2026-02-18 02:13:06 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-18 02:13:06 Root=D:\شغل\crm doctor V2\system
+2026-02-18 02:13:06 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-18 02:13:08 BackendReusePort=4000
+2026-02-18 02:13:18 FrontendPortChangedFrom=3000 To=3001
+2026-02-18 02:13:18 BackendMode=reuse
+2026-02-18 02:13:18 BackendPort=4000
+2026-02-18 02:13:18 FrontendPort=3001
+2026-02-18 02:13:19 PostgresReachable=true
+2026-02-18 02:13:19 PrismaPrepare=skipped
+2026-02-18 02:13:19 ApiBase=/api
+2026-02-18 02:13:19 BackendOrigin=http://localhost:4000
+2026-02-18 02:13:19 WroteWebEnvLocal=skipped_existing
+2026-02-18 02:13:20 BackendPid=22864
+2026-02-18 02:13:20 FrontendPid=21140
+2026-02-18 02:13:20 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-18 02:13:22 OpenedBrowser=true
+2026-02-18 03:07:20 ---- start-all ----
+2026-02-18 03:07:21 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-18 03:07:21 Root=D:\شغل\crm doctor V2\system
+2026-02-18 03:07:21 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-18 03:07:38 BackendMode=spawn
+2026-02-18 03:07:38 BackendPort=4000
+2026-02-18 03:07:38 FrontendPort=3000
+2026-02-18 03:07:40 PostgresReachable=true
+2026-02-18 03:07:40 PrismaPrepare=true
+2026-02-18 03:07:53 ApiBase=/api
+2026-02-18 03:07:53 BackendOrigin=http://localhost:4000
+2026-02-18 03:07:53 WroteWebEnvLocal=skipped_existing
+2026-02-18 03:07:53 BackendPid=21372
+2026-02-18 03:07:53 FrontendPid=16504
+2026-02-18 03:07:53 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-18 03:07:55 OpenedBrowser=true
+2026-02-18 03:15:02 ---- start-all ----
+2026-02-18 03:15:02 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-18 03:15:02 Root=D:\شغل\crm doctor V2\system
+2026-02-18 03:15:02 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-18 03:15:36 BackendMode=spawn
+2026-02-18 03:15:36 BackendPort=4000
+2026-02-18 03:15:36 FrontendPort=3000
+2026-02-18 03:15:46 PostgresReachable=true
+2026-02-18 03:15:46 PrismaPrepare=true
+2026-02-18 03:15:59 ApiBase=/api
+2026-02-18 03:15:59 BackendOrigin=http://localhost:4000
+2026-02-18 03:15:59 WroteWebEnvLocal=skipped_existing
+2026-02-18 03:15:59 BackendPid=2952
+2026-02-18 03:15:59 FrontendPid=13104
+2026-02-18 03:15:59 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-18 03:16:01 OpenedBrowser=true
+2026-02-18 09:09:52 ---- start-all ----
+2026-02-18 09:09:52 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-18 09:09:52 Root=D:\شغل\crm doctor V2\system
+2026-02-18 09:09:52 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-18 09:10:11 BackendMode=spawn
+2026-02-18 09:10:11 BackendPort=4000
+2026-02-18 09:10:11 FrontendPort=3000
+2026-02-18 09:10:13 PostgresReachable=true
+2026-02-18 09:10:13 PrismaPrepare=true
+2026-02-18 09:10:34 ApiBase=/api
+2026-02-18 09:10:34 BackendOrigin=http://localhost:4000
+2026-02-18 09:10:34 WroteWebEnvLocal=skipped_existing
+2026-02-18 09:10:34 BackendPid=13228
+2026-02-18 09:10:34 FrontendPid=24712
+2026-02-18 09:10:34 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-18 09:10:36 OpenedBrowser=true

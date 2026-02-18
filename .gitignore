@@ -1,0 +1,23 @@
+node_modules
+
+# Backend/build output
+dist/
+
+# Logs & runtime files
+*.log
+.start-all.pids
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Next.js (frontend)
+web/.next/
+web/out/
+web/node_modules/
+web/.env.local
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
