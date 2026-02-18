@@ -51,6 +51,17 @@ export const createApp = () => {
   })
   app.use(express.json({ limit: "2mb" }))
   app.get("/api/health", (_req, res) => res.json({ ok: true }))
+  app.get("/api/debug-env", (_req, res) => {
+    const dbUrl = process.env.DATABASE_URL || "NOT_SET"
+    const maskedDbUrl = dbUrl.length > 20 
+      ? `${dbUrl.substring(0, 15)}...${dbUrl.substring(dbUrl.length - 10)}` 
+      : dbUrl
+    res.json({ 
+      dbUrl: maskedDbUrl,
+      nodeEnv: process.env.NODE_ENV,
+      port: process.env.PORT
+    })
+  })
   app.use("/api/auth", authRouter)
   app.use(authMiddleware)
   app.use(forceResetMiddleware)

@@ -4,13 +4,10 @@
   "description": "Professional CRM system for real estate management",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3000",
+    "dev": "next dev",
     "build": "next build",
-    "start": "next start -p 3000",
-    "lint": "next lint",
-    "test": "vitest",
-    "test:e2e": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",
