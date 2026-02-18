@@ -1,4 +1,4 @@
-backend=13228
-frontend=24712
+backend=11896
+frontend=4404
 backendPort=4000
-frontendPort=3000
+frontendPort=3001

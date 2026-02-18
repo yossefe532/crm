@@ -1,6 +1,5 @@
 const nextConfig = {
   reactStrictMode: true,
-  output: "standalone",
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -11,6 +10,7 @@ const nextConfig = {
         hostname: "i.postimg.cc"
       }
     ]
+  },
   async rewrites() {
     const backendOrigin = process.env.BACKEND_ORIGIN || "https://observant-achievement-production-bb94.up.railway.app"
     return [

@@ -9,18 +9,21 @@ export default function Home() {
       backgroundColor: '#f3f4f6',
       fontFamily: 'sans-serif'
     }}>
-      <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>CRM Doctor</h1>
+      <h1 style={{ fontSize: '2rem', marginBottom: '1rem', color: '#1f2937' }}>CRM Doctor System</h1>
+      <p style={{ marginBottom: '2rem', color: '#4b5563' }}>System Ready - Click below to login</p>
       <a 
         href="/login" 
         style={{
-          padding: '10px 20px',
+          padding: '12px 24px',
           backgroundColor: '#2563eb',
           color: 'white',
-          borderRadius: '5px',
-          textDecoration: 'none'
+          borderRadius: '8px',
+          textDecoration: 'none',
+          fontWeight: 'bold',
+          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
         }}
       >
-        تسجيل الدخول
+        Go to Login
       </a>
     </div>
   )

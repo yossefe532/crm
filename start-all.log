@@ -383,3 +383,20 @@
 2026-02-18 09:10:34 FrontendPid=24712
 2026-02-18 09:10:34 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
 2026-02-18 09:10:36 OpenedBrowser=true
+2026-02-18 17:22:34 ---- start-all ----
+2026-02-18 17:22:34 ScriptPath=D:\شغل\crm doctor V2\system\start-all.ps1
+2026-02-18 17:22:34 Root=D:\شغل\crm doctor V2\system
+2026-02-18 17:22:34 WebDir=D:\شغل\crm doctor V2\system\web
+2026-02-18 17:22:54 FrontendPortChangedFrom=3000 To=3001
+2026-02-18 17:22:54 BackendMode=spawn
+2026-02-18 17:22:54 BackendPort=4000
+2026-02-18 17:22:54 FrontendPort=3001
+2026-02-18 17:22:56 PostgresReachable=true
+2026-02-18 17:22:56 PrismaPrepare=true
+2026-02-18 17:23:10 ApiBase=/api
+2026-02-18 17:23:10 BackendOrigin=http://localhost:4000
+2026-02-18 17:23:10 WroteWebEnvLocal=skipped_existing
+2026-02-18 17:23:11 BackendPid=11896
+2026-02-18 17:23:11 FrontendPid=4404
+2026-02-18 17:23:11 PidsFile=D:\شغل\crm doctor V2\system\.start-all.pids
+2026-02-18 17:23:13 OpenedBrowser=true

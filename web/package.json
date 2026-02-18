@@ -1,6 +1,7 @@
 {
-  "name": "real-estate-crm-dashboard",
-  "version": "1.0.0",
+  "name": "crm-doctor-web",
+  "version": "1.0.1",
+  "description": "Professional CRM system for real estate management",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000",
