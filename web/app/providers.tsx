@@ -4,8 +4,12 @@ import { ReactNode, useEffect, useState } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { AuthProvider } from "../lib/auth/AuthContext"
 import { ThemeProvider } from "../lib/theme/ThemeProvider"
-import { CustomCursor } from "../components/ui/CustomCursor"
 import { LocaleProvider } from "../lib/i18n/LocaleContext"
+import dynamic from "next/dynamic"
+
+const CustomCursor = dynamic(() => import("../components/ui/CustomCursor").then(mod => mod.CustomCursor), {
+  ssr: false,
+})
 
 export const Providers = ({ children }: { children: ReactNode }) => {
   const [client] = useState(() => new QueryClient())
