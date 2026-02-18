@@ -2,15 +2,25 @@ import { NextRequest, NextResponse } from "next/server"
 
 const protectedPaths = ["/change-password", "/owner", "/team", "/sales", "/leads", "/pipeline", "/analytics", "/meetings", "/settings", "/connect"]
 
-export const middleware = (request: NextRequest) => {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const token = request.cookies.get("auth_token")?.value
+  const role = request.cookies.get("auth_role")?.value
+  const forceReset = request.cookies.get("auth_force_reset")?.value === "true"
+
+  // Handle root path redirect
+  if (pathname === "/") {
+    if (token && role) {
+      const destination = role === "owner" ? "/owner" : role === "team_leader" ? "/team" : "/sales"
+      return NextResponse.redirect(new URL(destination, request.url))
+    }
+    return NextResponse.redirect(new URL("/login", request.url))
+  }
+
   if (!protectedPaths.some((path) => pathname.startsWith(path))) {
     return NextResponse.next()
   }
 
-  const token = request.cookies.get("auth_token")?.value
-  const role = request.cookies.get("auth_role")?.value
-  const forceReset = request.cookies.get("auth_force_reset")?.value === "true"
   if (!token || !role) {
     return NextResponse.redirect(new URL("/login", request.url))
   }
