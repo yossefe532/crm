@@ -87,7 +87,7 @@ export default function FinancePage() {
       </Card>
       <Card title="إضافة عملية مالية">
         <form
-          className="grid gap-3 md:grid-cols-[160px_1fr_1fr_auto]"
+          className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-[160px_1fr_1fr_auto]"
           onSubmit={(event) => {
             event.preventDefault()
             setMessage(null)

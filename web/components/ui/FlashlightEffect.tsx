@@ -26,6 +26,7 @@ export default function FlashlightEffect() {
       if (!isDark) return
       
       // Optimization: Disable on mobile/touch devices
+      if (typeof window !== "undefined" && window.matchMedia("(hover: none)").matches) return null
       if (window.innerWidth < 768) return null
 
       const { clientX: x, clientY: y } = e

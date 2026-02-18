@@ -15,7 +15,7 @@ import { useLeads } from "../../lib/hooks/useLeads"
 const Lane = ({ id, title, count, children, isDisabled }: { id: string; title: string; count: number; children: ReactNode; isDisabled?: boolean }) => {
   const { setNodeRef, isOver } = useDroppable({ id, disabled: isDisabled })
   return (
-    <div ref={setNodeRef} className={`w-[85vw] max-w-[300px] flex-shrink-0 snap-center rounded-2xl border border-base-100 bg-base-50 p-4 lg:w-auto lg:min-w-[240px] ${isOver ? "ring-2 ring-brand-500" : ""}`}>
+    <div ref={setNodeRef} className={`w-[calc(100vw-48px)] flex-shrink-0 snap-center rounded-2xl border border-base-100 bg-base-50 p-4 md:w-80 md:flex-shrink-0 ${isOver ? "ring-2 ring-brand-500" : ""}`}>
       <div className="mb-4 flex items-center justify-between">
         <h4 className="text-sm font-semibold text-base-900">{title}</h4>
         <Badge>{count}</Badge>

@@ -11,6 +11,10 @@ const CustomCursor = dynamic(() => import("../components/ui/CustomCursor").then(
   ssr: false,
 })
 
+const NotificationManager = dynamic(() => import("../components/ui/NotificationManager").then(mod => mod.NotificationManager), {
+  ssr: false,
+})
+
 export const Providers = ({ children }: { children: ReactNode }) => {
   const [client] = useState(() => new QueryClient({
     defaultOptions: {
@@ -37,6 +41,7 @@ export const Providers = ({ children }: { children: ReactNode }) => {
         <ThemeProvider>
           <LocaleProvider>
             <CustomCursor />
+            <NotificationManager />
             {children}
           </LocaleProvider>
         </ThemeProvider>

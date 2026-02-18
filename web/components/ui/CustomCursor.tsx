@@ -24,6 +24,12 @@ export const CustomCursor = () => {
   }, [])
 
   useEffect(() => {
+    // Disable on touch devices
+    if (typeof window !== "undefined" && window.matchMedia("(hover: none)").matches) {
+      setEnabled(false)
+      return
+    }
+
     const cursor = cursorRef.current
     if (!cursor) return
     const root = document.documentElement
