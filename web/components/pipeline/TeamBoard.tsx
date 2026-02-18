@@ -11,6 +11,7 @@ import { useAuth } from "../../lib/auth/AuthContext"
 import { leadService } from "../../lib/services/leadService"
 import { Lead } from "../../lib/types"
 import { useLeads } from "../../lib/hooks/useLeads"
+import Link from "next/link"
 
 const Lane = ({ id, title, count, children, isDisabled }: { id: string; title: string; count: number; children: ReactNode; isDisabled?: boolean }) => {
   const { setNodeRef, isOver } = useDroppable({ id, disabled: isDisabled })
@@ -39,6 +40,15 @@ const LeadCard = ({ id, name, code, owner }: { id: string; name: string; code?: 
       <p className="text-sm font-semibold text-base-900">{name}</p>
       <p className="text-xs text-base-500">{code}</p>
       {owner && <p className="text-[11px] text-base-500">مسند إلى: {owner}</p>}
+      <div className="mt-2">
+        <Link
+          href={`/leads/${id}`}
+          onPointerDown={(e) => { e.stopPropagation() }}
+          className="rounded-md bg-brand-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-brand-700 transition-colors inline-block"
+        >
+          تفاصيل
+        </Link>
+      </div>
     </div>
   )
 }

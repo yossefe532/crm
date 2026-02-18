@@ -17,18 +17,20 @@ export default function FinancePage() {
   const [category, setCategory] = useState("")
   const [amount, setAmount] = useState("")
   const [note, setNote] = useState("")
+  const [occurredAt, setOccurredAt] = useState("")
   const [message, setMessage] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const mutation = useMutation({
     mutationFn: () =>
       coreService.createFinanceEntry(
-        { entryType: entryType as "income" | "expense", category, amount: Number(amount), note: note || undefined },
+        { entryType: entryType as "income" | "expense", category, amount: Number(amount), note: note || undefined, occurredAt: occurredAt || undefined },
         token || undefined
       ),
     onSuccess: () => {
       setCategory("")
       setAmount("")
       setNote("")
+      setOccurredAt("")
       setMessage("تم حفظ العملية المالية")
       queryClient.invalidateQueries({ queryKey: ["finance_entries"] })
     }
@@ -122,6 +124,24 @@ export default function FinancePage() {
             {mutation.isPending ? "جاري الحفظ..." : "حفظ"}
           </Button>
         </form>
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Input
+            className="text-right"
+            type="datetime-local"
+            placeholder="تاريخ العملية"
+            value={occurredAt}
+            onChange={(event) => setOccurredAt(event.target.value)}
+          />
+          <Select
+            className="text-right"
+            value={occurredAt ? (new Date(occurredAt).getTime() > Date.now() ? "advance" : "normal") : ""}
+            onChange={() => {}}
+          >
+            <option value="">نوع التاريخ</option>
+            <option value="normal">تاريخ سابق / حالي</option>
+            <option value="advance">مقدم (مستقبلي)</option>
+          </Select>
+        </div>
         <Input
           className="mt-3 text-right"
           placeholder="ملاحظة (اختياري)"
@@ -136,11 +156,15 @@ export default function FinancePage() {
             <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-base-100 px-3 py-2">
               <div>
                 <p className="text-sm font-semibold text-base-900">{item.category}</p>
-                <p className="text-xs text-base-500">{new Date(item.occurredAt).toLocaleDateString("ar-EG")}</p>
+                <p className="text-xs text-base-500">{new Date(item.occurredAt).toLocaleString("ar-EG")}</p>
               </div>
               <div className="text-sm font-medium text-base-900">
                 {item.entryType === "expense" ? "-" : "+"}
                 {item.amount.toLocaleString("ar-EG")}
+              </div>
+              <div className="w-full sm:w-auto">
+                {(new Date(item.occurredAt).getTime() > Date.now()) && <span className="rounded bg-amber-200 px-2 py-1 text-[11px] text-amber-800">مقدم</span>}
+                {(new Date(item.occurredAt).getMonth() < new Date().getMonth() || new Date(item.occurredAt).getFullYear() < new Date().getFullYear()) && <span className="ml-2 rounded bg-base-200 px-2 py-1 text-[11px] text-base-800">قديم</span>}
               </div>
             </div>
           ))}
@@ -157,11 +181,15 @@ export default function FinancePage() {
                   <div key={item.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-base-100 px-3 py-2">
                     <div>
                       <p className="text-sm font-semibold text-base-900">{item.category}</p>
-                      <p className="text-xs text-base-500">{new Date(item.occurredAt).toLocaleDateString("ar-EG")}</p>
+                      <p className="text-xs text-base-500">{new Date(item.occurredAt).toLocaleString("ar-EG")}</p>
                     </div>
                     <div className="text-sm font-medium text-base-900">
                       {item.entryType === "expense" ? "-" : "+"}
                       {item.amount.toLocaleString("ar-EG")}
+                    </div>
+                    <div className="w-full sm:w-auto">
+                      {(new Date(item.occurredAt).getTime() > Date.now()) && <span className="rounded bg-amber-200 px-2 py-1 text-[11px] text-amber-800">مقدم</span>}
+                      <span className="ml-2 rounded bg-base-200 px-2 py-1 text-[11px] text-base-800">قديم</span>
                     </div>
                   </div>
                 ))}

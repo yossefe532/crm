@@ -11,6 +11,7 @@ import { useTeams } from "../../lib/hooks/useTeams"
 import { useAuth } from "../../lib/auth/AuthContext"
 import { notificationService } from "../../lib/services/notificationService"
 import { useMutation } from "@tanstack/react-query"
+import Link from "next/link"
 
 const stageLabels: Record<string, string> = {
   new: "جديد",
@@ -70,9 +71,9 @@ export const KanbanBoard = ({ leads }: { leads?: Lead[] }) => {
   return (
     <Card title="قناة العملاء">
       <div className="overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide">
-        <div className="flex gap-4 lg:grid lg:grid-cols-5 w-max lg:w-full px-4 lg:px-0">
+        <div className="flex gap-4 lg:grid lg:grid-cols-5 w-max lg:w-full px-3 lg:px-0">
           {lanes.map((lane) => (
-            <div key={lane.id} className="w-[85vw] max-w-[300px] flex-shrink-0 snap-center rounded-xl border border-base-100 bg-base-50 p-3 lg:w-auto first:ml-0 last:mr-0">
+            <div key={lane.id} className="w-[92vw] max-w-[360px] flex-shrink-0 snap-center rounded-xl border border-base-100 bg-base-50 p-3 lg:w-auto first:ml-0 last:mr-0">
               <div className="mb-4 flex items-center justify-between">
                 <h4 className="text-sm font-semibold text-base-900">{lane.title}</h4>
                 <Badge>{lane.leads.length}</Badge>
@@ -88,16 +89,21 @@ export const KanbanBoard = ({ leads }: { leads?: Lead[] }) => {
                       {lead.assignedUserId ? usersById.get(lead.assignedUserId)?.name || usersById.get(lead.assignedUserId)?.email : "غير مُسند"}
                       {lead.teamId && teamsById.get(lead.teamId) ? ` • فريق ${teamsById.get(lead.teamId)}` : ""}
                     </p>
-                    {(role === "owner" || role === "team_leader") && lead.assignedUserId && (
-                    <Button
-                      variant="ghost"
-                      className="mt-2 h-auto px-2 py-1 text-xs text-brand-600 hover:bg-brand-50 hover:text-brand-700"
-                      disabled={notifyMutation.isPending}
-                      onClick={() => notifyMutation.mutate({ userId: lead.assignedUserId || "", leadName: lead.name })}
-                    >
-                      تنبيه المندوب
-                    </Button>
-                  )}
+                    <div className="mt-2 flex items-center gap-2">
+                      <Link href={`/leads/${lead.id}`} className="rounded-md bg-brand-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-brand-700 transition-colors">
+                        تفاصيل
+                      </Link>
+                      {(role === "owner" || role === "team_leader") && lead.assignedUserId && (
+                        <Button
+                          variant="ghost"
+                          className="h-auto px-2 py-1 text-[11px] text-brand-600 hover:bg-brand-50 hover:text-brand-700"
+                          disabled={notifyMutation.isPending}
+                          onClick={() => notifyMutation.mutate({ userId: lead.assignedUserId || "", leadName: lead.name })}
+                        >
+                          تنبيه المندوب
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
