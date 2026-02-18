@@ -108,7 +108,7 @@ export const LeadCreateForm = () => {
   return (
     <Card title="إضافة عميل جديد">
       <form
-        className="grid gap-4 lg:grid-cols-3"
+        className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
         onSubmit={(event: FormEvent<HTMLFormElement>) => {
           event.preventDefault()
           setMessage(null)
@@ -240,7 +240,7 @@ export const LeadCreateForm = () => {
             ))}
           </Select>
         )}
-        <div className="lg:col-span-3">
+        <div className="md:col-span-2 lg:col-span-3">
           <Button type="submit" disabled={mutation.isPending} aria-label="إضافة العميل" title="إضافة العميل">
             {mutation.isPending ? "جاري الإضافة..." : role === "sales" ? "إرسال طلب إضافة" : "إضافة العميل"}
           </Button>

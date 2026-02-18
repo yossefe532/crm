@@ -174,7 +174,7 @@ export const ChatWindow = () => {
   const activeConversation = conversations.find(c => c.id === activeId)
 
   return (
-    <div className="flex h-[calc(100vh-140px)] gap-4 overflow-hidden rounded-xl bg-base-0 shadow-sm border border-base-200">
+    <div className="flex h-[calc(100dvh-140px)] gap-4 overflow-hidden rounded-xl bg-base-0 shadow-sm border border-base-200">
       {/* Sidebar */}
       <div className={`flex w-full flex-col border-l border-base-100 bg-base-50/50 md:w-80 ${isSidebarOpen ? "block" : "hidden md:flex"}`}>
         <div className="p-4 border-b border-base-100">
@@ -283,7 +283,7 @@ export const ChatWindow = () => {
                 onClick={() => setIsSidebarOpen(true)}
                 className="md:hidden p-1 rounded-lg hover:bg-base-100 text-base-500 h-auto"
               >
-                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className={`w-6 h-6 ${dir === 'rtl' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </Button>

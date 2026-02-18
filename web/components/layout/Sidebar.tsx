@@ -96,9 +96,9 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
 
       {/* Mobile Sidebar Overlay */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm md:hidden transition-opacity" onClick={onClose}>
+        <div className="fixed inset-0 z-[90] bg-base-900/50 backdrop-blur-sm md:hidden transition-opacity" onClick={onClose}>
           <aside
-            className={`nav-drawer theme-surface fixed top-0 bottom-0 ${anchorClass} flex w-[85vw] max-w-[300px] flex-col bg-base-0 px-5 py-6 shadow-2xl ${textAlign} transition-transform duration-300 ease-in-out`}
+            className={`nav-drawer theme-surface fixed top-0 bottom-0 ${anchorClass} flex w-[85vw] max-w-[300px] flex-col bg-base-0 px-5 py-6 shadow-2xl ${textAlign} transition-transform duration-300 ease-in-out z-[95]`}
             dir={dir}
             onClick={(event) => event.stopPropagation()}
           >
@@ -131,7 +131,7 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                   {t("language")}
                 </Button>
               </div>
-              <Button variant="destructive" onClick={handleSignOut} className="w-full justify-center">
+              <Button variant="danger" onClick={handleSignOut} className="w-full justify-center">
                 {t("logout")}
               </Button>
             </div>

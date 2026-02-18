@@ -15,7 +15,7 @@ import { useLeads } from "../../lib/hooks/useLeads"
 const Lane = ({ id, title, count, children, isDisabled }: { id: string; title: string; count: number; children: ReactNode; isDisabled?: boolean }) => {
   const { setNodeRef, isOver } = useDroppable({ id, disabled: isDisabled })
   return (
-    <div ref={setNodeRef} className={`min-w-[240px] rounded-2xl border border-base-100 bg-base-50 p-4 ${isOver ? "ring-2 ring-brand-500" : ""}`}>
+    <div ref={setNodeRef} className={`w-[85vw] max-w-[300px] flex-shrink-0 snap-center rounded-2xl border border-base-100 bg-base-50 p-4 lg:w-auto lg:min-w-[240px] ${isOver ? "ring-2 ring-brand-500" : ""}`}>
       <div className="mb-4 flex items-center justify-between">
         <h4 className="text-sm font-semibold text-base-900">{title}</h4>
         <Badge>{count}</Badge>
@@ -95,9 +95,9 @@ export const TeamBoard = ({ leads }: { leads?: Lead[] }) => {
 
   return (
     <Card title="لوحة العملاء حسب الفريق">
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide">
         <DndContext onDragEnd={handleDragEnd}>
-          <div className="flex gap-4 pb-2">
+          <div className="flex gap-4 w-max px-4">
             {lanes.map((lane) => (
               <Lane key={lane.id} id={lane.id} title={lane.title} count={lane.leads.length} isDisabled={role === "team_leader" && userTeamId !== lane.id && lane.id !== "unassigned"}>
                 {lane.leads.map((lead) => (

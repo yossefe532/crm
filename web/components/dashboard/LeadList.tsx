@@ -16,6 +16,10 @@ import { useTeams } from "../../lib/hooks/useTeams"
 import { useAuth } from "../../lib/auth/AuthContext"
 import { leadService } from "../../lib/services/leadService"
 
+import { StageProgress } from "../lead/StageProgress"
+import { StageControls } from "../lead/StageControls"
+import { useRouter } from "next/navigation"
+
 export const LeadList = () => {
   const { data, isLoading, isError } = useLeads()
   const { data: users } = useUsers()
@@ -23,6 +27,7 @@ export const LeadList = () => {
   const { data: teams } = useTeams()
   const { role, token, userId } = useAuth()
   const queryClient = useQueryClient()
+  const router = useRouter()
   const [teamFilter, setTeamFilter] = useState("all")
   const [userFilter, setUserFilter] = useState("all")
   const [assignmentTargets, setAssignmentTargets] = useState<Record<string, string>>({})
@@ -82,6 +87,14 @@ export const LeadList = () => {
     }
   })
 
+  const stageMutation = useMutation({
+    mutationFn: (payload: { id: string; stage: string }) => leadService.updateStage(payload.id, payload.stage),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] })
+      queryClient.invalidateQueries({ queryKey: ["lead", variables.id] })
+    }
+  })
+
   return (
     <Card title="إدارة العملاء المحتملين">
       <div className="space-y-4">
@@ -99,7 +112,7 @@ export const LeadList = () => {
               ))}
             </Select>
             <Select
-              className="w-full sm:w-auto"
+              containerClassName="w-full sm:w-auto"
               value={userFilter}
               onChange={(event) => setUserFilter(event.target.value)}
             >
@@ -143,7 +156,7 @@ export const LeadList = () => {
             {(role === "owner" || role === "team_leader") && (
               <div className="mt-4 flex flex-col sm:flex-row flex-wrap items-center gap-3">
                 <Select
-                  className="w-full sm:w-auto"
+                  containerClassName="w-full sm:w-auto"
                   value={assignmentTargets[lead.id] ?? lead.assignedUserId ?? ""}
                   onChange={(event) => {
                     const val = event.target.value
@@ -175,7 +188,23 @@ export const LeadList = () => {
               </div>
             )}
             <div className="mt-4">
-              <Progress value={stageProgressMap[lead.status] || 0} />
+              <StageProgress
+                stage={lead.status}
+                readOnly={!(role === "sales" && lead.assignedUserId === userId)}
+                onStageChange={() => router.push(`/leads/${lead.id}`)}
+              />
+              {(role === "sales" && lead.assignedUserId === userId) && (
+                <div className="mt-2">
+                  <StageControls
+                    currentStage={lead.status}
+                    disabled={stageMutation.isPending}
+                    onStageChange={(next) => {
+                      stageMutation.mutate({ id: lead.id, stage: next })
+                      router.push(`/leads/${lead.id}`)
+                    }}
+                  />
+                </div>
+              )}
             </div>
             {deadlinesByLead.get(lead.id)?.dueAt && (
               <div className="mt-3 text-xs text-base-500">

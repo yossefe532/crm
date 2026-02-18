@@ -75,58 +75,109 @@ export default function RequestsPage() {
         {pendingRequests.length === 0 ? (
           <p className="text-gray-500">لا يوجد طلبات معلقة</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px] text-right">
-              <thead>
-                <tr className="border-b border-base-200 text-sm text-base-500">
-                  <th className="pb-3 pr-4">نوع الطلب</th>
-                  <th className="pb-3 px-4">مقدم الطلب</th>
-                  <th className="pb-3 px-4">التفاصيل</th>
-                  <th className="pb-3 px-4">التاريخ</th>
-                  <th className="pb-3 pl-4">الإجراءات</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingRequests.map((req) => (
-                  <tr key={req.id} className="border-b border-base-100 last:border-0 hover:bg-base-50">
-                    <td className="py-3 pr-4">
-                      <Badge variant={req.requestType === "create_sales" ? "info" : "warning"}>
-                        {req.requestType === "create_sales" ? "إضافة مستخدم" : "إضافة عميل"}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-sm font-medium">{req.requestedBy}</td> {/* Ideally resolve name */}
-                    <td className="py-3 px-4">{renderPayload(req.requestType, req.payload)}</td>
-                    <td className="py-3 px-4 text-sm text-base-500">
-                      {format(new Date(req.createdAt), "dd MMM yyyy", { locale: ar })}
-                    </td>
-                    <td className="py-3 pl-4">
-                      {canApprove(req) && (
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="primary"
-                            onClick={() => decideMutation.mutate({ requestId: req.id, status: "approved" })}
-                            disabled={decideMutation.isPending}
-                          >
-                            موافق
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            onClick={() => decideMutation.mutate({ requestId: req.id, status: "rejected" })}
-                            disabled={decideMutation.isPending}
-                          >
-                            رفض
-                          </Button>
-                        </div>
-                      )}
-                      {!canApprove(req) && <span className="text-sm text-gray-400">بانتظار الموافقة</span>}
-                    </td>
+          <>
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full min-w-[700px] text-right">
+                <thead>
+                  <tr className="border-b border-base-200 text-sm text-base-500">
+                    <th className="pb-3 pr-4">نوع الطلب</th>
+                    <th className="pb-3 px-4">مقدم الطلب</th>
+                    <th className="pb-3 px-4">التفاصيل</th>
+                    <th className="pb-3 px-4">التاريخ</th>
+                    <th className="pb-3 pl-4">الإجراءات</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {pendingRequests.map((req) => (
+                    <tr key={req.id} className="border-b border-base-100 last:border-0 hover:bg-base-50">
+                      <td className="py-3 pr-4">
+                        <Badge variant={req.requestType === "create_sales" ? "info" : "warning"}>
+                          {req.requestType === "create_sales" ? "إضافة مستخدم" : "إضافة عميل"}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4 text-sm font-medium">{req.requestedBy}</td>
+                      <td className="py-3 px-4">{renderPayload(req.requestType, req.payload)}</td>
+                      <td className="py-3 px-4 text-sm text-base-500">
+                        {format(new Date(req.createdAt), "dd MMM yyyy", { locale: ar })}
+                      </td>
+                      <td className="py-3 pl-4">
+                        {canApprove(req) && (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              onClick={() => decideMutation.mutate({ requestId: req.id, status: "approved" })}
+                              disabled={decideMutation.isPending}
+                            >
+                              موافق
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              onClick={() => decideMutation.mutate({ requestId: req.id, status: "rejected" })}
+                              disabled={decideMutation.isPending}
+                            >
+                              رفض
+                            </Button>
+                          </div>
+                        )}
+                        {!canApprove(req) && <span className="text-sm text-gray-400">بانتظار الموافقة</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            <div className="md:hidden space-y-4">
+              {pendingRequests.map((req) => (
+                <div key={req.id} className="border border-base-200 rounded-lg p-4 space-y-3 bg-base-50">
+                  <div className="flex justify-between items-start">
+                    <Badge variant={req.requestType === "create_sales" ? "info" : "warning"}>
+                      {req.requestType === "create_sales" ? "إضافة مستخدم" : "إضافة عميل"}
+                    </Badge>
+                    <span className="text-xs text-base-500">
+                      {format(new Date(req.createdAt), "dd MMM yyyy", { locale: ar })}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-base-900">مقدم الطلب: {req.requestedBy}</p>
+                    <div className="bg-base-0 p-3 rounded-md border border-base-100">
+                      {renderPayload(req.requestType, req.payload)}
+                    </div>
+                  </div>
+
+                  {canApprove(req) ? (
+                    <div className="flex gap-2 pt-2 border-t border-base-200">
+                      <Button
+                        className="flex-1"
+                        size="sm"
+                        variant="primary"
+                        onClick={() => decideMutation.mutate({ requestId: req.id, status: "approved" })}
+                        disabled={decideMutation.isPending}
+                      >
+                        موافق
+                      </Button>
+                      <Button
+                        className="flex-1"
+                        size="sm"
+                        variant="danger"
+                        onClick={() => decideMutation.mutate({ requestId: req.id, status: "rejected" })}
+                        disabled={decideMutation.isPending}
+                      >
+                        رفض
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-center text-gray-400 pt-2 border-t border-base-200">
+                      بانتظار الموافقة
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </Card>
 
@@ -136,46 +187,77 @@ export default function RequestsPage() {
         {historyRequests.length === 0 ? (
           <p className="text-gray-500">لا يوجد سجل طلبات</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px] text-right">
-              <thead>
-                <tr className="border-b border-base-200 text-sm text-base-500">
-                  <th className="pb-3 pr-4">نوع الطلب</th>
-                  <th className="pb-3 px-4">مقدم الطلب</th>
-                  <th className="pb-3 px-4">التفاصيل</th>
-                  <th className="pb-3 px-4">الحالة</th>
-                  <th className="pb-3 px-4">تم بواسطة</th>
-                  <th className="pb-3 pl-4">التاريخ</th>
-                </tr>
-              </thead>
-              <tbody>
-                {historyRequests.map((req) => (
-                  <tr key={req.id} className="border-b border-base-100 last:border-0 hover:bg-base-50">
-                    <td className="py-3 pr-4">
-                      <Badge variant="outline">
-                        {req.requestType === "create_sales" ? "إضافة مستخدم" : "إضافة عميل"}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-sm">
-                      {req.requester?.name || (req.requestedBy ? (userMap.get(req.requestedBy) || req.requestedBy) : "-")}
-                    </td>
-                    <td className="py-3 px-4">{renderPayload(req.requestType, req.payload)}</td>
-                    <td className="py-3 px-4">
-                      <Badge variant={req.status === "approved" ? "success" : "danger"}>
-                        {req.status === "approved" ? "تمت الموافقة" : "مرفوض"}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-sm">
-                      {req.decidedBy ? (userMap.get(req.decidedBy) || req.decidedBy) : "-"}
-                    </td>
-                    <td className="py-3 pl-4 text-sm text-base-500">
-                      {format(new Date(req.createdAt), "dd MMM yyyy", { locale: ar })}
-                    </td>
+          <>
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full min-w-[700px] text-right">
+                <thead>
+                  <tr className="border-b border-base-200 text-sm text-base-500">
+                    <th className="pb-3 pr-4">نوع الطلب</th>
+                    <th className="pb-3 px-4">مقدم الطلب</th>
+                    <th className="pb-3 px-4">التفاصيل</th>
+                    <th className="pb-3 px-4">الحالة</th>
+                    <th className="pb-3 px-4">تم بواسطة</th>
+                    <th className="pb-3 pl-4">التاريخ</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {historyRequests.map((req) => (
+                    <tr key={req.id} className="border-b border-base-100 last:border-0 hover:bg-base-50">
+                      <td className="py-3 pr-4">
+                        <Badge variant="outline">
+                          {req.requestType === "create_sales" ? "إضافة مستخدم" : "إضافة عميل"}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4 text-sm">
+                        {req.requester?.name || (req.requestedBy ? (userMap.get(req.requestedBy) || req.requestedBy) : "-")}
+                      </td>
+                      <td className="py-3 px-4">{renderPayload(req.requestType, req.payload)}</td>
+                      <td className="py-3 px-4">
+                        <Badge variant={req.status === "approved" ? "success" : "danger"}>
+                          {req.status === "approved" ? "تمت الموافقة" : "مرفوض"}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4 text-sm">
+                        {req.decidedBy ? (userMap.get(req.decidedBy) || req.decidedBy) : "-"}
+                      </td>
+                      <td className="py-3 pl-4 text-sm text-base-500">
+                        {format(new Date(req.createdAt), "dd MMM yyyy", { locale: ar })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="md:hidden space-y-4">
+              {historyRequests.map((req) => (
+                <div key={req.id} className="border border-base-200 rounded-lg p-4 space-y-3 bg-base-50">
+                  <div className="flex justify-between items-start">
+                    <Badge variant="outline">
+                      {req.requestType === "create_sales" ? "إضافة مستخدم" : "إضافة عميل"}
+                    </Badge>
+                    <Badge variant={req.status === "approved" ? "success" : "danger"}>
+                      {req.status === "approved" ? "تمت الموافقة" : "مرفوض"}
+                    </Badge>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-sm text-base-700">
+                      <span className="font-semibold">مقدم الطلب:</span>{" "}
+                      {req.requester?.name || (req.requestedBy ? (userMap.get(req.requestedBy) || req.requestedBy) : "-")}
+                    </p>
+                    <div className="bg-base-0 p-3 rounded-md border border-base-100">
+                      {renderPayload(req.requestType, req.payload)}
+                    </div>
+                    <div className="flex justify-between text-xs text-base-500 pt-2 border-t border-base-200">
+                      <span>بواسطة: {req.decidedBy ? (userMap.get(req.decidedBy) || req.decidedBy) : "-"}</span>
+                      <span>{format(new Date(req.createdAt), "dd MMM yyyy", { locale: ar })}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </Card>
     </div>

@@ -63,8 +63,27 @@ export const AnalyticsDashboard = () => {
 
       <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
         <Card title="أداء فريق المبيعات">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px] text-right">
+          {/* Mobile View */}
+          <div className="space-y-4 sm:hidden">
+            {data.salesPerformance.map((user) => (
+              <div key={user.userId} className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium text-gray-900">{user.name}</span>
+                  <span className="text-sm text-gray-500">{user.deals} صفقة</span>
+                </div>
+                <div className="text-sm text-gray-600">
+                  قيمة الصفقات: <span className="font-medium text-gray-900">{user.value.toLocaleString()}</span>
+                </div>
+              </div>
+            ))}
+            {data.salesPerformance.length === 0 && (
+              <p className="text-center text-sm text-gray-500 py-4">لا توجد بيانات أداء</p>
+            )}
+          </div>
+
+          {/* Desktop View */}
+          <div className="hidden sm:block overflow-x-auto">
+            <table className="w-full text-right">
               <thead>
                 <tr className="border-b border-gray-200 text-sm text-gray-500">
                   <th className="pb-3 font-medium px-4">المندوب</th>
@@ -91,8 +110,27 @@ export const AnalyticsDashboard = () => {
         </Card>
 
         <Card title="أداء الفرق (Team Leaders)">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[600px] text-right">
+          {/* Mobile View */}
+          <div className="space-y-4 sm:hidden">
+            {data.teamPerformance.map((team) => (
+              <div key={team.teamId} className="rounded-lg border border-gray-100 bg-gray-50 p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-medium text-gray-900">{team.teamName}</span>
+                  <span className="text-sm text-gray-500">{team.deals} صفقة</span>
+                </div>
+                <div className="text-sm text-gray-600">
+                  القائد: <span className="font-medium text-gray-900">{team.leaderName}</span>
+                </div>
+              </div>
+            ))}
+            {data.teamPerformance.length === 0 && (
+              <p className="text-center text-sm text-gray-500 py-4">لا توجد بيانات فرق</p>
+            )}
+          </div>
+
+          {/* Desktop View */}
+          <div className="hidden sm:block overflow-x-auto">
+            <table className="w-full text-right">
               <thead>
                 <tr className="border-b border-gray-200 text-sm text-gray-500">
                   <th className="pb-3 font-medium px-4">الفريق</th>

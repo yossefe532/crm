@@ -188,7 +188,8 @@ export default function GoalsPage() {
         <Card title="إدارة أهداف الخطة">
           <div className="space-y-3">
             {targets.map((target, index) => (
-              <div key={`${target.subjectType}-${index}`} className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+              <div key={`${target.subjectType}-${index}`} className="grid gap-3 p-4 border rounded-lg border-base-200 bg-base-0 md:bg-transparent md:border-0 md:p-0 md:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+                <div className="md:hidden text-xs font-bold text-base-500 mb-1">نوع الهدف</div>
                 <Select
                   className="text-right"
                   value={target.subjectType}
@@ -203,6 +204,8 @@ export default function GoalsPage() {
                   <option value="user">مندوب</option>
                   <option value="team">فريق</option>
                 </Select>
+                
+                <div className="md:hidden text-xs font-bold text-base-500 mb-1">صاحب الهدف</div>
                 <Select
                   aria-label="نوع الهدف"
                   className="text-right"
@@ -224,6 +227,8 @@ export default function GoalsPage() {
                       <option key={team.id} value={team.id}>{team.name}</option>
                     ))}
                 </Select>
+
+                <div className="md:hidden text-xs font-bold text-base-500 mb-1">المقياس</div>
                 <Select
                   className="text-right"
                   value={target.metricKey}
@@ -237,6 +242,8 @@ export default function GoalsPage() {
                     <option key={key} value={key}>{label}</option>
                   ))}
                 </Select>
+
+                <div className="md:hidden text-xs font-bold text-base-500 mb-1">القيمة المستهدفة</div>
                 <Input
                   className="text-right"
                   placeholder="القيمة المستهدفة"
@@ -247,13 +254,17 @@ export default function GoalsPage() {
                     setTargets(next)
                   }}
                 />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setTargets((prev) => prev.filter((_, rowIndex) => rowIndex !== index))}
-                >
-                  حذف
-                </Button>
+                
+                <div className="flex justify-end md:block mt-2 md:mt-0">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 w-full md:w-auto"
+                    onClick={() => setTargets((prev) => prev.filter((_, rowIndex) => rowIndex !== index))}
+                  >
+                    حذف
+                  </Button>
+                </div>
               </div>
             ))}
             <div className="flex flex-wrap gap-2">

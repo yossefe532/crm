@@ -36,7 +36,7 @@ export const DashboardShell = ({ children }: { children: ReactNode }) => {
 
   return (
     <div className={`theme-shell relative flex min-h-screen ${layoutClass}`} dir={dir}>
-      <div className="city-bg">
+      <div className="city-bg pointer-events-none opacity-10 fixed inset-0 z-0">
         <svg viewBox="0 0 1200 300" preserveAspectRatio="xMidYMid slice" className="h-full w-full">
           <rect width="1200" height="300" fill="var(--city-2)" />
           <rect x="40" y="120" width="90" height="180" fill="var(--city-1)" />
@@ -50,7 +50,7 @@ export const DashboardShell = ({ children }: { children: ReactNode }) => {
         </svg>
       </div>
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col relative z-10">
         <Topbar onMenuToggle={() => setSidebarOpen((prev) => !prev)} />
         <main className="page-reveal flex-1 space-y-8 px-4 py-4 md:px-8 md:py-6">
           {children}

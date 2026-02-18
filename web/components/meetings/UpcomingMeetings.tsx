@@ -39,15 +39,15 @@ export const UpcomingMeetings = () => {
         {isLoading && <p className="text-sm text-base-500">جاري تحميل الاجتماعات...</p>}
         {isError && <p className="text-sm text-rose-500">تعذر تحميل الاجتماعات</p>}
         {(data || []).map((meeting) => (
-          <div key={meeting.id} className="flex flex-col gap-4 rounded-xl border border-base-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div key={meeting.id} className="flex flex-col gap-4 rounded-xl border border-base-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between bg-base-0 hover:shadow-sm transition-shadow">
             <div className="flex-1">
               <p className="text-sm font-semibold text-base-900">{meeting.title}</p>
-              <p className="text-xs text-base-500">{format(new Date(meeting.startsAt), "PPpp", { locale: ar })}</p>
-              <div className="mt-2">
+              <p className="text-xs text-base-500 mt-1">{format(new Date(meeting.startsAt), "PPpp", { locale: ar })}</p>
+              <div className="mt-2 flex flex-wrap gap-2">
                 <Badge tone={statusLabels[meeting.status]?.tone || "default"}>{statusLabels[meeting.status]?.label || meeting.status}</Badge>
               </div>
             </div>
-            <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+            <div className="flex w-full flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:w-auto">
               <Button
                 variant="ghost"
                 aria-label="إرسال تذكير"

@@ -8,7 +8,7 @@ export const MetricsGrid = () => {
   const { data, isLoading, isError } = useMetrics()
 
   return (
-    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
       {isLoading && <p className="col-span-full text-sm text-base-500">جاري تحميل المؤشرات...</p>}
       {isError && <p className="col-span-full text-sm text-rose-500">تعذر تحميل المؤشرات</p>}
       {data?.map((metric) => (

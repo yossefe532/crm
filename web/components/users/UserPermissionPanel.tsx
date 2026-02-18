@@ -90,12 +90,12 @@ export const UserPermissionPanel = ({ userId, userName, roles, onClose }: { user
 
   if (isOwner) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm mt-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-lg">صلاحيات المستخدم: {userName}</h3>
+      <div className="rounded-lg border border-base-200 bg-base-0 p-4 shadow-sm mt-4 dark:border-base-700 dark:bg-base-800">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+          <h3 className="font-semibold text-lg text-base-900 dark:text-base-50">صلاحيات المستخدم: {userName}</h3>
           <Button variant="ghost" onClick={onClose}>إغلاق</Button>
         </div>
-        <p className="text-gray-600">هذا المستخدم لديه صلاحيات المالك (Owner) ويتمتع بكامل الصلاحيات تلقائياً.</p>
+        <p className="text-base-600 dark:text-base-400">هذا المستخدم لديه صلاحيات المالك (Owner) ويتمتع بكامل الصلاحيات تلقائياً.</p>
       </div>
     )
   }

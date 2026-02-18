@@ -8,9 +8,10 @@ interface ModalProps {
   onClose: () => void
   title: string
   children: ReactNode
+  size?: "sm" | "md" | "lg" | "xl" | "2xl" | "full"
 }
 
-export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
+export const Modal = ({ isOpen, onClose, title, children, size = "md" }: ModalProps) => {
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -31,16 +32,25 @@ export const Modal = ({ isOpen, onClose, title, children }: ModalProps) => {
 
   if (!mounted || !isOpen) return null
 
+  const sizeClasses = {
+    sm: "max-w-sm",
+    md: "max-w-lg",
+    lg: "max-w-2xl",
+    xl: "max-w-4xl",
+    "2xl": "max-w-6xl",
+    full: "max-w-[calc(100vw-2rem)]"
+  }
+
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-0 sm:p-6">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center p-0 sm:p-4">
       <div 
-        className="fixed inset-0 bg-base-900/50 backdrop-blur-sm transition-opacity" 
+        className="fixed inset-0 bg-base-900/60 backdrop-blur-sm transition-opacity" 
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="relative w-full max-w-lg transform rounded-t-2xl sm:rounded-xl bg-base-0 p-4 sm:p-6 shadow-xl transition-all dark:bg-base-800 max-h-[85vh] sm:max-h-[80vh] flex flex-col">
+      <div className={`relative w-full ${sizeClasses[size]} transform rounded-t-2xl sm:rounded-xl bg-base-0 p-4 sm:p-6 shadow-2xl transition-all dark:bg-base-800 dark:border dark:border-base-700 max-h-[90vh] flex flex-col`}>
         <div className="mb-4 flex items-center justify-between border-b border-base-100 pb-4 dark:border-base-700 shrink-0">
-          <h3 className="text-lg font-semibold text-base-900 dark:text-base-50">
+          <h3 className="text-xl font-bold text-base-900 dark:text-white">
             {title}
           </h3>
           <button

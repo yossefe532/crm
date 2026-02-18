@@ -18,14 +18,14 @@ type Props = {
 
 export const IconShowcase = ({ title, items, variant = "card" }: Props) => {
   const content = (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-3 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3">
       {items.map((item) => (
         <div
           key={item.id}
-          className="group flex items-center gap-3 rounded-xl border border-base-100 bg-base-50 px-3 py-3 shadow-sm transition-transform hover:-translate-y-0.5 active:translate-y-0 motion-reduce:transition-none"
+          className="group flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-3 rounded-xl border border-base-100 bg-base-50 p-4 shadow-sm transition-all hover:-translate-y-0.5 active:translate-y-0 active:scale-95 motion-reduce:transition-none"
           title={item.label}
         >
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-base-0 shadow-sm">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-base-0 shadow-sm">
             <Image
               src={item.url}
               alt={item.label}

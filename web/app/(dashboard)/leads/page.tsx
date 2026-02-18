@@ -53,56 +53,6 @@ export default function LeadsPage() {
 
       <LeadCreateForm />
       <LeadList />
-      
-      <Card title="تقدّم مراحل العملاء">
-        <div className="space-y-4">
-          {isLoading && <p className="text-center text-sm text-base-500 py-4">جاري تحميل مراحل العملاء...</p>}
-          
-          {isError && (
-            <div className="text-center py-4">
-              <p className="text-sm text-red-500 mb-2">تعذر تحميل بيانات المراحل</p>
-              <Button 
-                variant="outline"
-                size="sm"
-                onClick={() => refetch()} 
-              >
-                إعادة المحاولة
-              </Button>
-            </div>
-          )}
-
-          {!isLoading && !isError && allowedLeads.length === 0 && (
-            <p className="text-center text-sm text-base-500 py-4">لا يوجد عملاء متاحين حالياً</p>
-          )}
-
-          {allowedLeads.map((lead) => (
-            <div key={lead.id} className="flex flex-col gap-2 rounded-xl border border-base-100 p-4">
-
-              <div className="flex items-center justify-between">
-                <Link href={`/leads/${lead.id}`} className="text-sm font-semibold text-base-900">{lead.name}</Link>
-                <span className="text-xs text-base-500">{usersById.get(lead.assignedUserId || "")?.name || usersById.get(lead.assignedUserId || "")?.email || "غير مُسند"}</span>
-              </div>
-              <StageProgress
-                stage={lead.status}
-                readOnly={!(role === "sales" && lead.assignedUserId === userId)}
-                onStageChange={() => router.push(`/leads/${lead.id}`)}
-              />
-              {(role === "sales" && lead.assignedUserId === userId) && (
-                <div className="mt-2">
-                  <StageControls
-                    currentStage={lead.status}
-                    disabled={stageMutation.isPending}
-                    onStageChange={(next) => {
-                      stageMutation.mutate({ id: lead.id, stage: next })
-                      router.push(`/leads/${lead.id}`)
-                    }}
-                  />
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </Card>
     </div>
   )
 }

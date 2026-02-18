@@ -321,14 +321,16 @@ export default function LeadDetailPage() {
             />
             <Input
               label="انطباع مختصر"
-              className="sm:col-span-2 text-right"
+              containerClassName="sm:col-span-2"
+              className="text-right"
               placeholder="مثال: عميل مهتم جداً"
               value={stageInsight}
               onChange={(event) => setStageInsight(event.target.value)}
             />
             <Textarea
               label="التفاصيل الكاملة"
-              className="sm:col-span-2 min-h-[120px] text-right"
+              containerClassName="sm:col-span-2"
+              className="min-h-[120px] text-right"
               placeholder="اكتب تفاصيل المكالمة هنا..."
               value={stageDetails}
               onChange={(event) => setStageDetails(event.target.value)}
@@ -403,14 +405,16 @@ export default function LeadDetailPage() {
             />
             <Textarea
               label="انطباع العميل"
-              className="sm:col-span-2 min-h-[120px] text-right"
+              containerClassName="sm:col-span-2"
+              className="min-h-[120px] text-right"
               placeholder="اكتب انطباع العميل عن الأماكن..."
               value={siteVisitImpressions}
               onChange={(event) => setSiteVisitImpressions(event.target.value)}
             />
             <Textarea
               label="تفاصيل إضافية"
-              className="sm:col-span-2 min-h-[120px] text-right"
+              containerClassName="sm:col-span-2"
+              className="min-h-[120px] text-right"
               placeholder="أي تفاصيل أخرى..."
               value={siteVisitDetails}
               onChange={(event) => setSiteVisitDetails(event.target.value)}
@@ -446,7 +450,8 @@ export default function LeadDetailPage() {
             />
             <Textarea
               label="ملاحظات الإغلاق"
-              className="sm:col-span-2 min-h-[120px] text-right"
+              containerClassName="sm:col-span-2"
+              className="min-h-[120px] text-right"
               placeholder="تفاصيل إضافية..."
               value={closeNote}
               onChange={(event) => setCloseNote(event.target.value)}
