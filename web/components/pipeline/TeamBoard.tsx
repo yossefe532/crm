@@ -49,7 +49,7 @@ export const TeamBoard = ({ leads }: { leads?: Lead[] }) => {
   const { data: users } = useUsers()
   const { role, userId, token } = useAuth()
   const queryClient = useQueryClient()
-  const resolvedLeads = leads || data || []
+  const resolvedLeads = useMemo(() => leads || data || [], [leads, data])
   const usersById = useMemo(() => new Map((users || []).map((user) => [user.id, user])), [users])
 
   const userTeamId = useMemo(() => {

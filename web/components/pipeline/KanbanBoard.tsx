@@ -27,7 +27,6 @@ export const KanbanBoard = ({ leads }: { leads?: Lead[] }) => {
   const { data: users } = useUsers()
   const { data: teams } = useTeams()
   const { role, userId } = useAuth()
-  const resolvedLeadsSource = leads || data || []
   const usersById = useMemo(() => new Map((users || []).map((user) => [user.id, user])), [users])
   const teamsById = useMemo(() => new Map((teams || []).map((team) => [team.id, team.name])), [teams])
   const notifyMutation = useMutation({
@@ -36,7 +35,8 @@ export const KanbanBoard = ({ leads }: { leads?: Lead[] }) => {
   })
 
   const resolvedLeads = useMemo(() => {
-    let filtered = resolvedLeadsSource
+    const filteredSource = leads || data || []
+    let filtered = filteredSource
 
     if (role === "sales") {
       filtered = filtered.filter((l) => l.assignedUserId === userId)
@@ -59,7 +59,7 @@ export const KanbanBoard = ({ leads }: { leads?: Lead[] }) => {
       ...lead,
       pipelineStage: (lead.callCount || 0) === 0 ? "new" : lead.status
     }))
-  }, [resolvedLeadsSource, role, userId, teams])
+  }, [leads, data, role, userId, teams])
 
   const lanes = laneOrder.map((stage) => ({
     id: stage,
