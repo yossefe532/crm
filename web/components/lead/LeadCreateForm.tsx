@@ -72,6 +72,7 @@ export const LeadCreateForm = () => {
         teamId: teamId || undefined
       }
 
+      // Try to detect sales role or just attempt creation and handle 403
       if (role === "sales") {
         return coreService.createUserRequest({
           requestType: "create_lead",
@@ -79,10 +80,23 @@ export const LeadCreateForm = () => {
         }, token || undefined)
       }
 
-      return leadService.create(payload, token || undefined)
+      try {
+        return await leadService.create(payload, token || undefined)
+      } catch (error: any) {
+        // If 403 Forbidden, it likely means we need to send a request instead
+        if (error?.response?.status === 403 || error?.status === 403) {
+           return coreService.createUserRequest({
+            requestType: "create_lead",
+            payload
+          }, token || undefined)
+        }
+        throw error
+      }
     },
     onSuccess: (data: any) => {
-      if (data?.requestType === "create_lead") {
+      // Check for request response (has requestType or status=pending)
+      // A lead object has leadCode, a request object does not
+      if (data?.requestType === "create_lead" || (data?.status === "pending" && !data?.leadCode)) {
         setMessage("تم إرسال طلب إضافة العميل للموافقة")
       } else if (data?.message && data?.request) {
         setMessage(data.message)

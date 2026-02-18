@@ -43,6 +43,8 @@ export type Lead = {
   desiredLocation?: string | null
   propertyType?: string | null
   profession?: string | null
+  sourceLabel?: string | null
+  sourceId?: string | null
   notes?: string | null
   callCount?: number
   callLogs?: CallLog[]

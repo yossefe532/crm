@@ -531,6 +531,9 @@ export const coreController = {
         return
       } else if (updatedRequest.requestType === "create_lead") {
         const payload = updatedRequest.payload as any
+        if (!payload.leadCode) {
+          payload.leadCode = `L-${Date.now()}`
+        }
         const lead = await leadService.createLead(tenantId, payload)
         if (payload.assignedUserId) {
           // If approved by team leader, make sure assignedUserId is in their team (validation) - implicitly true if requester is in team

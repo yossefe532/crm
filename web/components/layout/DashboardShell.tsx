@@ -1,14 +1,17 @@
 "use client"
 
 import { ReactNode, useEffect, useState } from "react"
+import Link from "next/link"
 import { Sidebar } from "./Sidebar"
 import { Topbar } from "./Topbar"
 import { useLocale } from "../../lib/i18n/LocaleContext"
 import { usePathname } from "next/navigation"
+import { useAuth } from "../../lib/auth/AuthContext"
 
 export const DashboardShell = ({ children }: { children: ReactNode }) => {
   const { dir } = useLocale()
   const pathname = usePathname()
+  const { role } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const layoutClass = dir === "rtl" ? "flex-row-reverse" : "flex-row"
@@ -40,7 +43,7 @@ export const DashboardShell = ({ children }: { children: ReactNode }) => {
 
   return (
     <div className={`theme-shell relative flex min-h-screen ${layoutClass}`} dir={dir}>
-      <div className="city-bg pointer-events-none opacity-10 fixed inset-0 z-0">
+      <div className="city-bg pointer-events-none opacity-10 fixed inset-0 z-0 hidden md:block">
         <svg viewBox="0 0 1200 300" preserveAspectRatio="xMidYMid slice" className="h-full w-full">
           <rect width="1200" height="300" fill="var(--city-2)" />
           <rect x="40" y="120" width="90" height="180" fill="var(--city-1)" />
@@ -56,10 +59,54 @@ export const DashboardShell = ({ children }: { children: ReactNode }) => {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex flex-1 flex-col relative z-10">
         <Topbar onMenuToggle={() => setSidebarOpen((prev) => !prev)} />
-        <main className="page-reveal flex-1 space-y-8 px-4 py-4 md:px-8 md:py-6">
+        <main className="page-reveal flex-1 space-y-8 px-4 py-4 pb-20 md:px-8 md:py-6 md:pb-6">
           {children}
         </main>
       </div>
+      {/* Mobile Bottom Navigation */}
+      <nav
+        className="fixed bottom-0 inset-x-0 z-20 border-t border-base-200 bg-base-0/95 backdrop-blur supports-[backdrop-filter]:bg-base-0/70 md:hidden"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        aria-label="التنقل السفلي"
+        dir={dir}
+      >
+        <div className="grid grid-cols-4 gap-0">
+          <Link
+            href="/pipeline"
+            prefetch={false}
+            className={`flex flex-col items-center justify-center py-2 text-xs ${pathname === "/pipeline" ? "text-brand-600" : "text-base-700"}`}
+            aria-label="قناة العملاء"
+          >
+            <span>قناة</span>
+            <span className="mt-0.5">العملاء</span>
+          </Link>
+          <Link
+            href="/leads"
+            prefetch={false}
+            className={`flex flex-col items-center justify-center py-2 text-xs ${pathname === "/leads" ? "text-brand-600" : "text-base-700"}`}
+            aria-label="العملاء المحتملون"
+          >
+            <span>العملاء</span>
+            <span className="mt-0.5">المحتملون</span>
+          </Link>
+          <Link
+            href="/meetings"
+            prefetch={false}
+            className={`flex flex-col items-center justify-center py-2 text-xs ${pathname === "/meetings" ? "text-brand-600" : "text-base-700"}`}
+            aria-label="الاجتماعات"
+          >
+            <span>الاجتماعات</span>
+          </Link>
+          <Link
+            href="/connect"
+            prefetch={false}
+            className={`flex flex-col items-center justify-center py-2 text-xs ${pathname === "/connect" ? "text-brand-600" : "text-base-700"}`}
+            aria-label="التواصل"
+          >
+            <span>التواصل</span>
+          </Link>
+        </div>
+      </nav>
       {isLoading && (
         <div className="page-loader">
           <div className="page-loader__spinner" />
