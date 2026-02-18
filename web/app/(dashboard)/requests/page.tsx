@@ -96,7 +96,7 @@ export default function RequestsPage() {
                         </Badge>
                       </td>
                       <td className="py-3 px-4 text-sm font-medium">
-                        {userMap.get(req.requestedBy) || req.requestedBy}
+                        {req.requestedBy ? (userMap.get(req.requestedBy) || req.requestedBy) : "-"}
                       </td>
                       <td className="py-3 px-4">{renderPayload(req.requestType, req.payload)}</td>
                       <td className="py-3 px-4 text-sm text-base-500">
@@ -145,7 +145,7 @@ export default function RequestsPage() {
                   
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-base-900">
-                      مقدم الطلب: {userMap.get(req.requestedBy) || req.requestedBy}
+                      مقدم الطلب: {req.requestedBy ? (userMap.get(req.requestedBy) || req.requestedBy) : "-"}
                     </p>
                     <div className="bg-base-0 p-3 rounded-md border border-base-100">
                       {renderPayload(req.requestType, req.payload)}

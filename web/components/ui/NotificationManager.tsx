@@ -9,14 +9,6 @@ export const NotificationManager = () => {
   const [permission, setPermission] = useState<NotificationPermission>("default")
   const { isSubscribed, subscribe } = usePush()
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !("Notification" in window)) return
-    setPermission(Notification.permission)
-    if (Notification.permission === "default" && userId) {
-      requestPermission()
-    }
-  }, [userId, requestPermission])
-
   const requestPermission = useCallback(async () => {
     if (!("Notification" in window)) return
     
@@ -34,6 +26,14 @@ export const NotificationManager = () => {
       console.error("Error requesting notification permission:", error)
     }
   }, [isSubscribed, subscribe])
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return
+    setPermission(Notification.permission)
+    if (Notification.permission === "default" && userId) {
+      requestPermission()
+    }
+  }, [userId, requestPermission])
 
   // No need for manual SW registration here; usePush handles it
 

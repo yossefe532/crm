@@ -365,14 +365,13 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
         isOpen={isCallDialogOpen}
         onClose={() => setIsCallDialogOpen(false)}
         leadId={leadId}
-        leadName={lead.name}
+        phone={lead.phone || ""}
       />
 
       <MeetingDialog
         isOpen={isMeetingDialogOpen}
         onClose={() => setIsMeetingDialogOpen(false)}
         leadId={leadId}
-        leadName={lead.name}
         initialTitle={meetingTitle}
       />
     </div>

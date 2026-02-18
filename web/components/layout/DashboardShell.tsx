@@ -74,7 +74,7 @@ export const DashboardShell = ({ children }: { children: ReactNode }) => {
           <Link
             href="/pipeline"
             prefetch={false}
-            className={`flex flex-col items-center justify-center py-2 text-xs ${pathname === "/pipeline" ? "text-brand-600" : "text-base-700"}`}
+            className={`flex flex-col items-center justify-center py-2 text-xs ${pathname?.startsWith("/pipeline") ? "text-brand-600" : "text-base-700"}`}
             aria-label="قناة العملاء"
           >
             <span>قناة</span>
@@ -83,7 +83,7 @@ export const DashboardShell = ({ children }: { children: ReactNode }) => {
           <Link
             href="/leads"
             prefetch={false}
-            className={`flex flex-col items-center justify-center py-2 text-xs ${pathname === "/leads" ? "text-brand-600" : "text-base-700"}`}
+            className={`flex flex-col items-center justify-center py-2 text-xs ${pathname?.startsWith("/leads") ? "text-brand-600" : "text-base-700"}`}
             aria-label="العملاء المحتملون"
           >
             <span>العملاء</span>
@@ -92,7 +92,7 @@ export const DashboardShell = ({ children }: { children: ReactNode }) => {
           <Link
             href="/meetings"
             prefetch={false}
-            className={`flex flex-col items-center justify-center py-2 text-xs ${pathname === "/meetings" ? "text-brand-600" : "text-base-700"}`}
+            className={`flex flex-col items-center justify-center py-2 text-xs ${pathname?.startsWith("/meetings") ? "text-brand-600" : "text-base-700"}`}
             aria-label="الاجتماعات"
           >
             <span>الاجتماعات</span>
@@ -100,7 +100,7 @@ export const DashboardShell = ({ children }: { children: ReactNode }) => {
           <Link
             href="/connect"
             prefetch={false}
-            className={`flex flex-col items-center justify-center py-2 text-xs ${pathname === "/connect" ? "text-brand-600" : "text-base-700"}`}
+            className={`flex flex-col items-center justify-center py-2 text-xs ${pathname?.startsWith("/connect") ? "text-brand-600" : "text-base-700"}`}
             aria-label="التواصل"
           >
             <span>التواصل</span>
