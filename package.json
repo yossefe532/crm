@@ -10,7 +10,7 @@
     "start": "node dist/server.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "typecheck": "npx tsc -p tsconfig.json --noEmit",
+    "typecheck": "./node_modules/.bin/tsc -p tsconfig.json --noEmit",
     "test": "vitest --run",
     "test:ports": "node scripts/run-port-tests.mjs",
     "owner:update": "node scripts/update-owner-credentials.mjs",
