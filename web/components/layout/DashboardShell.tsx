@@ -8,6 +8,7 @@ import { useLocale } from "../../lib/i18n/LocaleContext"
 import { usePathname } from "next/navigation"
 import { useAuth } from "../../lib/auth/AuthContext"
 import { conversationService } from "../../lib/services/conversationService"
+import { NotificationManager } from "../ui/NotificationManager"
 
 export const DashboardShell = ({ children }: { children: ReactNode }) => {
   const { dir } = useLocale()
@@ -151,6 +152,7 @@ export const DashboardShell = ({ children }: { children: ReactNode }) => {
           <div className="page-loader__spinner" />
         </div>
       )}
+      <NotificationManager />
     </div>
   )
 }

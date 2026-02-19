@@ -11,6 +11,8 @@ import { useAuth } from "../../lib/auth/AuthContext"
 import { leadService } from "../../lib/services/leadService"
 import { coreService } from "../../lib/services/coreService"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { notificationService } from "../../lib/services/notificationService"
+import { conversationService } from "../../lib/services/conversationService"
 
 export const LeadCreateForm = () => {
   const { token, role, userId } = useAuth()
@@ -98,6 +100,15 @@ export const LeadCreateForm = () => {
       // A lead object has leadCode, a request object does not
       if (data?.requestType === "create_lead" || (data?.status === "pending" && !data?.leadCode)) {
         setMessage("تم إرسال طلب إضافة العميل للموافقة")
+        // Notify owners to review quickly
+        try {
+          notificationService.broadcast(
+            { type: "role", value: "owner" },
+            `طلب إضافة عميل جديد بانتظار الموافقة`,
+            ["push", "in_app"],
+            token || undefined
+          )
+        } catch {}
       } else if (data?.message && data?.request) {
         setMessage(data.message)
       } else {
@@ -124,7 +135,29 @@ export const LeadCreateForm = () => {
         setMessage(`هذا العميل مسجل بالفعل: ${existing.name || ""} ${existing.phone || ""} ${existing.email || ""} ${existing.status ? `(${existing.status})` : ""}`.trim())
         return
       }
-      setMessage(`حدث خطأ: ${err.message || "فشل تنفيذ الطلب"}`)
+      if (err?.response?.status === 403 || err?.status === 403) {
+        setMessage("صلاحياتك لا تسمح بالإضافة المباشرة. تم إرسال تنبيه للمالك.")
+        ;(async () => {
+          try {
+            const group = await conversationService.getOwnerGroup(token || undefined)
+            await conversationService.sendMessage(group.id, { content: `طلب إضافة عميل: ${name} - ${phone} - ${email || ""}`, contentType: "text" }, token || undefined)
+            try {
+              await notificationService.broadcast({ type: "role", value: "owner" }, "CHAT_MESSAGE: طلب إضافة عميل جديد", ["push"], token || undefined)
+            } catch {}
+          } catch {}
+        })()
+        return
+      }
+      setMessage(`حدث خطأ: ${err?.message || "فشل تنفيذ الطلب"}`)
+      // Also alert owner about failure so they can assist
+      try {
+        notificationService.broadcast(
+          { type: "role", value: "owner" },
+          `تعذر على السيلز إضافة عميل جديد: تحقق من الصلاحيات`,
+          ["push", "in_app"],
+          token || undefined
+        )
+      } catch {}
     }
   })
 
