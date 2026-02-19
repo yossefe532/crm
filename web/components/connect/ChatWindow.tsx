@@ -358,12 +358,148 @@ export const ChatWindow = () => {
   const directs = conversations.filter(c => c.type === "direct")
   const activeConversation = conversations.find(c => c.id === activeId)
 
+  // Shortcuts Logic
+  const myTeam = useMemo(() => {
+    if (role === 'sales') {
+      return teams?.find(t => t.members?.some(m => m.userId === userId))
+    }
+    if (role === 'team_leader') {
+      return teams?.find(t => t.leaderUserId === userId)
+    }
+    return null
+  }, [teams, userId, role])
+
+  const leaderUser = useMemo(() => {
+    if (role === 'sales' && myTeam?.leaderUserId) {
+      return users?.find(u => u.id === myTeam.leaderUserId)
+    }
+    return null
+  }, [myTeam, users, role])
+
+  const owners = useMemo(() => {
+    return users?.filter(u => u.roles?.includes('owner')) || []
+  }, [users])
+
+  const teamMembers = useMemo(() => {
+    if (role === 'team_leader' && myTeam?.members) {
+      return myTeam.members.map(m => {
+         const user = users?.find(u => u.id === m.userId)
+         return user
+      }).filter(Boolean)
+    }
+    return []
+  }, [role, myTeam, users])
+
+  const handleQuickAccess = async (type: 'direct' | 'team_group', id: string) => {
+    try {
+        let conv: Conversation | undefined
+        if (type === 'direct') {
+             conv = conversations.find(c => c.type === 'direct' && c.participants?.some(p => p.userId === id))
+             if (!conv) {
+                 conv = await conversationService.createDirect(id, token || undefined)
+             }
+        } else if (type === 'team_group') {
+             conv = conversations.find(c => c.type === 'team_group' && c.entityId === id)
+             if (!conv) {
+                 conv = await conversationService.createTeamGroup(id, token || undefined)
+             }
+        }
+
+        if (conv) {
+             const finalConv = conv
+             setConversations(prev => {
+                if (prev.some(c => c.id === finalConv.id)) return prev
+                return [finalConv, ...prev]
+             })
+             setActiveId(finalConv.id)
+             setIsSidebarOpen(false)
+        }
+    } catch (err) {
+        console.error("Quick access failed", err)
+        setError("فشل فتح المحادثة")
+    }
+  }
+
   return (
     <div className="flex h-[calc(100dvh-140px)] gap-4 overflow-hidden rounded-xl bg-base-0 shadow-sm border border-base-200">
       {/* Sidebar */}
       <div className={`flex w-full flex-col border-l border-base-100 bg-base-50/50 md:w-80 ${isSidebarOpen ? "block" : "hidden md:flex"}`}>
-        <div className="p-4 border-b border-base-100">
-          <h2 className="text-lg font-bold text-base-900 mb-4">الرسائل</h2>
+        <div className="p-4 border-b border-base-100 space-y-4">
+          
+          {/* Shortcuts Section */}
+          {(role === 'sales' || role === 'team_leader') && (
+            <div className="space-y-2 pb-4 border-b border-base-200/50">
+               <h3 className="text-xs font-bold text-base-400 uppercase tracking-wider mb-2">الوصول السريع</h3>
+               <div className="flex flex-wrap gap-2">
+                  {/* Team Group */}
+                  {myTeam && (
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="text-xs bg-white hover:bg-brand-50 hover:text-brand-600 border-base-200"
+                      onClick={() => handleQuickAccess('team_group', myTeam.id)}
+                    >
+                      <span className="ml-1">👥</span>
+                      مجموعة الفريق
+                    </Button>
+                  )}
+                  
+                  {/* Leader (for Sales) */}
+                  {leaderUser && (
+                     <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="text-xs bg-white hover:bg-brand-50 hover:text-brand-600 border-base-200"
+                      onClick={() => handleQuickAccess('direct', leaderUser.id)}
+                    >
+                      <span className="ml-1">👤</span>
+                      قائد الفريق
+                    </Button>
+                  )}
+
+                  {/* Owners */}
+                  {owners.map(owner => (
+                     <Button 
+                      key={owner.id}
+                      size="sm" 
+                      variant="outline" 
+                      className="text-xs bg-white hover:bg-brand-50 hover:text-brand-600 border-base-200"
+                      onClick={() => handleQuickAccess('direct', owner.id)}
+                    >
+                      <span className="ml-1">👑</span>
+                      {owner.name || "المالك"}
+                    </Button>
+                  ))}
+               </div>
+               
+               {/* Team Members (for Team Leader) */}
+               {role === 'team_leader' && teamMembers.length > 0 && (
+                 <div className="mt-2">
+                    <p className="text-[10px] text-base-400 mb-1">أعضاء الفريق:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {teamMembers.map((member: any) => (
+                        <button
+                          key={member.id}
+                          onClick={() => handleQuickAccess('direct', member.id)}
+                          className="flex items-center gap-1 bg-white border border-base-200 rounded-full px-2 py-1 hover:bg-brand-50 transition-colors"
+                          title={member.name || member.email}
+                        >
+                          <Avatar 
+                             src={member.profile?.avatar} 
+                             fallback={(member.name || member.email || "?").substring(0, 2)} 
+                             className="w-5 h-5 text-[9px]" 
+                          />
+                          <span className="text-[10px] max-w-[60px] truncate">{member.name || member.email}</span>
+                        </button>
+                      ))}
+                    </div>
+                 </div>
+               )}
+            </div>
+          )}
+
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-bold text-base-900">الرسائل</h2>
           
           {/* New Chat */}
           <div className="space-y-2">

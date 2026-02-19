@@ -40,7 +40,7 @@ export const LeadCreateForm = () => {
   }, [role, teams, userId])
 
   const myTeam = useMemo(() => {
-    return (teams || []).find((team) => team.members.some((m) => m.userId === userId))
+    return (teams || []).find((team) => (team.members || []).some((m) => m.userId === userId))
   }, [teams, userId])
 
   const assignableUsers = useMemo(() => {
