@@ -97,7 +97,7 @@ export type User = {
   name?: string
   firstName?: string | null
   lastName?: string | null
-  profile?: { firstName?: string | null; lastName?: string | null } | null
+  profile?: { firstName?: string | null; lastName?: string | null; avatar?: string | null } | null
   email: string
   phone?: string | null
   status: string
