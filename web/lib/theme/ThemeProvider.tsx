@@ -39,7 +39,10 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Avoid double render of theme
     if (typeof window === "undefined") return
-    const stored = localStorage.getItem("crm_theme") as Theme | null
+    let stored: Theme | null = null
+    try {
+      stored = localStorage.getItem("crm_theme") as Theme | null
+    } catch {}
     if (stored) {
       setThemeState(stored)
       applyTheme(stored)

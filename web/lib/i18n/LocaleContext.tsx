@@ -115,7 +115,10 @@ export const LocaleProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     if (typeof window === "undefined") return
-    const stored = window.localStorage.getItem("ui_locale") as Locale | null
+    let stored: Locale | null = null
+    try {
+      stored = window.localStorage.getItem("ui_locale") as Locale | null
+    } catch {}
     if (stored === "ar" || stored === "en") {
       setLocale(stored)
     }

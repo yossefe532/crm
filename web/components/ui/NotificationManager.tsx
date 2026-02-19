@@ -42,6 +42,7 @@ export const NotificationManager = () => {
 
   // Device fingerprint (IP + UA) to detect new device
   useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return
     const run = async () => {
       try {
         const ua = navigator.userAgent
@@ -53,7 +54,10 @@ export const NotificationManager = () => {
         } catch {}
         const id = `${ua}|${ip}`
         setDeviceId(id)
-        const prev = localStorage.getItem("notif_device_id")
+        let prev: string | null = null
+        try {
+          prev = localStorage.getItem("notif_device_id")
+        } catch {}
         if (prev !== id && Notification.permission === "default" && userId) {
           // New device or IP change: ask permission
           await requestPermission()
@@ -97,7 +101,10 @@ export const NotificationManager = () => {
   const [isDeniedBannerVisible, setIsDeniedBannerVisible] = useState(false)
 
   useEffect(() => {
-    const dismissed = localStorage.getItem("notification_denied_dismissed")
+    let dismissed: string | null = null
+    try {
+      dismissed = localStorage.getItem("notification_denied_dismissed")
+    } catch {}
     if (permission === "denied" && !dismissed) {
       setIsDeniedBannerVisible(true)
     }
@@ -105,7 +112,9 @@ export const NotificationManager = () => {
 
   const dismissDeniedBanner = () => {
     setIsDeniedBannerVisible(false)
-    localStorage.setItem("notification_denied_dismissed", "true")
+    try {
+      localStorage.setItem("notification_denied_dismissed", "true")
+    } catch {}
   }
 
   // If denied, show a hint banner to enable notifications from browser settings

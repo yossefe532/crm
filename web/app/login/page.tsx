@@ -77,7 +77,7 @@ export default function LoginPage() {
     if (!canvas) return
     const ctx = canvas.getContext("2d")
     if (!ctx) return
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || window.innerWidth < 768) return
     let animationFrame = 0
     const dots = Array.from({ length: 36 }).map(() => ({
       x: Math.random(),
@@ -94,22 +94,30 @@ export default function LoginPage() {
 
     const render = () => {
       if (!ctx) return
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      ctx.fillStyle = "rgba(79, 70, 229, 0.4)"
-      dots.forEach((dot) => {
-        dot.x += dot.vx
-        dot.y += dot.vy
-        if (dot.x < 0 || dot.x > 1) dot.vx *= -1
-        if (dot.y < 0 || dot.y > 1) dot.vy *= -1
-        ctx.beginPath()
-        ctx.arc(dot.x * canvas.width, dot.y * canvas.height, dot.r, 0, Math.PI * 2)
-        ctx.fill()
-      })
-      animationFrame = requestAnimationFrame(render)
+      try {
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        ctx.fillStyle = "rgba(79, 70, 229, 0.4)"
+        dots.forEach((dot) => {
+          dot.x += dot.vx
+          dot.y += dot.vy
+          if (dot.x < 0 || dot.x > 1) dot.vx *= -1
+          if (dot.y < 0 || dot.y > 1) dot.vy *= -1
+          ctx.beginPath()
+          ctx.arc(dot.x * canvas.width, dot.y * canvas.height, dot.r, 0, Math.PI * 2)
+          ctx.fill()
+        })
+        animationFrame = requestAnimationFrame(render)
+      } catch (e) {
+        // Silently fail animation errors
+      }
     }
 
-    resize()
-    render()
+    try {
+      resize()
+      render()
+    } catch (e) {
+      // Silently fail initialization
+    }
     window.addEventListener("resize", resize)
     return () => {
       cancelAnimationFrame(animationFrame)

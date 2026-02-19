@@ -13,10 +13,16 @@ export const CustomCursor = () => {
 
   useEffect(() => {
     if (typeof window === "undefined") return
-    const stored = window.localStorage.getItem("cursor_mode")
+    let stored = "default"
+    try {
+      stored = window.localStorage.getItem("cursor_mode") || "default"
+    } catch {}
     setEnabled(stored !== "default")
     const handleMode = () => {
-      const next = window.localStorage.getItem("cursor_mode")
+      let next = "default"
+      try {
+        next = window.localStorage.getItem("cursor_mode") || "default"
+      } catch {}
       setEnabled(next !== "default")
     }
     window.addEventListener("cursor-mode-change", handleMode)
