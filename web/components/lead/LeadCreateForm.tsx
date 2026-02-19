@@ -39,12 +39,18 @@ export const LeadCreateForm = () => {
     return (teams || []).find((team) => team.leaderUserId === userId) || null
   }, [role, teams, userId])
 
+  const myTeam = useMemo(() => {
+    return (teams || []).find((team) => team.members.some((m) => m.userId === userId))
+  }, [teams, userId])
+
   const assignableUsers = useMemo(() => {
     const base = (users || []).filter((user) => user.status === "active" && !(user.roles || []).includes("owner"))
     if (role !== "team_leader") return base
     const teamMemberIds = new Set((teamLeaderTeam?.members || []).map((member) => member.userId))
+    // Add current user (Team Leader) to the set so they can assign to themselves
+    if (userId) teamMemberIds.add(userId)
     return base.filter((user) => teamMemberIds.has(user.id))
-  }, [role, teamLeaderTeam, users])
+  }, [role, teamLeaderTeam, users, userId])
 
   useEffect(() => {
     if (role === "team_leader" && teamLeaderTeam?.id) {
@@ -108,6 +114,15 @@ export const LeadCreateForm = () => {
             ["push", "in_app"],
             token || undefined
           )
+          
+          if (myTeam?.leaderUserId) {
+             notificationService.broadcast(
+              { type: "user", value: myTeam.leaderUserId },
+              `طلب إضافة عميل جديد بانتظار الموافقة`,
+              ["push", "in_app"],
+              token || undefined
+            )
+          }
         } catch {}
       } else if (data?.message && data?.request) {
         setMessage(data.message)
@@ -272,10 +287,12 @@ export const LeadCreateForm = () => {
             value={assignedUserId}
             onChange={(event) => setAssignedUserId(event.target.value)}
           >
-            <option value="">اختر المندوب</option>
+            <option value="">
+              {role === "team_leader" ? "تعيين لي (أنا)" : "اختر المندوب"}
+            </option>
             {assignableUsers.map((user) => (
               <option key={user.id} value={user.id}>
-                {user.email}
+                {user.id === userId ? `${user.name || user.email} (أنا)` : (user.name || user.email)}
               </option>
             ))}
           </Select>

@@ -67,8 +67,8 @@ self.addEventListener("push", function (event) {
   }
   const options = {
     body: payload.body,
-    icon: "/icons/icon.svg",
-    badge: "/icons/icon.svg",
+    icon: "/icons/system-icon.jpg",
+    badge: "/icons/system-icon.jpg",
     vibrate: [100, 50, 100],
     data: {
       dateOfArrival: Date.now(),
@@ -77,7 +77,10 @@ self.addEventListener("push", function (event) {
   }
   event.waitUntil(self.registration.showNotification(payload.title || "CRM Doctor", options))
   self.clients.matchAll().then((clients) => {
-    clients.forEach((client) => client.postMessage({ type: "PLAY_SOUND" }))
+    clients.forEach((client) => client.postMessage({ 
+      type: "PUSH_RECEIVED",
+      payload: payload
+    }))
   })
 })
 

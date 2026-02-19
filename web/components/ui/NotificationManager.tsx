@@ -94,8 +94,22 @@ export const NotificationManager = () => {
     )
   }
 
+  const [isDeniedBannerVisible, setIsDeniedBannerVisible] = useState(false)
+
+  useEffect(() => {
+    const dismissed = localStorage.getItem("notification_denied_dismissed")
+    if (permission === "denied" && !dismissed) {
+      setIsDeniedBannerVisible(true)
+    }
+  }, [permission])
+
+  const dismissDeniedBanner = () => {
+    setIsDeniedBannerVisible(false)
+    localStorage.setItem("notification_denied_dismissed", "true")
+  }
+
   // If denied, show a hint banner to enable notifications from browser settings
-  if (permission === "denied" && userId) {
+  if (permission === "denied" && userId && isDeniedBannerVisible) {
     return (
       <div className="fixed bottom-4 left-4 right-4 z-50 rounded-lg border border-rose-200 bg-white p-4 shadow-lg dark:border-rose-800 dark:bg-base-900 md:left-auto md:right-4 md:w-96">
         <div className="flex items-start gap-4">
@@ -106,13 +120,12 @@ export const NotificationManager = () => {
             <h4 className="mb-1 font-semibold text-base-900">الإشعارات معطلة</h4>
             <p className="mb-3 text-sm text-base-600">لتفعيل الإشعارات، افتح إعدادات المتصفح واسمح للإشعارات لهذا الموقع.</p>
             <div className="flex gap-2">
-              <a 
-                href="/connect" 
+              <button 
+                onClick={dismissDeniedBanner}
                 className="rounded-md bg-base-100 px-3 py-1.5 text-xs font-medium text-base-700 hover:bg-base-200 transition-colors"
-                data-no-loader
               >
-                فتح التواصل
-              </a>
+                حسناً، فهمت
+              </button>
             </div>
           </div>
         </div>

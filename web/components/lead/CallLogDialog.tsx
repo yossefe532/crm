@@ -14,16 +14,40 @@ interface CallLogDialogProps {
   onClose: () => void
   leadId: string
   phone: string
+  currentStage?: string
+  onUpdateStage?: (stage: string) => void
 }
 
-export const CallLogDialog = ({ isOpen, onClose, leadId, phone }: CallLogDialogProps) => {
+export const CallLogDialog = ({ isOpen, onClose, leadId, phone, currentStage, onUpdateStage }: CallLogDialogProps) => {
   const { token } = useAuth()
   const queryClient = useQueryClient()
   const [outcome, setOutcome] = useState("answered")
   const [duration, setDuration] = useState("60")
+  const [nextStage, setNextStage] = useState<string | "">(currentStage || "")
+
+  const STAGES = [
+    { value: "new", label: "جديد" },
+    { value: "call", label: "مكالمة هاتفية" },
+    { value: "meeting", label: "اجتماع" },
+    { value: "site_visit", label: "رؤية الموقع" },
+    { value: "closing", label: "إغلاق الصفقة" }
+  ]
+
+  // Update nextStage when currentStage changes
+  // But only if user hasn't manually changed it? 
+  // For simplicity, just init with currentStage.
 
   const callMutation = useMutation({
-    mutationFn: () => leadService.addCall(leadId, { outcome, durationSeconds: parseInt(duration) || 0 }, token || undefined),
+    mutationFn: async () => {
+      await leadService.addCall(leadId, { outcome, durationSeconds: parseInt(duration) || 0 }, token || undefined)
+      
+      if (nextStage && nextStage !== currentStage && onUpdateStage) {
+        onUpdateStage(nextStage)
+      } else if (nextStage && nextStage !== currentStage) {
+        // If no onUpdateStage provided, try to update directly
+        await leadService.updateStage(leadId, nextStage, token || undefined)
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads", leadId] })
       onClose()
@@ -59,6 +83,24 @@ export const CallLogDialog = ({ isOpen, onClose, leadId, phone }: CallLogDialogP
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
           />
+        </div>
+
+        <div className="space-y-2">
+          <Select
+            label="تحديث مرحلة العميل"
+            id="next-stage"
+            value={nextStage}
+            onChange={(e) => setNextStage(e.target.value)}
+          >
+            {STAGES.map((stage) => (
+              <option key={stage.value} value={stage.value}>
+                {stage.label}
+              </option>
+            ))}
+          </Select>
+          <p className="text-xs text-base-500">
+            سيتم نقل العميل إلى هذه المرحلة بعد حفظ المكالمة.
+          </p>
         </div>
 
         <div className="flex justify-end gap-2 pt-4">

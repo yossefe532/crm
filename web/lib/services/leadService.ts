@@ -13,6 +13,7 @@ export const leadService = {
   assign: (id: string, payload: { assignedUserId: string; reason?: string }, token?: string) => apiClient.post<{ id: string }>(`/leads/${id}/assign`, payload, token),
   unassign: (id: string, token?: string) => apiClient.post<Lead>(`/leads/${id}/unassign`, {}, token),
   updateStage: (id: string, stage: string, token?: string) => apiClient.patch<{ code: string }>(`/leads/${id}/stage`, { stage }, token),
+  delete: (id: string, token?: string) => apiClient.delete(`/leads/${id}`, token),
   listDeadlines: (token?: string) => apiClient.get<Array<{ id: string; leadId: string; dueAt: string; status: string }>>("/leads/deadlines", token),
   getDeadline: (id: string, token?: string) => apiClient.get<{ dueAt?: string | null; status: string } | null>(`/leads/${id}/deadline`, token),
   listFailures: (leadId?: string, token?: string) => apiClient.get<Array<{ id: string; leadId: string; failureType: string; reason?: string | null; status: string; createdAt: string }>>(`/leads/failures${leadId ? `?leadId=${leadId}` : ""}`, token),

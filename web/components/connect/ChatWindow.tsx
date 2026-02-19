@@ -93,7 +93,7 @@ export const ChatWindow = () => {
     open()
   }, [searchParams, token])
 
-  // Poll messages
+  // Poll messages and Listen for Push
   useEffect(() => {
     if (!activeId) return
 
@@ -103,12 +103,30 @@ export const ChatWindow = () => {
         
         setMessages(prev => {
           // Keep pending messages that are not in the server list yet
-          const pending = prev.filter(m => m.status === 'pending')
+          const pending = prev.filter(m => m.status === 'pending' || m.status === 'error')
           
           const serverIds = new Set(serverMessages.map(m => m.id))
           const uniquePending = pending.filter(p => !serverIds.has(p.id)) // Pending IDs are temp-*, so this works
           
-          return [...serverMessages, ...uniquePending]
+          // Also check localStorage for any pending messages for this conversation we might have missed (e.g. after refresh)
+          let storedPending: LocalMessage[] = []
+          try {
+             const raw = localStorage.getItem(`chat_pending_${userId}`)
+             if (raw) {
+               const allPending: LocalMessage[] = JSON.parse(raw)
+               storedPending = allPending.filter(m => m.conversationId === activeId && !serverIds.has(m.id))
+             }
+          } catch {}
+
+          // Merge unique pending from state and storage
+          const combinedPending = [...uniquePending]
+          storedPending.forEach(sp => {
+            if (!combinedPending.some(cp => cp.id === sp.id)) {
+              combinedPending.push(sp)
+            }
+          })
+
+          return [...serverMessages, ...combinedPending]
         })
         
         // mark last seen for unread tracking
@@ -123,8 +141,21 @@ export const ChatWindow = () => {
     
     loadMessages()
     const interval = setInterval(loadMessages, 3000)
-    return () => clearInterval(interval)
-  }, [activeId, token])
+
+    // Listen for push notifications to trigger immediate refresh
+    const handlePush = (e: Event) => {
+      // Optimistically refresh
+      loadMessages()
+      // Also refresh conversation list to update snippets/unread
+      conversationService.list(token || undefined).then(setConversations)
+    }
+    window.addEventListener("push-notification", handlePush)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener("push-notification", handlePush)
+    }
+  }, [activeId, token, userId])
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -152,6 +183,15 @@ export const ChatWindow = () => {
     // Add optimistic message
     setMessages((prev) => [...prev, optimistic])
 
+    // Save to localStorage for persistence
+    try {
+      const key = `chat_pending_${userId}`
+      const raw = localStorage.getItem(key)
+      const list: LocalMessage[] = raw ? JSON.parse(raw) : []
+      list.push(optimistic)
+      localStorage.setItem(key, JSON.stringify(list))
+    } catch {}
+
     try {
       const sent = await conversationService.sendMessage(
         activeId, 
@@ -163,6 +203,17 @@ export const ChatWindow = () => {
       setMessages((prev) => 
         prev.map(m => m.id === tempId ? { ...sent, status: 'sent' } : m)
       )
+
+      // Remove from localStorage on success
+      try {
+        const key = `chat_pending_${userId}`
+        const raw = localStorage.getItem(key)
+        if (raw) {
+          const list: LocalMessage[] = JSON.parse(raw)
+          const filtered = list.filter(m => m.id !== tempId)
+          localStorage.setItem(key, JSON.stringify(filtered))
+        }
+      } catch {}
 
       // Update conversation list preview
       setConversations(prev => prev.map(c => 
@@ -205,9 +256,23 @@ export const ChatWindow = () => {
     } catch (err) {
       console.error(err)
       setError("فشل إرسال الرسالة")
+      
+      // Update status to error in state
       setMessages((prev) => 
         prev.map(m => m.id === tempId ? { ...m, status: 'error' } : m)
       )
+
+      // Update status to error in localStorage
+      try {
+        const key = `chat_pending_${userId}`
+        const raw = localStorage.getItem(key)
+        if (raw) {
+          const list: LocalMessage[] = JSON.parse(raw)
+          const updated = list.map(m => m.id === tempId ? { ...m, status: 'error' } : m)
+          localStorage.setItem(key, JSON.stringify(updated))
+        }
+      } catch {}
+
       setTimeout(() => setError(null), 2000)
     } finally {
       setIsSending(false)

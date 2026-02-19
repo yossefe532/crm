@@ -9,5 +9,6 @@ export const notificationService = {
   getPolicy: (token?: string) => apiClient.get<{ enabled: boolean; dailyLimit: number; quietHours: { enabled: boolean; start: number; end: number } }>("/notifications/policies", token),
   updatePolicy: (payload: { enabled: boolean; dailyLimit: number; quietHours: { enabled: boolean; start: number; end: number } }, token?: string) =>
     apiClient.put("/notifications/policies", payload, token),
-  listEvents: (limit = 10, token?: string) => apiClient.get<NotificationEvent[]>(`/notifications/events?limit=${limit}`, token)
+  listEvents: (limit = 10, token?: string) => apiClient.get<NotificationEvent[]>(`/notifications/events?limit=${limit}`, token),
+  clearEvents: (token?: string) => apiClient.delete("/notifications/events", token)
 }

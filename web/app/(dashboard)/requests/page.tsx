@@ -3,6 +3,7 @@
 import { useAuth } from "../../../lib/auth/AuthContext"
 import { useUserRequests } from "../../../lib/hooks/useUserRequests"
 import { useUsers } from "../../../lib/hooks/useUsers"
+import { useTeams } from "../../../lib/hooks/useTeams"
 import { coreService } from "../../../lib/services/coreService"
 import { Card } from "../../../components/ui/Card"
 import { Button } from "../../../components/ui/Button"
@@ -15,7 +16,11 @@ export default function RequestsPage() {
   const { role, userId } = useAuth()
   const { data: requests, isLoading } = useUserRequests()
   const { data: users } = useUsers()
+  const { data: teams } = useTeams()
   const queryClient = useQueryClient()
+
+  const teamLeaderTeam = teams?.find(t => t.leaderUserId === userId)
+  const teamMemberIds = new Set(teamLeaderTeam?.members?.map(m => m.userId) || [])
 
   const decideMutation = useMutation({
     mutationFn: (payload: { requestId: string; status: "approved" | "rejected" }) =>
@@ -29,7 +34,16 @@ export default function RequestsPage() {
     return <div className="p-8 text-center">جاري التحميل...</div>
   }
 
-  const pendingRequests = requests?.filter((r) => r.status === "pending") || []
+  const pendingRequests = (requests?.filter((r) => r.status === "pending") || []).filter(req => {
+    if (role === "owner") return true
+    if (role === "team_leader") {
+      // Show requests from team members or if the requester is in the team
+      const requesterId = typeof req.requestedBy === 'object' ? (req.requestedBy as any).id : req.requestedBy
+      return teamMemberIds.has(requesterId) || (req.payload?.teamId === teamLeaderTeam?.id)
+    }
+    return false
+  })
+  
   const historyRequests = requests?.filter((r) => r.status !== "pending") || []
   const userMap = new Map((users || []).map((u) => [u.id, u.name || u.email]))
 

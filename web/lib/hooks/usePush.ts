@@ -21,9 +21,12 @@ export const usePush = () => {
     if ("serviceWorker" in navigator && "PushManager" in window) {
       navigator.serviceWorker.register("/sw.js").then((registration) => {
         navigator.serviceWorker.addEventListener("message", (event) => {
-          if (event.data && event.data.type === "PLAY_SOUND") {
+          if (event.data && (event.data.type === "PLAY_SOUND" || event.data.type === "PUSH_RECEIVED")) {
             const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3")
             audio.play().catch(() => null)
+            
+            // Dispatch event for components to listen
+            window.dispatchEvent(new CustomEvent("push-notification", { detail: event.data.payload }))
           }
         })
 
