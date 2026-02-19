@@ -40,6 +40,7 @@ export const LeadCreateForm = () => {
   }, [role, teams, userId])
 
   const myTeam = useMemo(() => {
+    // FIX: Added (team.members || []) to prevent 'undefined' error
     return (teams || []).find((team) => (team.members || []).some((m) => m.userId === userId))
   }, [teams, userId])
 
