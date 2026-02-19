@@ -2,6 +2,7 @@
 
 import { Card } from "../ui/Card"
 import { useNotifications } from "../../lib/hooks/useNotifications"
+import { ClientDate } from "../ui/ClientDate"
 
 export const ActivityLog = () => {
   const { data, isLoading, isError } = useNotifications()
@@ -16,7 +17,11 @@ export const ActivityLog = () => {
           return (
             <div key={item.id} className="lux-timeline__item flex flex-col gap-1 rounded-lg border border-base-100 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm font-medium text-base-900">{message}</p>
-              <span className="text-xs text-base-500 whitespace-nowrap">{new Date(item.createdAt).toLocaleTimeString("ar-EG")}</span>
+              <ClientDate 
+                date={item.createdAt} 
+                formatter={(d) => d.toLocaleTimeString("ar-EG")}
+                className="text-xs text-base-500 whitespace-nowrap"
+              />
             </div>
           )
         })}

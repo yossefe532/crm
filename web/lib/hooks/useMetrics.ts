@@ -9,6 +9,7 @@ export const useMetrics = () => {
     queryKey: ["metrics"],
     queryFn: async () => {
       const rows = await analyticsService.listDailyMetrics(undefined, token || undefined)
+      if (!Array.isArray(rows)) return []
       const leadsCreated = rows.reduce((sum, row) => sum + (row.leadsCreated || 0), 0)
       const leadsClosed = rows.reduce((sum, row) => sum + (row.leadsClosed || 0), 0)
       return [

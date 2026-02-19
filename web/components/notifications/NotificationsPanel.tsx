@@ -4,6 +4,7 @@ import { Card } from "../ui/Card"
 import { Button } from "../ui/Button"
 import { useNotifications, useClearNotifications } from "../../lib/hooks/useNotifications"
 import { usePush } from "../../lib/hooks/usePush"
+import { ClientDate } from "../ui/ClientDate"
 
 export const NotificationsPanel = () => {
   const { isSubscribed, subscribe } = usePush()
@@ -50,7 +51,10 @@ export const NotificationsPanel = () => {
             <div key={event.id} className="notify-card rounded-lg px-3 py-2">
               <p className="text-sm font-medium text-base-900">{message}</p>
               {sender && <p className="text-xs text-base-500">اللي بعت: {sender}</p>}
-              <p className="text-xs text-base-500">{new Date(event.createdAt).toLocaleString("ar-EG")}</p>
+              <ClientDate 
+                date={event.createdAt} 
+                className="text-xs text-base-500"
+              />
             </div>
           )
         })}

@@ -21,6 +21,7 @@ import { StageControls } from "../lead/StageControls"
 import { useRouter } from "next/navigation"
 import { Modal } from "../ui/Modal"
 import { LeadDetail } from "../lead/LeadDetail"
+import { ClientDate } from "../ui/ClientDate"
 
 export const LeadList = () => {
   const { data, isLoading, isError } = useLeads()
@@ -229,14 +230,16 @@ export const LeadList = () => {
             </div>
             {deadlinesByLead.get(lead.id)?.dueAt && (
               <div className="mt-3 text-xs text-base-500">
-                المهلة المتبقية: {(() => {
-                  const dueAt = new Date(deadlinesByLead.get(lead.id)?.dueAt || "")
-                  const diff = Math.max(0, dueAt.getTime() - Date.now())
-                  const hours = Math.floor(diff / 3600000)
-                  const days = Math.floor(hours / 24)
-                  const remainingHours = hours % 24
-                  return `${days} يوم ${remainingHours} ساعة`
-                })()}
+                المهلة المتبقية: <ClientDate 
+                  date={deadlinesByLead.get(lead.id)?.dueAt || ""}
+                  formatter={(d) => {
+                    const diff = Math.max(0, d.getTime() - Date.now())
+                    const hours = Math.floor(diff / 3600000)
+                    const days = Math.floor(hours / 24)
+                    const remainingHours = hours % 24
+                    return `${days} يوم ${remainingHours} ساعة`
+                  }}
+                />
               </div>
             )}
           </div>

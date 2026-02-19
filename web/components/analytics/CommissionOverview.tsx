@@ -21,9 +21,9 @@ export const CommissionOverview = () => {
   const pendingPct = total ? Math.round((pending / total) * 100) : 0
 
   const rows = [
-    { label: "إجمالي العمولات", value: total ? 100 : 0, amount: total.toLocaleString("ar-EG") },
-    { label: "عمولات معتمدة", value: approvedPct, amount: approved.toLocaleString("ar-EG") },
-    { label: "عمولات معلّقة", value: pendingPct, amount: pending.toLocaleString("ar-EG") }
+    { label: "إجمالي العمولات", value: total ? 100 : 0, amount: total },
+    { label: "عمولات معتمدة", value: approvedPct, amount: approved },
+    { label: "عمولات معلّقة", value: pendingPct, amount: pending }
   ]
 
   return (
@@ -33,7 +33,9 @@ export const CommissionOverview = () => {
           <div key={item.label} className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-base-900">{item.label}</p>
-              <span className="text-sm text-base-600">{item.amount}</span>
+              <span className="text-sm text-base-600" suppressHydrationWarning>
+                {item.amount.toLocaleString("ar-EG")}
+              </span>
             </div>
             <Progress value={item.value} />
           </div>

@@ -9,6 +9,7 @@ import { meetingService } from "../../lib/services/meetingService"
 import { Card } from "../ui/Card"
 import { Button } from "../ui/Button"
 import { Badge } from "../ui/Badge"
+import { ClientDate } from "../ui/ClientDate"
 
 export const UpcomingMeetings = () => {
   const { data, isLoading, isError } = useMeetings()
@@ -59,7 +60,11 @@ export const UpcomingMeetings = () => {
               <div className="flex items-start justify-between sm:block">
                 <div>
                   <p className="text-sm font-semibold text-base-900">{meeting.title}</p>
-                  <p className="text-xs text-base-500 mt-1">{format(new Date(meeting.startsAt), "PPpp", { locale: ar })}</p>
+                  <ClientDate 
+                    date={meeting.startsAt}
+                    formatter={(d) => format(d, "PPpp", { locale: ar })}
+                    className="text-xs text-base-500 mt-1 block"
+                  />
                 </div>
                 <div className="sm:mt-2">
                   <Badge tone={statusLabels[meeting.status]?.tone || "default"}>{statusLabels[meeting.status]?.label || meeting.status}</Badge>

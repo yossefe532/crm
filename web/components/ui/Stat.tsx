@@ -15,7 +15,7 @@ export const Stat = ({ label, value, change }: { label: string; value: string; c
     <div className="space-y-2">
       <p className="text-sm text-base-500">{label}</p>
       <div className="flex items-baseline gap-2">
-        <span className="text-2xl font-semibold text-base-900">{formatted}</span>
+        <span className="text-2xl font-semibold text-base-900" suppressHydrationWarning>{formatted}</span>
         {change && <span className="text-xs font-semibold text-emerald-600">{change}</span>}
       </div>
     </div>

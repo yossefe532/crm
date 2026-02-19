@@ -77,7 +77,7 @@ export const DashboardShell = ({ children }: { children: ReactNode }) => {
   }, [token])
 
   return (
-    <div className={`theme-shell relative flex min-h-screen ${layoutClass}`} dir={dir}>
+    <div className={`theme-shell relative flex min-h-screen ${layoutClass}`} dir={dir} suppressHydrationWarning>
       <div className="city-bg pointer-events-none opacity-10 fixed inset-0 z-0 hidden md:block">
         <svg viewBox="0 0 1200 300" preserveAspectRatio="xMidYMid slice" className="h-full w-full">
           <rect width="1200" height="300" fill="var(--city-2)" />

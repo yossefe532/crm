@@ -115,7 +115,9 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
                 <Badge variant={lead.priority === "high" ? "danger" : lead.priority === "low" ? "success" : "warning"} className="px-2 py-1">
                   {lead.priority === "high" ? "🔥 هام جداً" : lead.priority === "low" ? "منخفض" : "عادي"}
                 </Badge>
-                <Badge variant="outline" className="font-mono text-xs">#{lead.leadCode}</Badge>
+                {lead.leadCode && (
+                  <Badge variant="outline" className="font-mono text-xs">#{lead.leadCode}</Badge>
+                )}
               </div>
               
               <div className="flex flex-wrap items-center gap-4 text-sm text-base-500">

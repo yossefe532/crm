@@ -43,8 +43,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ar" dir="rtl">
-      <body className="font-ar bg-base-50">
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
+      <body className="font-ar bg-base-50" suppressHydrationWarning>
         <FlashlightEffect />
         <Providers>{children}</Providers>
       </body>

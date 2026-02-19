@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Card } from "../../../components/ui/Card"
 import { Button } from "../../../components/ui/Button"
@@ -19,7 +19,13 @@ export default function FinancePage() {
   const [note, setNote] = useState("")
   const [occurredAt, setOccurredAt] = useState("")
   const [message, setMessage] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
   const queryClient = useQueryClient()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
   const mutation = useMutation({
     mutationFn: () =>
       coreService.createFinanceEntry(
@@ -35,6 +41,19 @@ export default function FinancePage() {
       queryClient.invalidateQueries({ queryKey: ["finance_entries"] })
     }
   })
+
+  if (!mounted) {
+    return (
+      <div className="space-y-6 p-4 md:p-6">
+        <div className="h-32 rounded-xl bg-base-100 animate-pulse" />
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="h-24 rounded-lg bg-base-100 animate-pulse" />
+          <div className="h-24 rounded-lg bg-base-100 animate-pulse" />
+          <div className="h-24 rounded-lg bg-base-100 animate-pulse" />
+        </div>
+      </div>
+    )
+  }
 
   if (role !== "owner") {
     return <Card title="المالية">غير مصرح</Card>

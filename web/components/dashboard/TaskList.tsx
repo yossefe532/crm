@@ -4,6 +4,8 @@ import { Card } from "../ui/Card"
 import { Badge } from "../ui/Badge"
 import { useLeadTasks } from "../../lib/hooks/useLeadTasks"
 
+import { ClientDate } from "../ui/ClientDate"
+
 export const TaskList = () => {
   const { data, isLoading, isError } = useLeadTasks()
 
@@ -17,7 +19,7 @@ export const TaskList = () => {
             <div>
               <p className="text-sm font-semibold text-base-900">{task.taskType}</p>
               <p className="text-xs text-base-500">
-                العميل {task.lead?.name || "غير معروف"} • الموعد {task.dueAt ? new Date(task.dueAt).toLocaleDateString("ar-EG") : "غير محدد"}
+                العميل {task.lead?.name || "غير معروف"} • الموعد <ClientDate date={task.dueAt || ""} fallback="غير محدد" />
               </p>
             </div>
             <div className="self-end sm:self-auto">

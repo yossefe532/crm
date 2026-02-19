@@ -200,9 +200,15 @@ export const ChatWindow = () => {
       )
       
       // Replace optimistic with real
-      setMessages((prev) => 
-        prev.map(m => m.id === tempId ? { ...sent, status: 'sent' } : m)
-      )
+      setMessages((prev) => {
+        // Check if the real message already exists (e.g. from poller)
+        const exists = prev.some(m => m.id === sent.id)
+        if (exists) {
+          // Just remove the temp message to avoid duplicates
+          return prev.filter(m => m.id !== tempId)
+        }
+        return prev.map(m => m.id === tempId ? { ...sent, status: 'sent' } : m)
+      })
 
       // Remove from localStorage on success
       try {

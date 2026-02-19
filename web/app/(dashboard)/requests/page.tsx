@@ -1,283 +1,141 @@
 "use client"
 
-import { useAuth } from "../../../lib/auth/AuthContext"
-import { useUserRequests } from "../../../lib/hooks/useUserRequests"
-import { useUsers } from "../../../lib/hooks/useUsers"
-import { useTeams } from "../../../lib/hooks/useTeams"
+import { useState, useEffect } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { coreService } from "../../../lib/services/coreService"
+import { useAuth } from "../../../lib/auth/AuthContext"
 import { Card } from "../../../components/ui/Card"
 import { Button } from "../../../components/ui/Button"
 import { Badge } from "../../../components/ui/Badge"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { Avatar } from "../../../components/ui/Avatar"
 import { format } from "date-fns"
 import { ar } from "date-fns/locale"
 
 export default function RequestsPage() {
-  const { role, userId } = useAuth()
-  const { data: requests, isLoading } = useUserRequests()
-  const { data: users } = useUsers()
-  const { data: teams } = useTeams()
+  const { token, role, userId } = useAuth()
   const queryClient = useQueryClient()
+  const [processingId, setProcessingId] = useState<string | null>(null)
 
-  const teamLeaderTeam = teams?.find(t => t.leaderUserId === userId)
-  const teamMemberIds = new Set(teamLeaderTeam?.members?.map(m => m.userId) || [])
+  const { data: requests, isLoading } = useQuery({
+    queryKey: ["user-requests"],
+    queryFn: () => coreService.listUserRequests(token || undefined),
+    enabled: !!token && (role === "owner" || role === "team_leader")
+  })
 
   const decideMutation = useMutation({
-    mutationFn: (payload: { requestId: string; status: "approved" | "rejected" }) =>
-      coreService.decideUserRequest(payload.requestId, payload.status),
+    mutationFn: async ({ id, status }: { id: string; status: "approved" | "rejected" }) => {
+      setProcessingId(id)
+      try {
+        await coreService.decideUserRequest(id, status, token || undefined)
+      } finally {
+        setProcessingId(null)
+      }
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user_requests"] })
-    }
+      queryClient.invalidateQueries({ queryKey: ["user-requests"] })
+    },
   })
 
-  if (isLoading) {
-    return <div className="p-8 text-center">جاري التحميل...</div>
+  if (role === "sales") {
+    return (
+      <div className="p-6">
+        <Card title="طلباتي">
+          <p className="text-base-500">ليس لديك صلاحية لعرض هذه الصفحة.</p>
+        </Card>
+      </div>
+    )
   }
 
-  const pendingRequests = (requests?.filter((r) => r.status === "pending") || []).filter(req => {
-    if (role === "owner") return true
-    if (role === "team_leader") {
-      // Show requests from team members or if the requester is in the team
-      const requesterId = typeof req.requestedBy === 'object' ? (req.requestedBy as any).id : req.requestedBy
-      return teamMemberIds.has(requesterId) || (req.payload?.teamId === teamLeaderTeam?.id)
-    }
-    return false
-  })
-  
-  const historyRequests = requests?.filter((r) => r.status !== "pending") || []
-  const userMap = new Map((users || []).map((u) => [u.id, u.name || u.email]))
-
-  const renderPayload = (type: string, payload: any) => {
-    if (type === "create_sales") {
-      return (
-        <div className="text-sm">
-          <div className="font-semibold">موظف مبيعات جديد</div>
-          <div>الاسم: {payload.name}</div>
-          <div>البريد: {payload.email}</div>
-          {payload.phone && <div>الهاتف: {payload.phone}</div>}
-          {payload.teamId && <div>الفريق: {payload.teamId}</div>}
-        </div>
-      )
-    }
-    if (type === "create_lead") {
-      return (
-        <div className="text-sm">
-          <div className="font-semibold">عميل جديد</div>
-          <div>الاسم: {payload.name}</div>
-          <div>الهاتف: {payload.phone}</div>
-          {payload.email && <div>البريد: {payload.email}</div>}
-          {payload.budget && <div>الميزانية: {payload.budget}</div>}
-        </div>
-      )
-    }
-    return <pre className="text-xs">{JSON.stringify(payload, null, 2)}</pre>
-  }
-
-  const canApprove = (request: any) => {
-    if (role === "owner") return true
-    if (role === "team_leader" && request.requestType === "create_lead") return true
-    return false
-  }
+  const pendingRequests = (requests || []).filter(
+    (req) => req.status === "pending" && req.requestType === "create_lead"
+  )
 
   return (
     <div className="space-y-6 p-6">
-      <h1 className="text-2xl font-bold">مركز الطلبات</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-base-900 dark:text-white">طلبات الموافقة</h1>
+        <Badge variant="outline">{pendingRequests.length} قيد الانتظار</Badge>
+      </div>
 
-      {/* Pending Requests */}
-      <Card className="p-6">
-        <h2 className="mb-4 text-lg font-semibold">الطلبات المعلقة</h2>
-        {pendingRequests.length === 0 ? (
-          <p className="text-gray-500">لا يوجد طلبات معلقة</p>
-        ) : (
-          <>
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full min-w-[700px] text-right">
-                <thead>
-                  <tr className="border-b border-base-200 text-sm text-base-500">
-                    <th className="pb-3 pr-4">نوع الطلب</th>
-                    <th className="pb-3 px-4">مقدم الطلب</th>
-                    <th className="pb-3 px-4">التفاصيل</th>
-                    <th className="pb-3 px-4">التاريخ</th>
-                    <th className="pb-3 pl-4">الإجراءات</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pendingRequests.map((req) => (
-                    <tr key={req.id} className="border-b border-base-100 last:border-0 hover:bg-base-50">
-                      <td className="py-3 pr-4">
-                        <Badge variant={req.requestType === "create_sales" ? "info" : "warning"}>
-                          {req.requestType === "create_sales" ? "إضافة مستخدم" : "إضافة عميل"}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-sm font-medium">
-                        {req.requestedBy ? (userMap.get(req.requestedBy) || req.requestedBy) : "-"}
-                      </td>
-                      <td className="py-3 px-4">{renderPayload(req.requestType, req.payload)}</td>
-                      <td className="py-3 px-4 text-sm text-base-500">
-                        {format(new Date(req.createdAt), "dd MMM yyyy", { locale: ar })}
-                      </td>
-                      <td className="py-3 pl-4">
-                        {canApprove(req) && (
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="primary"
-                              onClick={() => decideMutation.mutate({ requestId: req.id, status: "approved" })}
-                              disabled={decideMutation.isPending}
-                            >
-                              موافق
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="danger"
-                              onClick={() => decideMutation.mutate({ requestId: req.id, status: "rejected" })}
-                              disabled={decideMutation.isPending}
-                            >
-                              رفض
-                            </Button>
-                          </div>
-                        )}
-                        {!canApprove(req) && <span className="text-sm text-gray-400">بانتظار الموافقة</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      {isLoading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-32 animate-pulse rounded-xl bg-base-100" />
+          ))}
+        </div>
+      ) : pendingRequests.length === 0 ? (
+        <Card>
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="mb-4 rounded-full bg-base-100 p-4">
+              <svg className="h-8 w-8 text-base-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             </div>
-            
-            <div className="md:hidden space-y-4">
-              {pendingRequests.map((req) => (
-                <div key={req.id} className="border border-base-200 rounded-lg p-4 space-y-3 bg-base-50">
-                  <div className="flex justify-between items-start">
-                    <Badge variant={req.requestType === "create_sales" ? "info" : "warning"}>
-                      {req.requestType === "create_sales" ? "إضافة مستخدم" : "إضافة عميل"}
-                    </Badge>
-                    <span className="text-xs text-base-500">
-                      {format(new Date(req.createdAt), "dd MMM yyyy", { locale: ar })}
-                    </span>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-base-900">
-                      مقدم الطلب: {req.requestedBy ? (userMap.get(req.requestedBy) || req.requestedBy) : "-"}
+            <h3 className="text-lg font-medium text-base-900">لا توجد طلبات معلقة</h3>
+            <p className="mt-1 text-sm text-base-500">جميع الطلبات تمت معالجتها</p>
+          </div>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {pendingRequests.map((req) => (
+            <Card key={req.id} className="relative overflow-hidden">
+              <div className="mb-4 flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <Avatar 
+                    name={req.requester?.name || req.requester?.email || "?"} 
+                    src={req.requester?.profile?.avatar}
+                  />
+                  <div>
+                    <p className="font-medium text-base-900">{req.requester?.name || req.requester?.email}</p>
+                    <p className="text-xs text-base-500">
+                      {format(new Date(req.createdAt), "PP p", { locale: ar })}
                     </p>
-                    <div className="bg-base-0 p-3 rounded-md border border-base-100">
-                      {renderPayload(req.requestType, req.payload)}
-                    </div>
-                  </div>
-
-                  {canApprove(req) ? (
-                    <div className="flex gap-2 pt-2 border-t border-base-200">
-                      <Button
-                        className="flex-1"
-                        size="sm"
-                        variant="primary"
-                        onClick={() => decideMutation.mutate({ requestId: req.id, status: "approved" })}
-                        disabled={decideMutation.isPending}
-                      >
-                        موافق
-                      </Button>
-                      <Button
-                        className="flex-1"
-                        size="sm"
-                        variant="danger"
-                        onClick={() => decideMutation.mutate({ requestId: req.id, status: "rejected" })}
-                        disabled={decideMutation.isPending}
-                      >
-                        رفض
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="text-sm text-center text-gray-400 pt-2 border-t border-base-200">
-                      بانتظار الموافقة
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </Card>
-
-      {/* Request History */}
-      <Card className="p-6">
-        <h2 className="mb-4 text-lg font-semibold">سجل الطلبات</h2>
-        {historyRequests.length === 0 ? (
-          <p className="text-gray-500">لا يوجد سجل طلبات</p>
-        ) : (
-          <>
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full min-w-[700px] text-right">
-                <thead>
-                  <tr className="border-b border-base-200 text-sm text-base-500">
-                    <th className="pb-3 pr-4">نوع الطلب</th>
-                    <th className="pb-3 px-4">مقدم الطلب</th>
-                    <th className="pb-3 px-4">التفاصيل</th>
-                    <th className="pb-3 px-4">الحالة</th>
-                    <th className="pb-3 px-4">تم بواسطة</th>
-                    <th className="pb-3 pl-4">التاريخ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {historyRequests.map((req) => (
-                    <tr key={req.id} className="border-b border-base-100 last:border-0 hover:bg-base-50">
-                      <td className="py-3 pr-4">
-                        <Badge variant="outline">
-                          {req.requestType === "create_sales" ? "إضافة مستخدم" : "إضافة عميل"}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-sm">
-                        {req.requester?.name || (req.requestedBy ? (userMap.get(req.requestedBy) || req.requestedBy) : "-")}
-                      </td>
-                      <td className="py-3 px-4">{renderPayload(req.requestType, req.payload)}</td>
-                      <td className="py-3 px-4">
-                        <Badge variant={req.status === "approved" ? "success" : "danger"}>
-                          {req.status === "approved" ? "تمت الموافقة" : "مرفوض"}
-                        </Badge>
-                      </td>
-                      <td className="py-3 px-4 text-sm">
-                        {req.decidedBy ? (userMap.get(req.decidedBy) || req.decidedBy) : "-"}
-                      </td>
-                      <td className="py-3 pl-4 text-sm text-base-500">
-                        {format(new Date(req.createdAt), "dd MMM yyyy", { locale: ar })}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="md:hidden space-y-4">
-              {historyRequests.map((req) => (
-                <div key={req.id} className="border border-base-200 rounded-lg p-4 space-y-3 bg-base-50">
-                  <div className="flex justify-between items-start">
-                    <Badge variant="outline">
-                      {req.requestType === "create_sales" ? "إضافة مستخدم" : "إضافة عميل"}
-                    </Badge>
-                    <Badge variant={req.status === "approved" ? "success" : "danger"}>
-                      {req.status === "approved" ? "تمت الموافقة" : "مرفوض"}
-                    </Badge>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-sm text-base-700">
-                      <span className="font-semibold">مقدم الطلب:</span>{" "}
-                      {req.requester?.name || (req.requestedBy ? (userMap.get(req.requestedBy) || req.requestedBy) : "-")}
-                    </p>
-                    <div className="bg-base-0 p-3 rounded-md border border-base-100">
-                      {renderPayload(req.requestType, req.payload)}
-                    </div>
-                    <div className="flex justify-between text-xs text-base-500 pt-2 border-t border-base-200">
-                      <span>بواسطة: {req.decidedBy ? (userMap.get(req.decidedBy) || req.decidedBy) : "-"}</span>
-                      <span>{format(new Date(req.createdAt), "dd MMM yyyy", { locale: ar })}</span>
-                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          </>
-        )}
-      </Card>
+                <Badge variant="warning">جديد</Badge>
+              </div>
+
+              <div className="mb-6 space-y-2 rounded-lg bg-base-50 p-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-base-500">اسم العميل:</span>
+                  <span className="font-medium text-base-900">{req.payload.name}</span>
+                </div>
+                {req.payload.phone && (
+                  <div className="flex justify-between">
+                    <span className="text-base-500">الهاتف:</span>
+                    <span className="font-medium text-base-900" dir="ltr">{req.payload.phone}</span>
+                  </div>
+                )}
+                {req.payload.notes && (
+                  <div className="mt-2 border-t border-base-200 pt-2">
+                    <p className="mb-1 text-xs text-base-500">ملاحظات:</p>
+                    <p className="text-base-700">{req.payload.notes}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="primary"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                  disabled={processingId === req.id}
+                  onClick={() => decideMutation.mutate({ id: req.id, status: "approved" })}
+                >
+                  {processingId === req.id ? "جاري المعالجة..." : "قبول"}
+                </Button>
+                <Button
+                  variant="danger"
+                  className="flex-1"
+                  disabled={processingId === req.id}
+                  onClick={() => decideMutation.mutate({ id: req.id, status: "rejected" })}
+                >
+                  رفض
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
