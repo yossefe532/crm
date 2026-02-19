@@ -7,13 +7,15 @@ import { Topbar } from "./Topbar"
 import { useLocale } from "../../lib/i18n/LocaleContext"
 import { usePathname } from "next/navigation"
 import { useAuth } from "../../lib/auth/AuthContext"
+import { conversationService } from "../../lib/services/conversationService"
 
 export const DashboardShell = ({ children }: { children: ReactNode }) => {
   const { dir } = useLocale()
   const pathname = usePathname()
-  const { role } = useAuth()
+  const { role, token } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [unread, setUnread] = useState(0)
   const layoutClass = dir === "rtl" ? "flex-row-reverse" : "flex-row"
 
   useEffect(() => {
@@ -40,6 +42,38 @@ export const DashboardShell = ({ children }: { children: ReactNode }) => {
     document.addEventListener("click", handleClick, true)
     return () => document.removeEventListener("click", handleClick, true)
   }, [])
+
+  // Unread badge for Connect
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        const list = await conversationService.list(token || undefined)
+        let count = 0
+        list.forEach((c) => {
+          const key = `chat:lastSeen:${c.id}`
+          let lastSeen: number = 0
+          try {
+            const v = localStorage.getItem(key)
+            if (v) lastSeen = new Date(v).getTime()
+          } catch {}
+          const lastMessageAt = c.lastMessageAt ? new Date(c.lastMessageAt).getTime() : 0
+          if (lastMessageAt > lastSeen) {
+            count += 1
+          }
+        })
+        if (!cancelled) setUnread(count)
+      } catch {
+        if (!cancelled) setUnread(0)
+      }
+    }
+    load()
+    const interval = setInterval(load, 5000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [token])
 
   return (
     <div className={`theme-shell relative flex min-h-screen ${layoutClass}`} dir={dir}>
@@ -104,6 +138,11 @@ export const DashboardShell = ({ children }: { children: ReactNode }) => {
             aria-label="التواصل"
           >
             <span>التواصل</span>
+            {unread > 0 && (
+              <span className="mt-0.5 inline-flex items-center justify-center rounded-full bg-rose-600 px-1.5 text-[10px] font-bold text-white">
+                {unread}
+              </span>
+            )}
           </Link>
         </div>
       </nav>

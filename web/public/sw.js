@@ -83,6 +83,15 @@ self.addEventListener("push", function (event) {
 
 self.addEventListener("notificationclick", function (event) {
   event.notification.close()
-  const url = (event.notification && event.notification.data && event.notification.data.url) || "/"
+  const body = event.notification && event.notification.body ? String(event.notification.body) : ""
+  let url = (event.notification && event.notification.data && event.notification.data.url) || "/"
+  if (!url) {
+    // Route chat notifications (marked by prefix) to Connect page
+    if (body && body.startsWith("CHAT_MESSAGE:")) {
+      url = "/connect"
+    } else {
+      url = "/"
+    }
+  }
   event.waitUntil(clients.openWindow(url))
 })

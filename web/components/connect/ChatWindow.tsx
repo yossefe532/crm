@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { useAuth } from "../../lib/auth/AuthContext"
 import { useLocale } from "../../lib/i18n/LocaleContext"
 import { conversationService } from "../../lib/services/conversationService"
+import { notificationService } from "../../lib/services/notificationService"
+import { useSearchParams } from "next/navigation"
 import { Conversation, Message } from "../../lib/types"
 import { Button } from "../ui/Button"
 import { Card } from "../ui/Card"
@@ -13,19 +15,26 @@ import { Avatar } from "../ui/Avatar"
 import { useTeams } from "../../lib/hooks/useTeams"
 import { useUsers } from "../../lib/hooks/useUsers"
 
+// Extend Message type for local state
+type LocalMessage = Message & {
+  status?: 'pending' | 'sent' | 'error'
+}
+
 export const ChatWindow = () => {
   const { token, userId, role } = useAuth()
   const { dir } = useLocale()
+  const searchParams = useSearchParams()
   const { data: teams } = useTeams()
   const { data: users } = useUsers()
   
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<LocalMessage[]>([])
   const [input, setInput] = useState("")
   const [targetUserId, setTargetUserId] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [isSending, setIsSending] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textAlign = dir === "rtl" ? "text-right" : "text-left"
@@ -48,59 +57,160 @@ export const ChatWindow = () => {
     load()
   }, [token]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Deep link support to open/create conversation
+  useEffect(() => {
+    const uid = searchParams.get("userId")
+    const teamId = searchParams.get("teamId")
+    const ownerGroup = searchParams.get("ownerGroup")
+    const open = async () => {
+      try {
+        if (uid) {
+          const conv = await conversationService.createDirect(uid, token || undefined)
+          setActiveId(conv.id)
+          setConversations(prev => {
+            const exists = prev.find(c => c.id === conv.id)
+            return exists ? prev : [conv, ...prev]
+          })
+        } else if (teamId) {
+          const conv = await conversationService.createTeamGroup(teamId, token || undefined)
+          setActiveId(conv.id)
+          setConversations(prev => {
+            const exists = prev.find(c => c.id === conv.id)
+            return exists ? prev : [conv, ...prev]
+          })
+        } else if (ownerGroup) {
+          const conv = await conversationService.getOwnerGroup(token || undefined)
+          setActiveId(conv.id)
+          setConversations(prev => {
+            const exists = prev.find(c => c.id === conv.id)
+            return exists ? prev : [conv, ...prev]
+          })
+        }
+      } catch {
+        // ignore
+      }
+    }
+    open()
+  }, [searchParams, token])
+
   // Poll messages
   useEffect(() => {
     if (!activeId) return
 
     const loadMessages = async () => {
       try {
-        const list = await conversationService.listMessages(activeId, token || undefined)
-        setMessages(list)
+        const serverMessages = await conversationService.listMessages(activeId, token || undefined)
+        
+        setMessages(prev => {
+          // Keep pending messages that are not in the server list yet
+          const pending = prev.filter(m => m.status === 'pending')
+          
+          const serverIds = new Set(serverMessages.map(m => m.id))
+          const uniquePending = pending.filter(p => !serverIds.has(p.id)) // Pending IDs are temp-*, so this works
+          
+          return [...serverMessages, ...uniquePending]
+        })
+        
+        // mark last seen for unread tracking
+        try {
+          const key = `chat:lastSeen:${activeId}`
+          localStorage.setItem(key, new Date().toISOString())
+        } catch {}
       } catch (err) {
         console.error("Failed to load messages", err)
       }
     }
     
     loadMessages()
-    const interval = setInterval(loadMessages, 1000)
+    const interval = setInterval(loadMessages, 3000)
     return () => clearInterval(interval)
   }, [activeId, token])
 
   // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
+  }, [messages.length, activeId])
 
   const handleSend = async () => {
-    if (!activeId || !input.trim()) return
+    if (!activeId || !input.trim() || isSending) return
+    
+    const content = input.trim()
+    setInput("") // Clear immediately to prevent double send
+    setIsSending(true)
+
+    const tempId = `temp-${Date.now()}`
+    const optimistic: LocalMessage = {
+      id: tempId,
+      conversationId: activeId,
+      senderId: userId || "",
+      content: content,
+      contentType: "text",
+      createdAt: new Date().toISOString(),
+      status: 'pending'
+    }
+
+    // Add optimistic message
+    setMessages((prev) => [...prev, optimistic])
+
     try {
-      const tempId = `temp-${Date.now()}`
-      const optimistic: Message = {
-        id: tempId,
-        conversationId: activeId,
-        senderId: userId || "",
-        content: input.trim(),
-        contentType: "text",
-        createdAt: new Date().toISOString()
-      }
-      setMessages((prev) => [optimistic, ...prev])
       const sent = await conversationService.sendMessage(
         activeId, 
-        { content: input.trim(), contentType: "text" }, 
+        { content, contentType: "text" }, 
         token || undefined
       )
-      setMessages((prev) => [sent, ...prev.filter(m => m.id !== tempId)])
-      setInput("")
+      
+      // Replace optimistic with real
+      setMessages((prev) => 
+        prev.map(m => m.id === tempId ? { ...sent, status: 'sent' } : m)
+      )
+
       // Update conversation list preview
       setConversations(prev => prev.map(c => 
         c.id === activeId 
           ? { ...c, messages: [sent], lastMessageAt: new Date().toISOString() } 
           : c
       ).sort((a, b) => new Date(b.lastMessageAt || 0).getTime() - new Date(a.lastMessageAt || 0).getTime()))
+      
+      // Push notify other participants
+      try {
+        const conv = conversations.find(c => c.id === activeId)
+        if (conv) {
+          if (conv.type === "direct" && conv.participants) {
+            const other = conv.participants.find(p => p.userId !== userId)
+            if (other?.userId) {
+              await notificationService.broadcast(
+                { type: "user", value: other.userId },
+                `CHAT_MESSAGE: ${sent.content || ""}`,
+                ["push"],
+                token || undefined
+              )
+            }
+          } else if (conv.type === "team_group" && conv.entityId) {
+            await notificationService.broadcast(
+              { type: "team", value: conv.entityId },
+              `CHAT_MESSAGE: ${sent.content || ""}`,
+              ["push"],
+              token || undefined
+            )
+          } else if (conv.type === "owner_group") {
+            await notificationService.broadcast(
+              { type: "role", value: "owner" },
+              `CHAT_MESSAGE: ${sent.content || ""}`,
+              ["push"],
+              token || undefined
+            )
+          }
+        }
+      } catch {}
     } catch (err) {
       console.error(err)
       setError("فشل إرسال الرسالة")
+      setMessages((prev) => 
+        prev.map(m => m.id === tempId ? { ...m, status: 'error' } : m)
+      )
       setTimeout(() => setError(null), 2000)
+    } finally {
+      setIsSending(false)
     }
   }
 
@@ -209,6 +319,29 @@ export const ChatWindow = () => {
                 بدء
               </Button>
             </div>
+            {role !== "owner" && (
+              <div className="flex">
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      const convo = await conversationService.getOwnerGroup(token || undefined)
+                      setConversations((prev) => {
+                        if (prev.some((item) => item.id === convo.id)) return prev
+                        return [convo, ...prev]
+                      })
+                      setActiveId(convo.id)
+                      setIsSidebarOpen(false)
+                    } catch {
+                      setError("تعذر فتح مجموعة المالك")
+                    }
+                  }}
+                  className="px-3"
+                >
+                  فتح مجموعة المالك
+                </Button>
+              </div>
+            )}
             {error && <p className="text-xs text-rose-500">{error}</p>}
           </div>
         </div>
@@ -305,39 +438,76 @@ export const ChatWindow = () => {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-base-50/30">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#e5ddd5] dark:bg-[#0b141a]" style={{ backgroundImage: "url('/chat-bg.png')", backgroundBlendMode: 'overlay' }}>
               {messages.length === 0 ? (
-                <div className="flex h-full flex-col items-center justify-center text-base-400 opacity-50">
-                  <svg className="w-16 h-16 mb-4 text-base-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                  <p>لا توجد رسائل بعد</p>
+                <div className="flex h-full flex-col items-center justify-center text-gray-500 opacity-70">
+                  <div className="bg-white/50 p-4 rounded-full mb-4">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                  </div>
+                  <p className="bg-white/50 px-3 py-1 rounded-lg text-sm shadow-sm">ابدأ المحادثة الآن</p>
                 </div>
               ) : (
-                [...messages].reverse().map((message) => {
+                [...messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).map((message) => {
                   const isMine = message.senderId === userId
                   const sender = users?.find(u => u.id === message.senderId)
+                  
+                  // Status Icon
+                  const StatusIcon = () => {
+                    if (!isMine) return null
+                    if (message.status === 'error') return <span className="text-red-500 text-xs">!</span>
+                    if (message.status === 'pending') return (
+                      <svg className="w-3 h-3 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )
+                    // Sent (Check)
+                    return (
+                      <svg className="w-3 h-3 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )
+                  }
+
                   return (
                     <div key={message.id} className={`flex items-end gap-2 ${isMine ? "flex-row-reverse" : "flex-row"}`}>
-                      {!isMine && (
+                      {!isMine && (activeConversation?.type !== "direct") && (
                         <Avatar 
                           size="xs" 
                           name={sender?.name || sender?.email || "?"} 
                           className="mb-1"
                         />
                       )}
-                      <div className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm shadow-sm ${
+                      <div className={`relative max-w-[75%] px-3 py-2 text-sm shadow-sm ${
                         isMine 
-                          ? "bg-brand-600 text-white rounded-br-none" 
-                          : "bg-white text-base-900 border border-base-100 rounded-bl-none"
+                          ? "bg-[#d9fdd3] dark:bg-[#005c4b] text-gray-900 dark:text-white rounded-2xl rounded-tr-none" 
+                          : "bg-white dark:bg-[#202c33] text-gray-900 dark:text-white rounded-2xl rounded-tl-none"
                       }`}>
                         {!isMine && (activeConversation?.type === "team_group" || activeConversation?.type === "owner_group") && (
-                          <p className="text-[10px] font-bold text-brand-600 mb-1">{sender?.name || sender?.email}</p>
+                          <p className={`text-[11px] font-bold mb-1 ${
+                             ['text-orange-500', 'text-blue-500', 'text-purple-500', 'text-green-500'][((sender?.name?.length || 0) % 4)]
+                          }`}>
+                            {sender?.name || sender?.email}
+                          </p>
                         )}
-                        <p className={textAlign}>{message.content}</p>
-                        <span suppressHydrationWarning className={`text-[10px] block mt-1 opacity-70 ${textAlign}`}>
-                          {new Date(message.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
+                        
+                        <div className="flex flex-wrap items-end gap-2">
+                          <p className={`whitespace-pre-wrap leading-relaxed ${textAlign} min-w-[60px]`}>{message.content}</p>
+                          <div className="flex items-center gap-1 opacity-60 shrink-0 ml-auto select-none">
+                            <span className="text-[10px] min-w-fit">
+                              {new Date(message.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                            </span>
+                            <StatusIcon />
+                          </div>
+                        </div>
+                        
+                        {/* Triangle for bubble tail */}
+                        <div className={`absolute top-0 w-0 h-0 border-[6px] border-transparent ${
+                           isMine 
+                            ? "-right-[6px] border-t-[#d9fdd3] dark:border-t-[#005c4b] border-r-0" 
+                            : "-left-[6px] border-t-white dark:border-t-[#202c33] border-l-0"
+                        }`} />
                       </div>
                     </div>
                   )
@@ -347,12 +517,19 @@ export const ChatWindow = () => {
             </div>
 
             {/* Input */}
-            <div className="p-4 bg-white border-t border-base-100">
-              <div className="flex items-end gap-2">
-                <div className="flex-1 relative">
+            <div className="p-3 bg-[#f0f2f5] dark:bg-[#202c33] border-t border-gray-200 dark:border-gray-700">
+              <div className="flex items-end gap-2 max-w-4xl mx-auto">
+                {/* Attachment Button (Visual) */}
+                <Button variant="ghost" className="rounded-full w-10 h-10 p-0 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700">
+                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                   </svg>
+                </Button>
+
+                <div className="flex-1 bg-white dark:bg-[#2a3942] rounded-2xl flex items-center px-4 py-2 shadow-sm border border-transparent focus-within:border-brand-500 transition-all">
                   <Textarea
-                    className={`resize-none ${textAlign}`}
-                    placeholder="اكتب رسالتك هنا..."
+                    className={`flex-1 bg-transparent border-none focus:ring-0 p-0 min-h-[24px] max-h-[120px] resize-none ${textAlign} placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white`}
+                    placeholder="اكتب رسالة..."
                     rows={1}
                     value={input}
                     onChange={(e) => {
@@ -368,14 +545,26 @@ export const ChatWindow = () => {
                     }}
                   />
                 </div>
+                
                 <Button 
                   onClick={handleSend} 
-                  disabled={!input.trim()} 
-                  className="rounded-xl px-4 h-[46px] aspect-square flex items-center justify-center"
+                  disabled={!input.trim() || isSending} 
+                  className={`rounded-full w-10 h-10 p-0 flex items-center justify-center transition-all ${
+                    input.trim() 
+                      ? "bg-[#00a884] hover:bg-[#008f6f] text-white shadow-md transform scale-100" 
+                      : "bg-gray-300 dark:bg-gray-600 text-gray-500 scale-95"
+                  }`}
                 >
-                  <svg className={`w-5 h-5 ${dir === 'rtl' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
+                  {isSending ? (
+                     <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                     </svg>
+                  ) : (
+                    <svg className={`w-5 h-5 ${dir === 'rtl' ? 'rotate-180' : ''} translate-x-[2px]`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                  )}
                 </Button>
               </div>
             </div>
