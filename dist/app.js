@@ -30,10 +30,19 @@ const createApp = () => {
     const app = (0, express_1.default)();
     app.use((req, res, next) => {
         const origin = req.headers.origin;
-        const allowedOrigins = new Set(["http://localhost:3000", "http://127.0.0.1:3000"]);
-        if (origin && allowedOrigins.has(origin)) {
-            res.setHeader("Access-Control-Allow-Origin", origin);
+        const allowedOrigins = new Set([
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            process.env.FRONTEND_URL, // السماح لرابط الفرونت إند من المتغيرات البيئية
+            process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined // السماح لرابط فيرسيل التلقائي
+        ].filter(Boolean));
+        // إذا لم يكن هناك origin (مثل Postman) أو كان الـ origin مسموحاً به
+        if (!origin || allowedOrigins.has(origin)) {
+            res.setHeader("Access-Control-Allow-Origin", origin || "*");
         }
+        // للتسهيل في مرحلة التطوير، إذا أردت السماح للجميع (غير مستحسن للإنتاج الدقيق لكن مفيد للتجربة الأولية)
+        // يمكن تفعيل السطر التالي وإلغاء الشرط السابق
+        // res.setHeader("Access-Control-Allow-Origin", origin || "*")
         res.setHeader("Vary", "Origin");
         res.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
         res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-user-id, x-tenant-id, x-roles");
@@ -44,6 +53,17 @@ const createApp = () => {
     });
     app.use(express_1.default.json({ limit: "2mb" }));
     app.get("/api/health", (_req, res) => res.json({ ok: true }));
+    app.get("/api/debug-env", (_req, res) => {
+        const dbUrl = process.env.DATABASE_URL || "NOT_SET";
+        const maskedDbUrl = dbUrl.length > 20
+            ? `${dbUrl.substring(0, 15)}...${dbUrl.substring(dbUrl.length - 10)}`
+            : dbUrl;
+        res.json({
+            dbUrl: maskedDbUrl,
+            nodeEnv: process.env.NODE_ENV,
+            port: process.env.PORT
+        });
+    });
     app.use("/api/auth", routes_15.router);
     app.use(auth_1.authMiddleware);
     app.use(forceReset_1.forceResetMiddleware);

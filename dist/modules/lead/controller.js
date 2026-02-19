@@ -54,6 +54,10 @@ exports.leadController = {
     createLead: async (req, res) => {
         try {
             const tenantId = req.user?.tenantId || "";
+            const roles = req.user?.roles || [];
+            if (roles.includes("sales") && !roles.includes("owner") && !roles.includes("team_leader")) {
+                throw { status: 403, message: "غير مصرح لك بإضافة عملاء مباشرة. يرجى إرسال طلب إضافة." };
+            }
             const name = String(req.body?.name || "").trim();
             const leadCode = String(req.body?.leadCode || "").trim();
             if (!name)

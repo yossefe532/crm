@@ -5,8 +5,8 @@ const app_1 = require("./app");
 const jobs_1 = require("./jobs");
 try {
     const app = (0, app_1.createApp)();
-    // شغّل السيرفر على بورت 4000
-    const PORT = 4000;
+    // شغّل السيرفر على بورت 4000 أو المتغير البيئي
+    const PORT = process.env.PORT || 4000;
     app.listen(PORT, () => {
         console.log(`Server running on http://localhost:${PORT}`);
         // شغّل أي jobs بعد ما السيرفر يبدأ
