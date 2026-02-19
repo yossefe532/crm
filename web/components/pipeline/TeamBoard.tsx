@@ -16,7 +16,7 @@ import Link from "next/link"
 const Lane = ({ id, title, count, children, isDisabled }: { id: string; title: string; count: number; children: ReactNode; isDisabled?: boolean }) => {
   const { setNodeRef, isOver } = useDroppable({ id, disabled: isDisabled })
   return (
-    <div ref={setNodeRef} className={`w-[calc(100vw-48px)] flex-shrink-0 snap-center rounded-2xl border border-base-100 bg-base-50 p-4 md:w-80 md:flex-shrink-0 ${isOver ? "ring-2 ring-brand-500" : ""}`}>
+    <div ref={setNodeRef} className={`w-[85vw] max-w-[320px] flex-shrink-0 snap-center rounded-2xl border border-base-100 bg-base-50 p-4 lg:w-80 md:flex-shrink-0 ${isOver ? "ring-2 ring-brand-500" : ""}`}>
       <div className="mb-4 flex items-center justify-between">
         <h4 className="text-sm font-semibold text-base-900">{title}</h4>
         <Badge>{count}</Badge>
@@ -37,16 +37,22 @@ const LeadCard = ({ id, name, code, owner }: { id: string; name: string; code?: 
       {...listeners}
       className={`touch-ripple rounded-xl border border-base-100 bg-white p-3 ${isDragging ? "opacity-60" : ""}`}
     >
-      <p className="text-sm font-semibold text-base-900">{name}</p>
-      <p className="text-xs text-base-500">{code}</p>
-      {owner && <p className="text-[11px] text-base-500">مسند إلى: {owner}</p>}
-      <div className="mt-2">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-base-900 truncate max-w-[120px]">{name}</p>
+        <p className="text-xs text-base-500">{code}</p>
+      </div>
+      {owner && <p className="text-[11px] text-base-500 mt-1 truncate">مسند إلى: {owner}</p>}
+      <div className="mt-3 flex justify-end">
         <Link
           href={`/leads/${id}`}
           onPointerDown={(e) => { e.stopPropagation() }}
-          className="rounded-md bg-brand-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-brand-700 transition-colors inline-block"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors"
+          title="تفاصيل العميل"
         >
-          تفاصيل
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
         </Link>
       </div>
     </div>

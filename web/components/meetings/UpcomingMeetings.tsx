@@ -56,31 +56,37 @@ export const UpcomingMeetings = () => {
         {(data || []).map((meeting) => (
           <div key={meeting.id} className="flex flex-col gap-4 rounded-xl border border-base-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between bg-base-0 hover:shadow-sm transition-shadow">
             <div className="flex-1">
-              <p className="text-sm font-semibold text-base-900">{meeting.title}</p>
-              <p className="text-xs text-base-500 mt-1">{format(new Date(meeting.startsAt), "PPpp", { locale: ar })}</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <Badge tone={statusLabels[meeting.status]?.tone || "default"}>{statusLabels[meeting.status]?.label || meeting.status}</Badge>
+              <div className="flex items-start justify-between sm:block">
+                <div>
+                  <p className="text-sm font-semibold text-base-900">{meeting.title}</p>
+                  <p className="text-xs text-base-500 mt-1">{format(new Date(meeting.startsAt), "PPpp", { locale: ar })}</p>
+                </div>
+                <div className="sm:mt-2">
+                  <Badge tone={statusLabels[meeting.status]?.tone || "default"}>{statusLabels[meeting.status]?.label || meeting.status}</Badge>
+                </div>
               </div>
             </div>
-            <div className="flex w-full flex-col sm:flex-row items-stretch sm:items-center justify-end gap-2 sm:w-auto">
+            <div className="flex w-full flex-row items-center justify-end gap-2 mt-2 sm:mt-0 sm:w-auto">
               <Button
                 variant="ghost"
                 aria-label="إرسال تذكير"
                 title="إرسال تذكير"
+                className="flex-1 sm:flex-none text-xs h-9"
                 disabled={reminderMutation.isPending}
                 onClick={() => reminderMutation.mutate(meeting.id)}
               >
-                {reminderMutation.isPending ? "جاري الإرسال..." : "إرسال تذكير"}
+                {reminderMutation.isPending ? "جاري..." : "تذكير"}
               </Button>
               {meeting.status !== "completed" && (
                 <Button
                   variant="secondary"
                   aria-label="تم الاجتماع"
                   title="تم الاجتماع"
+                  className="flex-1 sm:flex-none text-xs h-9"
                   disabled={statusMutation.isPending || role !== "sales" || meeting.organizerUserId !== userId}
                   onClick={() => statusMutation.mutate(meeting.id)}
                 >
-                  تم الاجتماع
+                  تم
                 </Button>
               )}
             </div>

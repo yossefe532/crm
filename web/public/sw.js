@@ -1,5 +1,5 @@
-const CACHE_NAME = "crm-doctor-v2-v2"
-const PRECACHE_URLS = ["/", "/login", "/manifest.json", "/icons/icon.svg", "/icons/maskable-icon.svg"]
+const CACHE_NAME = "crm-doctor-v2-v3"
+const PRECACHE_URLS = ["/", "/login", "/manifest.json", "/icons/system-icon.jpg"]
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

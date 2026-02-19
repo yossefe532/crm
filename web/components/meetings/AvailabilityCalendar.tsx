@@ -24,11 +24,34 @@ export const AvailabilityCalendar = () => {
     end: new Date(meeting.endsAt)
   }))
 
+  const defaultView = typeof window !== "undefined" && window.innerWidth < 768 ? "agenda" : "month"
+
   return (
     <Card title="توفر التقويم">
       <div className="h-[420px] overflow-x-auto">
-        <div className="min-w-[600px] h-full">
-          <Calendar localizer={localizer} events={events} startAccessor="start" endAccessor="end" culture="ar" />
+        <div className="h-full">
+          <Calendar 
+            localizer={localizer} 
+            events={events} 
+            startAccessor="start" 
+            endAccessor="end" 
+            culture="ar"
+            defaultView={defaultView}
+            views={["month", "week", "day", "agenda"]}
+            messages={{
+              next: "التالي",
+              previous: "السابق",
+              today: "اليوم",
+              month: "شهر",
+              week: "أسبوع",
+              day: "يوم",
+              agenda: "أجندة",
+              date: "التاريخ",
+              time: "الوقت",
+              event: "الحدث",
+              noEventsInRange: "لا توجد أحداث في هذا النطاق"
+            }}
+          />
         </div>
       </div>
     </Card>
