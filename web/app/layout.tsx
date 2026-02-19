@@ -41,12 +41,16 @@ export const metadata: Metadata = {
   },
 }
 
+import { ErrorBoundary } from "../components/ui/ErrorBoundary"
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body className="font-ar bg-base-50" suppressHydrationWarning>
-        <FlashlightEffect />
-        <Providers>{children}</Providers>
+        <ErrorBoundary>
+          <FlashlightEffect />
+          <Providers>{children}</Providers>
+        </ErrorBoundary>
       </body>
     </html>
   )
