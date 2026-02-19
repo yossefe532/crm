@@ -14,7 +14,7 @@ import { useUsers } from "../../lib/hooks/useUsers"
 import { useTeams } from "../../lib/hooks/useTeams"
 
 export const BroadcastForm = () => {
-  const { role } = useAuth()
+  const { role, token } = useAuth()
   const { data: users } = useUsers()
   const { data: teams } = useTeams()
   const [targetType, setTargetType] = useState<"all" | "role" | "users" | "team">("all")
@@ -54,9 +54,9 @@ export const BroadcastForm = () => {
   const mutation = useMutation({
     mutationFn: () => {
       if (targetType === "users") {
-        return notificationService.broadcast({ type: targetType, value: selectedUsers }, message, channels)
+        return notificationService.broadcast({ type: targetType, value: selectedUsers }, message, channels, token || undefined)
       }
-      return notificationService.broadcast({ type: targetType, value: targetValue }, message, channels)
+      return notificationService.broadcast({ type: targetType, value: targetValue }, message, channels, token || undefined)
     },
     onSuccess: () => {
       setSuccess(true)

@@ -62,7 +62,7 @@ export const ChatWindow = () => {
     }
     
     loadMessages()
-    const interval = setInterval(loadMessages, 3000) // Poll every 3 seconds for faster chat
+    const interval = setInterval(loadMessages, 1000)
     return () => clearInterval(interval)
   }, [activeId, token])
 
@@ -74,12 +74,22 @@ export const ChatWindow = () => {
   const handleSend = async () => {
     if (!activeId || !input.trim()) return
     try {
+      const tempId = `temp-${Date.now()}`
+      const optimistic: Message = {
+        id: tempId,
+        conversationId: activeId,
+        senderId: userId || "",
+        content: input.trim(),
+        contentType: "text",
+        createdAt: new Date().toISOString()
+      }
+      setMessages((prev) => [optimistic, ...prev])
       const sent = await conversationService.sendMessage(
         activeId, 
         { content: input.trim(), contentType: "text" }, 
         token || undefined
       )
-      setMessages((prev) => [sent, ...prev])
+      setMessages((prev) => [sent, ...prev.filter(m => m.id !== tempId)])
       setInput("")
       // Update conversation list preview
       setConversations(prev => prev.map(c => 
@@ -90,7 +100,7 @@ export const ChatWindow = () => {
     } catch (err) {
       console.error(err)
       setError("فشل إرسال الرسالة")
-      setTimeout(() => setError(null), 3000)
+      setTimeout(() => setError(null), 2000)
     }
   }
 

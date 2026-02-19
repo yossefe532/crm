@@ -27,12 +27,17 @@ export const KanbanBoard = ({ leads }: { leads?: Lead[] }) => {
   const { data } = useLeads()
   const { data: users } = useUsers()
   const { data: teams } = useTeams()
-  const { role, userId } = useAuth()
+  const { role, userId, token } = useAuth()
   const usersById = useMemo(() => new Map((users || []).map((user) => [user.id, user])), [users])
   const teamsById = useMemo(() => new Map((teams || []).map((team) => [team.id, team.name])), [teams])
   const notifyMutation = useMutation({
     mutationFn: (payload: { userId: string; leadName: string }) =>
-      notificationService.broadcast({ type: "user", value: payload.userId }, `مطلوب إجراء سريع بخصوص العميل ${payload.leadName}`, ["in_app"])
+      notificationService.broadcast(
+        { type: "user", value: payload.userId },
+        `مطلوب إجراء سريع بخصوص العميل ${payload.leadName}`,
+        ["in_app", "push"],
+        token || undefined
+      )
   })
 
   const resolvedLeads = useMemo(() => {
@@ -102,6 +107,9 @@ export const KanbanBoard = ({ leads }: { leads?: Lead[] }) => {
                         >
                           تنبيه المندوب
                         </Button>
+                      )}
+                      {notifyMutation.isSuccess && (
+                        <span className="text-[11px] text-emerald-600">تم إرسال التنبيه</span>
                       )}
                     </div>
                   </div>
