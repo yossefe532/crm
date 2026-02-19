@@ -59,7 +59,7 @@ const KanbanLane = ({ id, title, count, children }: { id: string; title: string;
           }`}></span>
           {title}
         </h4>
-        <Badge variant="secondary" className="bg-white shadow-sm border border-base-100 text-xs px-2 py-0.5 min-w-[24px] justify-center">{count}</Badge>
+        <Badge variant="outline" className="bg-white shadow-sm border border-base-100 text-xs px-2 py-0.5 min-w-[24px] justify-center">{count}</Badge>
       </div>
       <div className="flex-1 space-y-3 overflow-y-auto min-h-[100px] scrollbar-thin scrollbar-thumb-base-300 scrollbar-track-transparent pr-1 pl-1 -mr-1 -ml-1 py-1">
         {children}

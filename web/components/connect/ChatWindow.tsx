@@ -486,7 +486,8 @@ export const ChatWindow = () => {
                         >
                           <Avatar 
                              src={member.profile?.avatar} 
-                             fallback={(member.name || member.email || "?").substring(0, 2)} 
+                             name={member.name || member.email || "?"}
+                             size="xs"
                              className="w-5 h-5 text-[9px]" 
                           />
                           <span className="text-[10px] max-w-[60px] truncate">{member.name || member.email}</span>
@@ -498,8 +499,9 @@ export const ChatWindow = () => {
             </div>
           )}
 
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-bold text-base-900">الرسائل</h2>
+          </div>
           
           {/* New Chat */}
           <div className="space-y-2">
