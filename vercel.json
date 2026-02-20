@@ -1,9 +1,16 @@
 {
   "version": 2,
-  "builds": [
+  "framework": "nextjs",
+  "buildCommand": "cd web && npm install && npm run build",
+  "outputDirectory": "web/.next",
+  "rewrites": [
     {
-      "src": "web/package.json",
-      "use": "@vercel/next"
+      "source": "/api/:path*",
+      "destination": "https://observant-achievement-production-bb94.up.railway.app/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/web/$1"
     }
   ]
 }
