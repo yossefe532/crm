@@ -29,7 +29,7 @@ export const NotificationManager = () => {
         } catch {}
       }
     } catch (error) {
-      console.error("Error requesting notification permission:", error)
+      // Error requesting notification permission
     }
   }, [isSubscribed, subscribe, deviceId])
 

@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "../../components/ui/Button"
 import { Input } from "../../components/ui/Input"
+import { PasswordStrength } from "../../components/ui/PasswordStrength"
 import { useAuth } from "../../lib/auth/AuthContext"
 import { authApi } from "../../lib/services/authApi"
 
@@ -85,6 +86,7 @@ export default function ChangePasswordPage() {
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
           />
+          <PasswordStrength password={newPassword} />
           <Input
             label="تأكيد كلمة المرور"
             className="text-right"

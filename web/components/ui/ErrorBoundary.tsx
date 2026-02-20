@@ -1,11 +1,11 @@
 "use client"
 
 import { Component, ErrorInfo, ReactNode } from "react"
-import { Button } from "../ui/Button"
-import { Card } from "../ui/Card"
+import { Button } from "./Button"
 
 interface Props {
   children: ReactNode
+  fallback?: ReactNode
 }
 
 interface State {
@@ -29,35 +29,42 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public render() {
     if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback
+      }
+
       return (
-        <div style={{ padding: "2rem", textAlign: "center", direction: "rtl" }}>
-          <div style={{ maxWidth: "500px", margin: "0 auto", backgroundColor: "#fff", padding: "2rem", borderRadius: "8px", boxShadow: "0 4px 6px rgba(0,0,0,0.1)" }}>
-            <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#e11d48", marginBottom: "1rem" }}>عذراً، حدث خطأ ما</h2>
-            <p style={{ color: "#475569", marginBottom: "1rem" }}>
-              حدث خطأ غير متوقع في عرض هذه الصفحة.
-            </p>
-            <div style={{ backgroundColor: "#f1f5f9", padding: "1rem", borderRadius: "4px", textAlign: "left", fontSize: "0.875rem", color: "#64748b", overflow: "auto", maxHeight: "150px", marginBottom: "1rem", direction: "ltr" }}>
-              {this.state.error?.message}
-            </div>
-            <button
-              onClick={() => {
-                this.setState({ hasError: false, error: null })
-                window.location.reload()
-              }}
-              style={{
-                width: "100%",
-                padding: "0.75rem",
-                backgroundColor: "#2563eb",
-                color: "#fff",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-                fontWeight: "bold"
-              }}
-            >
-              إعادة تحميل الصفحة
-            </button>
+        <div className="flex min-h-[400px] w-full flex-col items-center justify-center rounded-lg border border-base-200 bg-base-0 p-8 text-center shadow-sm">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50 text-red-500">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
           </div>
+          <h2 className="mb-2 text-xl font-semibold text-base-900">حدث خطأ غير متوقع</h2>
+          <p className="mb-6 max-w-md text-base-500">
+            نعتذر عن هذا الخطأ. يمكنك محاولة تحديث الصفحة أو العودة للصفحة الرئيسية.
+          </p>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={() => window.location.reload()}
+            >
+              تحديث الصفحة
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => window.location.href = "/"}
+            >
+              الرئيسية
+            </Button>
+          </div>
+          {process.env.NODE_ENV === "development" && this.state.error && (
+            <div className="mt-8 max-h-48 w-full overflow-auto rounded bg-base-900 p-4 text-left text-xs text-white" dir="ltr">
+              <pre>{this.state.error.toString()}</pre>
+            </div>
+          )}
         </div>
       )
     }

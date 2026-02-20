@@ -1,5 +1,6 @@
 import { logger } from "../monitoring/logger"
 import { logout } from "../auth/authService"
+import { toast } from "react-hot-toast"
 
 type HttpMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE"
 
@@ -59,6 +60,9 @@ export const request = async <T>(
     })
   } catch (err) {
     logger.error("api.network_error", { url, method, message: (err as { message?: string })?.message })
+    if (typeof window !== "undefined") {
+      toast.error("تعذر الاتصال بالخادم")
+    }
     throw { status: 0, message: "تعذر الاتصال بالخادم" } satisfies ApiError
   }
 
@@ -78,6 +82,11 @@ export const request = async <T>(
     }
 
     const message = payload.message || payload.error || "فشل تنفيذ الطلب"
+    
+    if (typeof window !== "undefined" && response.status !== 401 && response.status !== 404) {
+      toast.error(message)
+    }
+
     throw { status: response.status, message, details: payload.details, ...payload } satisfies ApiError
   }
   return (await response.json()) as T

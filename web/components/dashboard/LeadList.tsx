@@ -21,7 +21,7 @@ import { StageControls } from "../lead/StageControls"
 import { useRouter } from "next/navigation"
 import { Modal } from "../ui/Modal"
 import { LeadDetail } from "../lead/LeadDetail"
-import { ClientDate } from "../ui/ClientDate"
+import { STAGE_LABELS } from "../../lib/constants"
 
 export const LeadList = () => {
   const [page, setPage] = useState(1)
@@ -39,13 +39,7 @@ export const LeadList = () => {
   const [assignmentTargets, setAssignmentTargets] = useState<Record<string, string>>({})
   const [message, setMessage] = useState<string | null>(null)
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
-  const stageLabelMap: Record<string, string> = {
-    new: "جديد",
-    call: "مكالمة هاتفية",
-    meeting: "اجتماع",
-    site_visit: "رؤية الموقع",
-    closing: "إغلاق الصفقة"
-  }
+
   const usersById = new Map((users || []).map((user) => [user.id, user]))
   const deadlinesByLead = new Map((deadlines || []).map((item) => [item.leadId, item]))
 
@@ -87,7 +81,7 @@ export const LeadList = () => {
       })
     }
     return base
-  }, [data, role, teamFilter, teams, userFilter, userId])
+  }, [data, role, teamFilter, teams, userFilter, userId, statusFilter])
 
   const assignMutation = useMutation({
     mutationFn: (payload: { leadId: string; userId: string }) =>
@@ -232,7 +226,7 @@ export const LeadList = () => {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <Badge>{stageLabelMap[lead.status] || lead.status}</Badge>
+                <Badge>{STAGE_LABEL_MAP[lead.status] || lead.status}</Badge>
               </div>
             </div>
             {(role === "owner" || role === "team_leader") && (

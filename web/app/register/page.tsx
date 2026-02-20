@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "../../components/ui/Button"
 import { Input } from "../../components/ui/Input"
+import { PasswordStrength } from "../../components/ui/PasswordStrength"
 import { useAuth } from "../../lib/auth/AuthContext"
 import { authApi } from "../../lib/services/authApi"
 import { useLocale } from "../../lib/i18n/LocaleContext"
@@ -101,6 +102,7 @@ export default function RegisterPage() {
             value={password} 
             onChange={(e) => setPassword(e.target.value)} 
           />
+          <PasswordStrength password={password} />
           <Input 
             aria-label={t("phone")} 
             title={t("phone")} 

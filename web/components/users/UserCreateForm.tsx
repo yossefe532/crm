@@ -9,6 +9,7 @@ import { useAuth } from "../../lib/auth/AuthContext"
 import { useTeams } from "../../lib/hooks/useTeams"
 import { coreService } from "../../lib/services/coreService"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { User } from "../../lib/types"
 
 export const UserCreateForm = () => {
   const { role, token } = useAuth()
@@ -58,7 +59,7 @@ export const UserCreateForm = () => {
         token || undefined
       )
     },
-    onSuccess: (result: any) => {
+    onSuccess: (result: { user?: User; temporaryPassword?: string; id?: string; status?: string }) => {
       if (role === "team_leader") {
         setMessage("تم إرسال الطلب للمالك")
       } else {
@@ -76,7 +77,7 @@ export const UserCreateForm = () => {
       queryClient.invalidateQueries({ queryKey: ["users"] })
       queryClient.invalidateQueries({ queryKey: ["user_requests"] })
     },
-    onError: (err: any) => {
+    onError: (err: { status?: number; message?: string }) => {
       if (err?.status === 409) {
         setMessage("البريد الإلكتروني مستخدم بالفعل")
         return

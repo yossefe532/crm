@@ -1,5 +1,6 @@
 import { prisma } from "../../prisma/client"
 import { Prisma } from "@prisma/client"
+import { cache } from "../../utils/cache"
 
 export const analyticsService = {
   listDailyMetrics: (tenantId: string, from?: string, to?: string) =>
@@ -56,6 +57,10 @@ export const analyticsService = {
     }),
 
   getSalesStageSummary: async (tenantId: string, userId?: string, role?: string) => {
+    const cacheKey = `analytics:sales-stage-summary:${tenantId}:${userId || 'all'}:${role || 'all'}`
+    const cached = await cache.get(cacheKey)
+    if (cached) return cached
+
     let whereClause: any = { tenantId, deletedAt: null, assignedUserId: { not: null } }
 
     if (role === "sales" && userId) {
@@ -86,7 +91,7 @@ export const analyticsService = {
     })
 
     // Transform to user-centric structure
-    return users.map(user => {
+    const result = users.map(user => {
       const userStages = distribution.filter(d => d.assignedUserId === user.id)
       const name = user.profile ? `${user.profile.firstName || ""} ${user.profile.lastName || ""}`.trim() : user.email
       
@@ -102,9 +107,16 @@ export const analyticsService = {
         total: userStages.reduce((sum, s) => sum + s._count.id, 0)
       }
     }).sort((a, b) => b.total - a.total)
+
+    await cache.set(cacheKey, result, 300) // Cache for 5 minutes
+    return result
   },
 
   getStageDistribution: async (tenantId: string, userId?: string, role?: string) => {
+    const cacheKey = `analytics:stage-distribution:${tenantId}:${userId || 'all'}:${role || 'all'}`
+    const cached = await cache.get(cacheKey)
+    if (cached) return cached
+
     let whereClause: any = { tenantId, deletedAt: null }
 
     if (role === "sales" && userId) {
@@ -152,10 +164,17 @@ export const analyticsService = {
 
     const total = await prisma.lead.count({ where: whereClause })
     const won = await prisma.lead.count({ where: { ...whereClause, status: "won" } })
-    return { total, won, rate: total > 0 ? (won / total) * 100 : 0 }
+    const result = { total, won, rate: total > 0 ? (won / total) * 100 : 0 }
+
+    await cache.set(cacheKey, result, 300)
+    return result
   },
 
   getSalesPerformance: async (tenantId: string, userId?: string, role?: string) => {
+    const cacheKey = `analytics:sales-performance:${tenantId}:${userId || 'all'}:${role || 'all'}`
+    const cached = await cache.get(cacheKey)
+    if (cached) return cached
+
     let whereClause: any = { tenantId, deletedAt: null, assignedUserId: { not: null } }
     let wonWhereClause: any = { tenantId, deletedAt: null, status: "won", assignedUserId: { not: null } }
 
@@ -279,44 +298,44 @@ export const analyticsService = {
         conversionRate: totalStats?._count.id ? Math.round(((wonStats?._count.id || 0) / totalStats._count.id) * 100) : 0
       }
     }).sort((a, b) => b.deals - a.deals)
+
+    await cache.set(cacheKey, result, 300)
+    return result
   },
 
   getAvgTimePerStage: async (tenantId: string) => {
-    // This is a heavy query, in production it should be cached or pre-calculated
-    const history = await prisma.leadStateHistory.findMany({
-      where: { tenantId },
-      orderBy: [{ leadId: "asc" }, { changedAt: "asc" }],
-      select: { leadId: true, fromStateId: true, toState: { select: { name: true } }, changedAt: true }
-    })
+    const cacheKey = `analytics:avg-time-stage:${tenantId}`
+    const cached = await cache.get(cacheKey)
+    if (cached) return cached
 
-    const stageDurations: Record<string, number[]> = {}
-    
-    // Group by lead and calculate duration between states
-    let currentLeadId = ""
-    let lastChange: { leadId: string; toState: { name: string }; changedAt: Date } | null = null
+    // Optimized raw query to calculate average time in each stage
+    // Uses window function LEAD to get the next state change time for the same lead
+    const result = await prisma.$queryRaw`
+      SELECT
+        s.name as stage,
+        AVG(EXTRACT(EPOCH FROM (h.next_changed_at - h.changed_at)) / 3600) as "avgHours"
+      FROM (
+        SELECT
+          lead_id,
+          to_state_id,
+          changed_at,
+          LEAD(changed_at) OVER (PARTITION BY lead_id ORDER BY changed_at) as next_changed_at
+        FROM lead_state_history
+        WHERE tenant_id = ${tenantId}::uuid
+      ) h
+      JOIN lead_state_definitions s ON h.to_state_id = s.id
+      WHERE h.next_changed_at IS NOT NULL
+      GROUP BY s.name
+    ` as { stage: string, avgHours: number }[]
 
-    for (const record of history) {
-      if (record.leadId !== currentLeadId) {
-        currentLeadId = record.leadId
-        lastChange = record
-        continue
-      }
-
-      if (lastChange && lastChange.leadId === record.leadId) {
-        // Duration from last state to this state
-        const durationHours = (record.changedAt.getTime() - lastChange.changedAt.getTime()) / (1000 * 60 * 60)
-        const stageName = lastChange.toState.name // The stage the lead was IN
-        if (!stageDurations[stageName]) stageDurations[stageName] = []
-        stageDurations[stageName].push(durationHours)
-      }
-      lastChange = record
-    }
-
-    // Calculate averages
-    return Object.entries(stageDurations).map(([stage, durations]) => ({
-      stage,
-      avgHours: durations.length ? durations.reduce((a, b) => a + b, 0) / durations.length : 0
+    // Format result
+    const formatted = result.map(r => ({
+      stage: r.stage,
+      avgHours: Number(r.avgHours) || 0
     }))
+
+    await cache.set(cacheKey, formatted, 3600) // Cache for 1 hour
+    return formatted
   },
 
   getLeadTimeline: async (tenantId: string, leadId: string) => {
@@ -417,6 +436,10 @@ export const analyticsService = {
   },
 
   getRevenueOverTime: async (tenantId: string, userId?: string, role?: string) => {
+    const cacheKey = `analytics:revenue-over-time:${tenantId}:${userId || 'all'}:${role || 'all'}`
+    const cached = await cache.get(cacheKey)
+    if (cached) return cached
+
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
@@ -464,10 +487,16 @@ export const analyticsService = {
       }
     });
 
-    return Object.entries(revenueByMonth).map(([name, value]) => ({ name, value }));
+    const result = Object.entries(revenueByMonth).map(([name, value]) => ({ name, value }));
+    await cache.set(cacheKey, result, 300)
+    return result
   },
 
   getLeadSources: async (tenantId: string, userId?: string, role?: string) => {
+    const cacheKey = `analytics:lead-sources:${tenantId}:${userId || 'all'}:${role || 'all'}`
+    const cached = await cache.get(cacheKey)
+    if (cached) return cached
+
     let whereClause: any = { tenantId, deletedAt: null }
 
     if (role === "sales" && userId) {
@@ -524,11 +553,14 @@ export const analyticsService = {
       prisma.lead.count({ where: { ...where, status: "won" } })
     ]);
 
-    return [
+    const result = [
       { label: "إجمالي العملاء", value: totalLeads, change: 0 },
       { label: "عملاء جدد", value: newLeads, change: 0 },
       { label: "عملاء نشطين", value: activeLeads, change: 0 },
       { label: "صفقات ناجحة", value: wonLeads, change: 0 }
     ];
+
+    await cache.set(cacheKey, result, 300)
+    return result
   }
 }

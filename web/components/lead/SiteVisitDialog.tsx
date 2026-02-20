@@ -60,7 +60,7 @@ export const SiteVisitDialog = ({ isOpen, onClose, leadId, onSuccess }: SiteVisi
     <Modal isOpen={isOpen} onClose={onClose} title="تسجيل رؤية الموقع">
       <div className="space-y-4">
         <p className="text-sm text-base-500">
-          قم بجدولة أو تسجيل زيارة الموقع للعميل. سيتم تحديث حالة العميل إلى "رؤية الموقع".
+          قم بجدولة أو تسجيل زيارة الموقع للعميل. سيتم تحديث حالة العميل إلى &quot;رؤية الموقع&quot;.
         </p>
         
         <div className="space-y-4">

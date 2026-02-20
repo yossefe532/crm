@@ -6,7 +6,7 @@ import { useLocale } from "../../lib/i18n/LocaleContext"
 import { conversationService } from "../../lib/services/conversationService"
 import { notificationService } from "../../lib/services/notificationService"
 import { useSearchParams } from "next/navigation"
-import { Conversation, Message } from "../../lib/types"
+import { Conversation, Message, User } from "../../lib/types"
 import { Button } from "../ui/Button"
 import { Card } from "../ui/Card"
 import { Select } from "../ui/Select"
@@ -51,7 +51,7 @@ export const ChatWindow = () => {
           setActiveId(list[0].id)
         }
       } catch (err) {
-        console.error("Failed to load conversations", err)
+        // Failed to load conversations
       }
     }
     load()
@@ -135,7 +135,7 @@ export const ChatWindow = () => {
           localStorage.setItem(key, new Date().toISOString())
         } catch {}
       } catch (err) {
-        console.error("Failed to load messages", err)
+        // Failed to load messages
       }
     }
     
@@ -256,12 +256,11 @@ export const ChatWindow = () => {
               ["push"],
               token || undefined
             )
-          }
+          } catch {}
         }
-      } catch {}
-    } catch (err) {
-      console.error(err)
-      setError("فشل إرسال الرسالة")
+      } catch (err) {
+        // Error sending message
+        setError("فشل إرسال الرسالة")
       
       // Update status to error in state
       setMessages((prev) => 
@@ -298,7 +297,7 @@ export const ChatWindow = () => {
         const list = await conversationService.listMessages(convo.id, token || undefined)
         setMessages(list)
       } catch (err) {
-        console.error("Failed to load messages after creating direct", err)
+        // Failed to load messages after creating direct
       }
       setTargetUserId("")
       setError(null)
@@ -421,7 +420,7 @@ export const ChatWindow = () => {
              setIsSidebarOpen(false)
         }
     } catch (err) {
-        console.error("Quick access failed", err)
+        // Quick access failed
         setError("فشل فتح المحادثة")
     }
   }
@@ -483,7 +482,7 @@ export const ChatWindow = () => {
                  <div className="mt-2">
                     <p className="text-[10px] text-base-400 mb-1">أعضاء الفريق:</p>
                     <div className="flex flex-wrap gap-1">
-                      {teamMembers.map((member: any) => (
+                      {teamMembers.map((member: User) => (
                         <button
                           key={member.id}
                           onClick={() => handleQuickAccess('direct', member.id)}

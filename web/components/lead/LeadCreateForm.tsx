@@ -100,9 +100,9 @@ export const LeadCreateForm = () => {
       // Other roles (Owner, Team Leader) create directly
       try {
         return await leadService.create(payload, token || undefined)
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Fallback: If 403 Forbidden, try sending as a request
-        if (error?.status === 403 || error?.response?.status === 403) {
+        if ((error as any)?.status === 403 || (error as any)?.response?.status === 403) {
           const salesPayload = {
             ...payload,
             assignedUserId: userId
@@ -115,9 +115,10 @@ export const LeadCreateForm = () => {
         throw error
       }
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: unknown) => {
       // Check for request response (has requestType or status=pending)
-      if (data?.requestType === "create_lead" || (role === "sales" && data?.status === "pending")) {
+      const requestData = data as { requestType?: string; status?: string }
+      if (requestData?.requestType === "create_lead" || (role === "sales" && requestData?.status === "pending")) {
         setMessage("تم إرسال طلب إضافة العميل للموافقة")
         
         // Notify owners
@@ -159,13 +160,14 @@ export const LeadCreateForm = () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] })
       queryClient.invalidateQueries({ queryKey: ["user_requests"] })
     },
-    onError: (err: any) => {
-      if (err?.status === 409 && err?.lead) {
-        const existing = err.lead as { name?: string; phone?: string; email?: string; status?: string }
+    onError: (err: unknown) => {
+      const error = err as { status?: number; lead?: unknown; message?: string }
+      if (error?.status === 409 && error?.lead) {
+        const existing = error.lead as { name?: string; phone?: string; email?: string; status?: string }
         setMessage(`هذا العميل مسجل بالفعل: ${existing.name || ""} ${existing.phone || ""} ${existing.status ? `(${existing.status})` : ""}`.trim())
         return
       }
-      setMessage(`حدث خطأ: ${err?.message || "فشل تنفيذ الطلب"}`)
+      setMessage(`حدث خطأ: ${error?.message || "فشل تنفيذ الطلب"}`)
     }
   })
 

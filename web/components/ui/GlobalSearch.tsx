@@ -11,6 +11,15 @@ import { useDebounce } from "../../lib/hooks/useDebounce"
 import { Avatar } from "./Avatar"
 import { Badge } from "./Badge"
 
+const PAGES = [
+  { name: "الرئيسية", href: "/owner" },
+  { name: "قناة العملاء", href: "/pipeline" },
+  { name: "المالية", href: "/finance" },
+  { name: "الطلبات", href: "/requests" },
+  { name: "الإعدادات", href: "/settings/users" },
+  { name: "التواصل", href: "/connect" },
+]
+
 export const GlobalSearch = () => {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState("")
@@ -32,19 +41,10 @@ export const GlobalSearch = () => {
   }, [debouncedSearch, users])
 
   // Filter Pages (Static)
-  const pages = [
-    { name: "الرئيسية", href: "/owner" },
-    { name: "قناة العملاء", href: "/pipeline" },
-    { name: "المالية", href: "/finance" },
-    { name: "الطلبات", href: "/requests" },
-    { name: "الإعدادات", href: "/settings/users" },
-    { name: "التواصل", href: "/connect" },
-  ]
-  
   const filteredPages = useMemo(() => {
     if (!debouncedSearch) return []
     const term = debouncedSearch.toLowerCase()
-    return pages.filter(p => p.name.includes(term))
+    return PAGES.filter(p => p.name.includes(term))
   }, [debouncedSearch])
 
   // Reset on close

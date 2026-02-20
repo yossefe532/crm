@@ -67,7 +67,7 @@ export const LeadOutcomePanel = () => {
                   </div>
                 )}
                 {closure.address && <p className="text-xs text-base-500">عنوان الإغلاق: {closure.address}</p>}
-                {closure.note && <p className="text-xs text-base-500 italic">"{closure.note}"</p>}
+                {closure.note && <p className="text-xs text-base-500 italic">&quot;{closure.note}&quot;</p>}
               </div>
               {role === "owner" && (
                 <div className="flex items-center gap-2">

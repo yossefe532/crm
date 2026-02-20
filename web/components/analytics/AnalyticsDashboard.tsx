@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query"
 import { analyticsService } from "../../lib/services/analyticsService"
 import { Card } from "../ui/Card"
 import { Stat } from "../ui/Stat"
+import { Skeleton } from "../ui/Skeleton"
+import { ExportButton } from "../ui/ExportButton"
 import { useAuth } from "../../lib/auth/AuthContext"
 
 export const AnalyticsDashboard = () => {
@@ -13,7 +15,21 @@ export const AnalyticsDashboard = () => {
     queryFn: () => analyticsService.getDashboardMetrics(token || undefined)
   })
 
-  if (isLoading) return <div className="text-center p-8">جاري تحميل البيانات...</div>
+  if (isLoading) {
+    return (
+      <div className="space-y-4 md:space-y-6">
+        <div className="grid gap-4 md:gap-6 md:grid-cols-3">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+        <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </div>
+    )
+  }
   if (!data) return <div className="text-center p-8 text-red-500">فشل تحميل البيانات</div>
 
   return (
@@ -62,7 +78,17 @@ export const AnalyticsDashboard = () => {
       </div>
 
       <div className="grid gap-4 md:gap-6 lg:grid-cols-2">
-        <Card title="أداء فريق المبيعات">
+        <Card 
+          title="أداء فريق المبيعات"
+          actions={
+            <ExportButton
+              data={data.salesPerformance}
+              filename="sales-performance"
+              headers={["المندوب", "عدد الصفقات", "قيمة الصفقات", "إجمالي التفاعلات", "معدل التحويل"]}
+              keys={["name", "deals", "value", "total", "conversionRate"]}
+            />
+          }
+        >
           {/* Mobile View */}
           <div className="space-y-4 sm:hidden">
             {data.salesPerformance.map((user) => (

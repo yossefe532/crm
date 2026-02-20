@@ -3,26 +3,7 @@
 import { Card } from "../ui/Card"
 import { useDashboardAnalytics } from "../../lib/hooks/useDashboardAnalytics"
 import { Badge } from "../ui/Badge"
-
-const STAGE_LABELS: Record<string, string> = {
-  "new": "جديد",
-  "call": "مكالمة",
-  "meeting": "اجتماع",
-  "site_visit": "زيارة",
-  "closing": "إغلاق",
-  "won": "ناجحة",
-  "lost": "خاسرة"
-}
-
-const STAGE_COLORS: Record<string, "default" | "info" | "success" | "warning" | "danger" | "outline"> = {
-  "new": "default",
-  "call": "info",
-  "meeting": "info",
-  "site_visit": "warning",
-  "closing": "outline",
-  "won": "success",
-  "lost": "danger"
-}
+import { STAGE_LABELS, STAGE_COLORS, STAGES } from "../../lib/constants"
 
 export const LeadStageSummary = () => {
   const { data, isLoading } = useDashboardAnalytics()
@@ -49,8 +30,6 @@ export const LeadStageSummary = () => {
     )
   }
 
-  const stages = ["new", "call", "meeting", "site_visit", "closing", "won", "lost"]
-
   return (
     <Card title="متابعة مراحل العملاء (حسب المندوب)" className="overflow-hidden">
       <div className="overflow-x-auto">
@@ -58,7 +37,7 @@ export const LeadStageSummary = () => {
           <thead>
             <tr className="border-b border-base-200 bg-base-50 dark:bg-base-900/50">
               <th className="py-3 px-4 font-medium text-base-700 dark:text-base-300">المندوب</th>
-              {stages.map(stage => (
+              {STAGES.map(stage => (
                 <th key={stage} className="py-3 px-4 font-medium text-base-700 dark:text-base-300 text-center">
                   {STAGE_LABELS[stage] || stage}
                 </th>
@@ -83,7 +62,7 @@ export const LeadStageSummary = () => {
                     {user.name}
                   </div>
                 </td>
-                {stages.map(stage => (
+                {STAGES.map(stage => (
                   <td key={stage} className="py-3 px-4 text-center">
                     {user.stages[stage] ? (
                       <Badge variant={STAGE_COLORS[stage] || "default"} className="min-w-[30px] justify-center">

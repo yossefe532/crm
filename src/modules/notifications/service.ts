@@ -2,6 +2,7 @@ import { prisma } from "../../prisma/client"
 import { Prisma } from "@prisma/client"
 import { pushService } from "./pushService"
 import { smsService } from "./smsService"
+import { getIO } from "../../socket"
 
 export const notificationService = {
   listEvents: (tenantId: string, limit = 20) =>
@@ -75,6 +76,19 @@ export const notificationService = {
           } as Prisma.InputJsonValue
         }
       })
+
+      // Emit Socket Event
+      try {
+        const io = getIO()
+        users.forEach((user) => {
+          io.to(`user:${user.id}`).emit("notification", {
+            message: normalizedMessage,
+            type: "info",
+          })
+        })
+      } catch (e) {
+        // Socket might not be initialized in some contexts
+      }
     }
 
     // 2. Send Push

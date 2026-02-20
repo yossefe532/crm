@@ -69,8 +69,9 @@ export default function RolesSettingsPage() {
       setSelectedRoleId(data.id)
       setMessage("تم إنشاء الدور بنجاح")
     },
-    onError: (error: any) => {
-        setMessage(error?.response?.data?.message || "فشل إنشاء الدور")
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { message?: string } } }
+      setMessage(err?.response?.data?.message || "فشل إنشاء الدور")
     }
   })
 
@@ -81,8 +82,9 @@ export default function RolesSettingsPage() {
       setSelectedRoleId("") 
       setMessage("تم حذف الدور بنجاح")
     },
-    onError: (error: any) => {
-      setMessage(error?.response?.data?.message || "فشل حذف الدور")
+    onError: (error: unknown) => {
+      const err = error as { response?: { data?: { message?: string } } }
+      setMessage(err?.response?.data?.message || "فشل حذف الدور")
     }
   })
 

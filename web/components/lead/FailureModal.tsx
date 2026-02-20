@@ -48,8 +48,9 @@ export const FailureModal = ({ isOpen, onClose, lead }: FailureModalProps) => {
       queryClient.invalidateQueries({ queryKey: ["lead", lead.id] })
       onClose()
     },
-    onError: (err: any) => {
-      setError(err.message || "حدث خطأ أثناء تسجيل الخسارة")
+    onError: (err: unknown) => {
+      const error = err as { message?: string }
+      setError(error?.message || "حدث خطأ أثناء تسجيل الخسارة")
     }
   })
 

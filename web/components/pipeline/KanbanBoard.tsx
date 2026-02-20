@@ -18,14 +18,14 @@ import {
 import { Card } from "../ui/Card"
 import { Badge } from "../ui/Badge"
 import { Button } from "../ui/Button"
-import { Lead } from "../../lib/types"
+import { Lead, User } from "../../lib/types"
 import { useLeads } from "../../lib/hooks/useLeads"
 import { useUsers } from "../../lib/hooks/useUsers"
 import { useTeams } from "../../lib/hooks/useTeams"
 import { useAuth } from "../../lib/auth/AuthContext"
 import { notificationService } from "../../lib/services/notificationService"
 import { leadService } from "../../lib/services/leadService"
-import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQueryClient, UseMutationResult } from "@tanstack/react-query"
 import Link from "next/link"
 
 const stageLabels: Record<string, string> = {
@@ -70,10 +70,10 @@ const KanbanLane = ({ id, title, count, children }: { id: string; title: string;
 
 const KanbanCard = ({ lead, usersById, teamsById, role, notifyMutation }: { 
   lead: Lead & { pipelineStage: string }; 
-  usersById: Map<string, any>; 
+  usersById: Map<string, User>; 
   teamsById: Map<string, string>;
   role: string;
-  notifyMutation: any;
+  notifyMutation: UseMutationResult<void, Error, { userId: string; leadName: string }, unknown>;
 }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: lead.id,

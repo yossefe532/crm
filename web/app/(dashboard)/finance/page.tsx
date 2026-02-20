@@ -26,20 +26,7 @@ import {
 } from "recharts"
 import { format } from "date-fns"
 import { ar } from "date-fns/locale"
-
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
-
-const CATEGORY_LABELS: Record<string, string> = {
-  "sales_revenue": "عائد مبيعات",
-  "salary": "رواتب",
-  "rent": "إيجار",
-  "commission": "عمولات",
-  "marketing": "تسويق",
-  "office": "مصاريف مكتبية",
-  "software": "برمجيات",
-  "utilities": "مرافق",
-  "other": "أخرى"
-}
+import { FINANCE_CATEGORY_LABELS, FINANCE_COLORS } from "../../../lib/constants"
 
 export default function FinancePage() {
   const { role, token } = useAuth()
@@ -75,12 +62,14 @@ export default function FinancePage() {
 
   // Edit Handler
   const handleEdit = (entry: any) => {
-    setEditingId(entry.id)
-    setEntryType(entry.entryType)
-    setCategory(entry.category)
-    setAmount(entry.amount.toString())
-    setNote(entry.note || "")
-    setOccurredAt(entry.occurredAt.split('T')[0])
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const e = entry as any
+    setEditingId(e.id)
+    setEntryType(e.entryType)
+    setCategory(e.category)
+    setAmount(e.amount.toString())
+    setNote(e.note || "")
+    setOccurredAt(e.occurredAt.split('T')[0])
     setIsModalOpen(true)
   }
 
@@ -303,7 +292,7 @@ export default function FinancePage() {
                   dataKey="value"
                 >
                   {categoryData.map((entry, index) => (
-                    <Cell key={`cell-expense-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-expense-${index}`} fill={FINANCE_COLORS[index % FINANCE_COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -329,37 +318,43 @@ export default function FinancePage() {
         </Card>
       </div>
 
-      {/* Transactions Table */}
-      <Card title="سجل العمليات">
+      {/* Transactions List */}
+      <Card title="سجل المعاملات المالية">
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-right">
             <thead>
-              <tr className="border-b border-base-200 text-base-500">
-                <th className="py-3 px-4">التاريخ</th>
-                <th className="py-3 px-4">النوع</th>
-                <th className="py-3 px-4">الفئة</th>
-                <th className="py-3 px-4">المبلغ</th>
-                <th className="py-3 px-4">ملاحظات</th>
-                <th className="py-3 px-4">إجراءات</th>
+              <tr className="border-b border-base-200 bg-base-50 dark:bg-base-900/50">
+                <th className="py-3 px-4 font-medium text-base-700 dark:text-base-300">التاريخ</th>
+                <th className="py-3 px-4 font-medium text-base-700 dark:text-base-300">النوع</th>
+                <th className="py-3 px-4 font-medium text-base-700 dark:text-base-300">التصنيف</th>
+                <th className="py-3 px-4 font-medium text-base-700 dark:text-base-300">المبلغ</th>
+                <th className="py-3 px-4 font-medium text-base-700 dark:text-base-300">ملاحظات</th>
+                <th className="py-3 px-4 font-medium text-base-700 dark:text-base-300">بواسطة</th>
+                <th className="py-3 px-4 font-medium text-base-700 dark:text-base-300">إجراءات</th>
               </tr>
             </thead>
             <tbody>
               {filteredEntries.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-8 text-base-500">لا توجد عمليات في هذا الشهر</td>
+                  <td colSpan={7} className="text-center py-8 text-base-500">لا توجد معاملات</td>
                 </tr>
               ) : (
                 filteredEntries.map((entry) => (
-                  <tr key={entry.id} className="border-b border-base-100 hover:bg-base-50 transition-colors">
-                    <td className="py-3 px-4">{format(new Date(entry.occurredAt), 'dd MMM yyyy', { locale: ar })}</td>
+                  <tr key={entry.id} className="border-b border-base-100 last:border-0 hover:bg-base-50 dark:hover:bg-base-900/30 transition-colors">
+                    <td className="py-3 px-4 text-base-900 dark:text-base-100">
+                      {format(new Date(entry.occurredAt), "d MMMM yyyy", { locale: ar })}
+                    </td>
                     <td className="py-3 px-4">
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        entry.entryType === 'income' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        entry.entryType === 'income' 
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                          : 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
                       }`}>
-                        {entry.entryType === 'income' ? 'دخل' : 'صرف'}
+                        {entry.entryType === 'income' ? 'إيراد' : 'مصروف'}
                       </span>
                     </td>
-                    <td className="py-3 px-4">{CATEGORY_LABELS[entry.category] || entry.category}</td>
+                    <td className="py-3 px-4 text-base-900 dark:text-base-100">
+                      {FINANCE_CATEGORY_LABELS[entry.category] || entry.category}</td>
                     <td className="py-3 px-4 font-semibold">{entry.amount.toLocaleString()}</td>
                     <td className="py-3 px-4 max-w-[200px] truncate">{entry.note || "-"}</td>
                     <td className="py-3 px-4">
@@ -419,20 +414,20 @@ export default function FinancePage() {
           <div className="space-y-2">
             <Select 
               label="الفئة"
-              value={Object.keys(CATEGORY_LABELS).includes(category) ? category : 'custom'} 
+              value={Object.keys(FINANCE_CATEGORY_LABELS).includes(category) ? category : 'custom'} 
               onChange={(e) => {
                 if (e.target.value === 'custom') setCategory('')
                 else setCategory(e.target.value)
               }}
             >
               <option value="" disabled>اختر الفئة</option>
-              {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+              {Object.entries(FINANCE_CATEGORY_LABELS).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>
               ))}
               <option value="custom">فئة مخصصة...</option>
             </Select>
             
-            {!Object.keys(CATEGORY_LABELS).includes(category) && (
+            {!Object.keys(FINANCE_CATEGORY_LABELS).includes(category) && (
                <Input 
                  value={category} 
                  onChange={(e) => setCategory(e.target.value)} 
