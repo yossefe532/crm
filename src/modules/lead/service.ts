@@ -125,14 +125,16 @@ export const leadService = {
     return prisma.leadTask.findMany({ where: { ...baseWhere, assignedUserId: user.id }, orderBy: { createdAt: "desc" }, include: { lead: true } })
   },
 
-  updateLead: async (tenantId: string, id: string, data: Partial<{ name: string; phone: string; email: string; budget: number; areaOfInterest: string; sourceLabel: string; sourceId: string; priority: string; budgetMin: number; budgetMax: number; desiredLocation: string; propertyType: string; profession: string; notes: string }>) => {
+  updateLead: async (tenantId: string, id: string, data: Partial<{ name: string; phone: string; email: string; budget: number; areaOfInterest: string; sourceLabel: string; sourceId: string; priority: string; budgetMin: number; budgetMax: number; desiredLocation: string; propertyType: string; profession: string; notes: string; isWrongNumber: boolean }>) => {
     return prisma.lead.update({ where: { id, tenantId }, data })
   },
 
   getLeadForUser: async (tenantId: string, leadId: string, user?: UserPayload | null) => {
     const include = { 
       callLogs: { orderBy: { createdAt: "desc" as const }, include: { caller: true } },
-      meetings: { orderBy: { startsAt: "desc" as const }, include: { organizer: true } }
+      meetings: { orderBy: { startsAt: "desc" as const }, include: { organizer: true } },
+      closures: { orderBy: { closedAt: "desc" as const } },
+      failures: { orderBy: { createdAt: "desc" as const } }
     }
     if (!user) return prisma.lead.findFirst({ where: { tenantId, id: leadId, deletedAt: null }, include })
     if (user.roles.includes("owner")) return prisma.lead.findFirst({ where: { tenantId, id: leadId, deletedAt: null }, include })
@@ -256,6 +258,15 @@ export const leadService = {
       }
     }),
 
-  decideClosure: (tenantId: string, closureId: string, data: { status: string; decidedBy: string }) =>
-    prisma.leadClosure.update({ where: { id: closureId, tenantId }, data: { status: data.status, decidedBy: data.decidedBy, decidedAt: new Date() } })
+  decideClosure: (tenantId: string, closureId: string, data: { status: string; decidedBy: string; amount?: number; note?: string }) =>
+    prisma.leadClosure.update({
+      where: { id: closureId, tenantId },
+      data: {
+        status: data.status,
+        decidedBy: data.decidedBy,
+        decidedAt: new Date(),
+        ...(data.amount ? { amount: data.amount } : {}),
+        ...(data.note ? { note: data.note } : {})
+      }
+    })
 }

@@ -29,6 +29,18 @@ import { ar } from "date-fns/locale"
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
+const CATEGORY_LABELS: Record<string, string> = {
+  "sales_revenue": "عائد مبيعات",
+  "salary": "رواتب",
+  "rent": "إيجار",
+  "commission": "عمولات",
+  "marketing": "تسويق",
+  "office": "مصاريف مكتبية",
+  "software": "برمجيات",
+  "utilities": "مرافق",
+  "other": "أخرى"
+}
+
 export default function FinancePage() {
   const { role, token } = useAuth()
   const { data: entries, isLoading } = useFinanceEntries()
@@ -147,7 +159,8 @@ export default function FinancePage() {
   const categoryData = useMemo(() => {
     const map = new Map<string, number>()
     filteredEntries.filter(e => e.entryType === "expense").forEach(e => {
-      map.set(e.category, (map.get(e.category) || 0) + e.amount)
+      const label = CATEGORY_LABELS[e.category] || e.category
+      map.set(label, (map.get(label) || 0) + e.amount)
     })
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }))
   }, [filteredEntries])
@@ -155,7 +168,8 @@ export default function FinancePage() {
   const incomeCategoryData = useMemo(() => {
     const map = new Map<string, number>()
     filteredEntries.filter(e => e.entryType === "income").forEach(e => {
-      map.set(e.category, (map.get(e.category) || 0) + e.amount)
+      const label = CATEGORY_LABELS[e.category] || e.category
+      map.set(label, (map.get(label) || 0) + e.amount)
     })
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }))
   }, [filteredEntries])
@@ -208,7 +222,7 @@ export default function FinancePage() {
               const rows = filteredEntries.map(e => [
                 format(new Date(e.occurredAt), 'yyyy-MM-dd', { locale: ar }),
                 e.entryType === 'income' ? 'دخل' : 'صرف',
-                e.category,
+                CATEGORY_LABELS[e.category] || e.category,
                 String(e.amount),
                 e.note || ''
               ])
@@ -345,7 +359,7 @@ export default function FinancePage() {
                         {entry.entryType === 'income' ? 'دخل' : 'صرف'}
                       </span>
                     </td>
-                    <td className="py-3 px-4">{entry.category}</td>
+                    <td className="py-3 px-4">{CATEGORY_LABELS[entry.category] || entry.category}</td>
                     <td className="py-3 px-4 font-semibold">{entry.amount.toLocaleString()}</td>
                     <td className="py-3 px-4 max-w-[200px] truncate">{entry.note || "-"}</td>
                     <td className="py-3 px-4">
@@ -402,12 +416,30 @@ export default function FinancePage() {
             />
           </div>
           
-          <Input 
-            label="الفئة (مثلاً: رواتب، إيجار، عمولات)" 
-            value={category} 
-            onChange={(e) => setCategory(e.target.value)} 
-            placeholder="أدخل فئة العملية"
-          />
+          <div className="space-y-2">
+            <Select 
+              label="الفئة"
+              value={Object.keys(CATEGORY_LABELS).includes(category) ? category : 'custom'} 
+              onChange={(e) => {
+                if (e.target.value === 'custom') setCategory('')
+                else setCategory(e.target.value)
+              }}
+            >
+              <option value="" disabled>اختر الفئة</option>
+              {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+              <option value="custom">فئة مخصصة...</option>
+            </Select>
+            
+            {!Object.keys(CATEGORY_LABELS).includes(category) && (
+               <Input 
+                 value={category} 
+                 onChange={(e) => setCategory(e.target.value)} 
+                 placeholder="أدخل اسم الفئة..."
+               />
+            )}
+          </div>
           
           <Input 
             label="المبلغ" 

@@ -35,6 +35,7 @@ export const LeadList = () => {
   const router = useRouter()
   const [teamFilter, setTeamFilter] = useState("all")
   const [userFilter, setUserFilter] = useState("all")
+  const [statusFilter, setStatusFilter] = useState("all") // "all" | "wrong_number" | "new" | ...
   const [assignmentTargets, setAssignmentTargets] = useState<Record<string, string>>({})
   const [message, setMessage] = useState<string | null>(null)
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
@@ -50,6 +51,14 @@ export const LeadList = () => {
 
   const filteredLeads = useMemo(() => {
     const base = (data || []).filter((lead) => {
+      if (statusFilter !== "all") {
+        if (statusFilter === "wrong_number") {
+            if (!lead.isWrongNumber) return false
+        } else if (lead.status !== statusFilter) {
+            return false
+        }
+      }
+      
       if (teamFilter !== "all" && (lead.teamId || "unassigned") !== teamFilter) return false
       if (userFilter !== "all") {
         if (userFilter === "unassigned") return !lead.assignedUserId
@@ -145,8 +154,23 @@ export const LeadList = () => {
             ))}
           </div>
         )}
-        {role === "owner" && (
-          <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-3 mb-4">
+          <Select
+              className="w-full sm:w-auto"
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+            >
+              <option value="all">كل الحالات</option>
+              <option value="wrong_number">رقم خاطئ ⚠️</option>
+              <option value="new">جديد</option>
+              <option value="call">مكالمة هاتفية</option>
+              <option value="meeting">اجتماع</option>
+              <option value="site_visit">رؤية الموقع</option>
+              <option value="closing">إغلاق الصفقة</option>
+          </Select>
+
+          {role === "owner" && (
+            <>
             <Select
               className="w-full sm:w-auto"
               value={teamFilter}
@@ -169,8 +193,9 @@ export const LeadList = () => {
                 <option key={user.id} value={user.id}>{user.name || user.email}</option>
               ))}
             </Select>
-          </div>
-        )}
+            </>
+          )}
+        </div>
         {isLoading && <p className="text-sm text-base-500">جاري تحميل العملاء...</p>}
         {isError && <p className="text-sm text-rose-500">تعذر تحميل العملاء</p>}
         {message && <p className="text-sm text-emerald-600">{message}</p>}

@@ -48,11 +48,14 @@ export const CallLogDialog = ({ isOpen, onClose, leadId, phone, onSuccess }: Cal
       
       // 2. Handle specific outcomes
       if (outcome === "wrong_number") {
-         // Add note about wrong number
+         // Add note about wrong number and set flag
          const lead = await leadService.get(leadId, token || undefined)
          const currentNotes = lead.notes || ""
          const newNote = `\n[تنبيه]: رقم خاطئ تم الإبلاغ عنه بواسطة Sales.`
-         await leadService.update(leadId, { notes: currentNotes + newNote }, token || undefined)
+         await leadService.update(leadId, { 
+            notes: currentNotes + newNote,
+            isWrongNumber: true
+         }, token || undefined)
       } else if (outcome === "no_answer") {
          if (followUpDate) {
              const start = new Date(followUpDate)

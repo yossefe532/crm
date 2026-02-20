@@ -211,7 +211,8 @@ export const leadController = {
       desiredLocation: req.body?.desiredLocation ? String(req.body.desiredLocation) : undefined,
       propertyType: req.body?.propertyType ? String(req.body.propertyType) : undefined,
       profession: req.body?.profession ? String(req.body.profession) : undefined,
-      notes: req.body?.notes ? String(req.body.notes) : undefined
+      notes: req.body?.notes ? String(req.body.notes) : undefined,
+      isWrongNumber: phone && phone !== existing.phone ? false : undefined
     })
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.updated", entityType: "lead", entityId: lead.id })
     intelligenceService.queueTrigger({ type: "lead_changed", tenantId, leadId: lead.id, userId: lead.assignedUserId || undefined })
@@ -351,13 +352,30 @@ export const leadController = {
     const call = await leadService.createCallLog(tenantId, { leadId: req.params.id, callerUserId: req.user?.id, durationSeconds: req.body.durationSeconds, outcome, recordingFileId: req.body.recordingFileId })
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.call.logged", entityType: "call_log", entityId: call.id, metadata: { leadId: req.params.id } })
     intelligenceService.queueTrigger({ type: "lead_engaged", tenantId, leadId: req.params.id, userId: req.user?.id })
-    const event = await notificationService.publishEvent(tenantId, "lead.call.logged", {
-      leadId: req.params.id,
-      outcome,
-      targets: ["owner"],
-      messageAr: `تم تسجيل مكالمة للعميل ${lead.name}`
-    })
-    await notificationService.queueDelivery(tenantId, event.id, "in_app")
+    
+    if (outcome === "wrong_number") {
+      await leadService.updateLead(tenantId, lead.id, { isWrongNumber: true })
+      const messageAr = `⚠️ تنبيه: رقم خاطئ تم الإبلاغ عنه للعميل ${lead.name}`
+      const event = await notificationService.publishEvent(tenantId, "lead.phone.wrong", {
+        leadId: req.params.id,
+        leadName: lead.name,
+        reportedBy: req.user?.id,
+        phone: lead.phone,
+        messageAr
+      })
+      await notificationService.queueDelivery(tenantId, event.id, "in_app")
+      // Also broadcast to owner specifically
+      await notificationService.broadcast(tenantId, { type: "role", value: "owner" }, messageAr, ["in_app", "push"])
+    } else {
+      const event = await notificationService.publishEvent(tenantId, "lead.call.logged", {
+        leadId: req.params.id,
+        outcome,
+        targets: ["owner"],
+        messageAr: `تم تسجيل مكالمة للعميل ${lead.name}`
+      })
+      await notificationService.queueDelivery(tenantId, event.id, "in_app")
+    }
+    
     res.json(call)
   },
   createLeadSource: async (req: Request, res: Response) => {
@@ -419,10 +437,33 @@ export const leadController = {
     if (!req.user?.roles?.includes("owner")) throw { status: 403, message: "غير مصرح" }
     const status = String(req.body?.status || "").trim()
     if (!status || !["approved", "rejected"].includes(status)) throw { status: 400, message: "قرار غير صالح" }
-    const closure = await leadService.decideClosure(tenantId, req.params.closureId, { status, decidedBy: req.user?.id || "" })
+
+    const amount = req.body.amount ? Number(req.body.amount) : undefined
+    const note = req.body.note ? String(req.body.note) : undefined
+
+    const closure = await leadService.decideClosure(tenantId, req.params.closureId, {
+      status,
+      decidedBy: req.user?.id || "",
+      amount,
+      note
+    })
+
     if (status === "approved") {
-      await prisma.lead.update({ where: { id: closure.leadId, tenantId }, data: { status: "closed", assignedUserId: null } })
+      await prisma.lead.update({ where: { id: closure.leadId, tenantId }, data: { status: "won", assignedUserId: null } })
       await prisma.leadDeadline.updateMany({ where: { tenantId, leadId: closure.leadId, status: "active" }, data: { status: "completed" } })
+
+      // Create Finance Entry
+      await prisma.financeEntry.create({
+        data: {
+          tenantId,
+          entryType: "income",
+          category: "sales_revenue",
+          amount: closure.amount,
+          note: `إغلاق صفقة للعميل (ID: ${closure.leadId})`,
+          occurredAt: new Date(),
+          createdBy: req.user?.id
+        }
+      })
     }
     if (status === "rejected") {
       await prisma.lead.update({ where: { id: closure.leadId, tenantId }, data: { status: "failed", assignedUserId: null } })

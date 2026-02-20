@@ -55,6 +55,55 @@ export const analyticsService = {
       }
     }),
 
+  getSalesStageSummary: async (tenantId: string, userId?: string, role?: string) => {
+    let whereClause: any = { tenantId, deletedAt: null, assignedUserId: { not: null } }
+
+    if (role === "sales" && userId) {
+      whereClause.assignedUserId = userId
+    } else if (role === "team_leader" && userId) {
+      const myTeams = await prisma.team.findMany({
+        where: { tenantId, leaderUserId: userId },
+        include: { members: true }
+      })
+      const myMemberIds = myTeams.flatMap(t => t.members.map(m => m.userId))
+      const relevantUserIds = [...new Set([userId, ...myMemberIds])]
+      whereClause.assignedUserId = { in: relevantUserIds }
+    }
+
+    // Group by user and stage
+    const distribution = await prisma.lead.groupBy({
+      by: ["assignedUserId", "status"],
+      where: whereClause,
+      _count: { id: true }
+    })
+
+    // Get all users involved
+    const userIds = [...new Set(distribution.map(d => d.assignedUserId).filter(Boolean))] as string[]
+    
+    const users = await prisma.user.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, email: true, profile: { select: { firstName: true, lastName: true } } }
+    })
+
+    // Transform to user-centric structure
+    return users.map(user => {
+      const userStages = distribution.filter(d => d.assignedUserId === user.id)
+      const name = user.profile ? `${user.profile.firstName || ""} ${user.profile.lastName || ""}`.trim() : user.email
+      
+      const stageCounts: Record<string, number> = {}
+      userStages.forEach(s => {
+        stageCounts[s.status] = s._count.id
+      })
+
+      return {
+        userId: user.id,
+        name: name || "Unknown",
+        stages: stageCounts,
+        total: userStages.reduce((sum, s) => sum + s._count.id, 0)
+      }
+    }).sort((a, b) => b.total - a.total)
+  },
+
   getStageDistribution: async (tenantId: string, userId?: string, role?: string) => {
     let whereClause: any = { tenantId, deletedAt: null }
 
