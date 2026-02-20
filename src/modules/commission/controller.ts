@@ -6,7 +6,10 @@ export const commissionController = {
   listLedger: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
     const limit = req.query.limit ? Number(req.query.limit) : 50
-    const entries = await commissionService.listLedger(tenantId, limit)
+    const roles = req.user?.roles || []
+    const userId = (roles.includes("sales") || roles.includes("team_leader")) ? req.user?.id : undefined
+    
+    const entries = await commissionService.listLedger(tenantId, userId, limit)
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "commission.ledger.listed", entityType: "commission_ledger" })
     res.json(entries)
   },

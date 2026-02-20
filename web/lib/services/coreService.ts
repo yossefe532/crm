@@ -5,6 +5,10 @@ export const coreService = {
   listUsers: (token?: string) => apiClient.get<User[]>("/core/users", token),
   listTeams: (token?: string) => apiClient.get<Team[]>("/core/teams", token),
   listRoles: (token?: string) => apiClient.get<RoleItem[]>("/core/roles", token),
+  createRole: (payload: { name: string; scope?: string }, token?: string) =>
+    apiClient.post<RoleItem>("/core/roles", payload, token),
+  deleteRole: (roleId: string, token?: string) =>
+    apiClient.delete(`/core/roles/${roleId}`, token),
   listPermissions: (token?: string) => apiClient.get<Permission[]>("/core/permissions", token),
   listRolePermissions: (roleId: string, token?: string) => apiClient.get<Array<{ permission: Permission }>>(`/core/roles/${roleId}/permissions`, token),
   updateRolePermissions: (roleId: string, permissionIds: string[], token?: string) =>
@@ -39,6 +43,10 @@ export const coreService = {
     apiClient.get<Array<{ id: string; entryType: string; category: string; amount: number; note?: string | null; occurredAt: string }>>("/core/finance", token),
   createFinanceEntry: (payload: { entryType: "income" | "expense"; category: string; amount: number; note?: string; occurredAt?: string }, token?: string) =>
     apiClient.post("/core/finance", payload, token),
+  updateFinanceEntry: (id: string, payload: { entryType?: "income" | "expense"; category?: string; amount?: number; note?: string; occurredAt?: string }, token?: string) =>
+    apiClient.put(`/core/finance/${id}`, payload, token),
+  deleteFinanceEntry: (id: string, token?: string) =>
+    apiClient.delete(`/core/finance/${id}`, token),
   createNote: (payload: { entityType: string; entityId: string; body: string }, token?: string) =>
     apiClient.post("/core/notes", payload, token),
   exportBackup: (token?: string) =>

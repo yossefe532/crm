@@ -82,7 +82,7 @@ export const leadService = {
           ...search,
           OR: [
             { teamId: { in: teamIds } }, 
-            { assignedUserId: user.id }
+            { assignedUserId: { in: memberIds } }
           ]
         },
         skip,
@@ -139,6 +139,10 @@ export const leadService = {
     if (user.roles.includes("team_leader")) {
       const teams = await prisma.team.findMany({ where: { tenantId, leaderUserId: user.id, deletedAt: null }, select: { id: true } })
       const teamIds = teams.map((team) => team.id)
+      
+      const members = await prisma.teamMember.findMany({ where: { tenantId, teamId: { in: teamIds }, leftAt: null, deletedAt: null }, select: { userId: true } })
+      const memberIds = Array.from(new Set([...members.map((row) => row.userId), user.id]))
+
       return prisma.lead.findFirst({
         where: {
           tenantId,
@@ -146,7 +150,7 @@ export const leadService = {
           deletedAt: null,
           OR: [
             { teamId: { in: teamIds } },
-            { assignedUserId: user.id }
+            { assignedUserId: { in: memberIds } }
           ]
         },
         include

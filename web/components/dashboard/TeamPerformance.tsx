@@ -2,20 +2,26 @@
 
 import { Card } from "../ui/Card"
 import { Progress } from "../ui/Progress"
-import { useLeads } from "../../lib/hooks/useLeads"
-import { useTeams } from "../../lib/hooks/useTeams"
+import { useDashboardAnalytics } from "../../lib/hooks/useDashboardAnalytics"
 
 export const TeamPerformance = () => {
-  const { data: leads } = useLeads()
-  const { data: teams } = useTeams()
+  const { data, isLoading } = useDashboardAnalytics()
 
-  const rows = (teams || []).map((team) => {
-    const teamLeads = (leads || []).filter((lead) => lead.teamId === team.id)
-    const closed = teamLeads.filter((lead) => lead.status === "closing").length
-    const total = teamLeads.length || 1
-    const value = Math.round((closed / total) * 100)
-    return { id: team.id, name: team.name, value }
+  const rows = (data?.teamPerformance || []).map((team) => {
+    return { id: team.teamId, name: team.teamName, value: team.conversionRate || 0 }
   })
+
+  if (isLoading) {
+    return (
+      <Card title="أداء الفرق">
+         <div className="space-y-4">
+           {[1, 2, 3].map(i => (
+             <div key={i} className="h-8 bg-base-200 animate-pulse rounded" />
+           ))}
+         </div>
+      </Card>
+    )
+  }
 
   return (
     <Card title="أداء الفرق">

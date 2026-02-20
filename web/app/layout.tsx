@@ -48,7 +48,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body className="font-ar bg-base-50" suppressHydrationWarning>
         <ErrorBoundary>
-          <FlashlightEffect />
+          {/* <FlashlightEffect /> */}
           <Providers>{children}</Providers>
         </ErrorBoundary>
       </body>

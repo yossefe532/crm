@@ -157,6 +157,82 @@ export const coreController = {
     })
     res.json(logs)
   },
+  listMyActivity: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const limit = req.query.limit ? Number(req.query.limit) : 50
+    const logs = await prisma.auditLog.findMany({
+      where: { tenantId, actorUserId: req.user?.id },
+      orderBy: { createdAt: "desc" },
+      take: limit
+    })
+    res.json(logs)
+  },
+  updateUser: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const userId = req.params.userId
+    const { email, phone, status, name } = req.body
+    
+    let firstName: string | undefined, lastName: string | undefined
+    if (name) {
+      const parts = name.trim().split(" ")
+      firstName = parts[0]
+      lastName = parts.slice(1).join(" ")
+    }
+
+    await coreService.updateUser(tenantId, userId, { email, phone, status, firstName, lastName })
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "user.updated", entityType: "user", entityId: userId })
+    res.json({ status: "ok" })
+  },
+  getUser: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const userId = req.params.userId
+    const user = await prisma.user.findFirst({
+      where: { id: userId, tenantId, deletedAt: null },
+      include: {
+        roleLinks: { where: { revokedAt: null }, include: { role: true } },
+        profile: true,
+        teamMembers: { where: { leftAt: null, deletedAt: null }, include: { team: true } },
+        teamsLed: { where: { deletedAt: null } }
+      }
+    })
+    if (!user) {
+      res.status(404).json({ message: "User not found" })
+      return
+    }
+    
+    const payload = {
+      id: user.id,
+      tenantId: user.tenantId,
+      email: user.email,
+      phone: user.phone,
+      status: user.status,
+      mustChangePassword: user.mustChangePassword,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      firstName: user.profile?.firstName,
+      lastName: user.profile?.lastName,
+      name: [user.profile?.firstName, user.profile?.lastName].filter(Boolean).join(" ").trim() || user.email,
+      roles: (user.roleLinks || []).map((link) => link.role.name),
+      teamsLed: user.teamsLed?.map((team) => ({ id: team.id, name: team.name })) || [],
+      teamMemberships: user.teamMembers?.map((member) => ({ teamId: member.teamId, teamName: member.team?.name, role: member.role })) || []
+    }
+    
+    res.json(payload)
+  },
+  deleteUser: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const userId = req.params.userId
+    await coreService.deleteUser(tenantId, userId)
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "user.deleted", entityType: "user", entityId: userId })
+    res.json({ status: "ok" })
+  },
+  resetUserPassword: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const userId = req.params.userId
+    const result = await coreService.resetPassword(tenantId, userId)
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "user.password.reset", entityType: "user", entityId: userId })
+    res.json(result)
+  },
   createRole: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
     const role = await coreService.createRole(tenantId, { name: req.body.name, scope: req.body.scope })
@@ -168,6 +244,13 @@ export const coreController = {
     const roles = await coreService.listRoles(tenantId)
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "role.listed", entityType: "role" })
     res.json(roles)
+  },
+  deleteRole: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const roleId = String(req.params.roleId || "").trim()
+    await coreService.deleteRole(tenantId, roleId)
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "role.deleted", entityType: "role", entityId: roleId })
+    res.json({ status: "ok" })
   },
   listPermissions: async (_req: Request, res: Response) => {
     const permissions = await coreService.listPermissions()

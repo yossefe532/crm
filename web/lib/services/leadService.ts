@@ -2,9 +2,13 @@ import { apiClient } from "../api/client"
 import { Lead } from "../types"
 
 export const leadService = {
-  list: (token?: string, params?: { q?: string }) => {
-    const query = params?.q ? `?q=${encodeURIComponent(params.q)}` : ""
-    return apiClient.get<{ data: Lead[]; page: number; pageSize: number }>(`/leads${query}`, token)
+  list: (token?: string, params?: { q?: string; page?: number; pageSize?: number }) => {
+    const queryParams = new URLSearchParams()
+    if (params?.q) queryParams.append("q", params.q)
+    if (params?.page) queryParams.append("page", params.page.toString())
+    if (params?.pageSize) queryParams.append("pageSize", params.pageSize.toString())
+    
+    return apiClient.get<{ data: Lead[]; page: number; pageSize: number }>(`/leads?${queryParams.toString()}`, token)
   },
   get: (id: string, token?: string) => apiClient.get<Lead>(`/leads/${id}`, token),
   create: (payload: Record<string, unknown>, token?: string) => apiClient.post<Lead>("/leads", payload, token),

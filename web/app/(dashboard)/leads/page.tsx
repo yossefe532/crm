@@ -31,13 +31,6 @@ export default function LeadsPage() {
     }
   })
 
-  const leaderTeams = (teams || []).filter((t) => t.leaderUserId === userId).map((t) => t.id)
-  const allowedLeads = (data || []).filter((lead) => {
-    if (role === "owner") return true
-    if (role === "team_leader") return (leaderTeams.length > 0 && leaderTeams.includes(String(lead.teamId || ""))) || lead.assignedUserId === userId
-    return lead.assignedUserId === userId
-  })
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">

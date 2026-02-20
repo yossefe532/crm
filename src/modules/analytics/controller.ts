@@ -38,14 +38,30 @@ export const analyticsController = {
 
   getDashboardMetrics: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
-    const [distribution, conversion, avgTime, salesPerformance, teamPerformance] = await Promise.all([
-      analyticsService.getStageDistribution(tenantId),
-      analyticsService.getConversionRate(tenantId),
-      analyticsService.getAvgTimePerStage(tenantId),
-      analyticsService.getSalesPerformance(tenantId),
-      analyticsService.getTeamPerformance(tenantId)
+    const userId = req.user?.id || ""
+    const role = req.user?.roles?.[0] || "" // Assuming single role or primary role
+
+    const [distribution, conversion, avgTime, salesPerformance, teamPerformance, revenueOverTime, leadSources, keyMetrics] = await Promise.all([
+      analyticsService.getStageDistribution(tenantId, userId, role),
+      analyticsService.getConversionRate(tenantId, userId, role),
+      analyticsService.getAvgTimePerStage(tenantId), // avgTime might be general or specific? Let's leave it general for now as it's about process efficiency
+      analyticsService.getSalesPerformance(tenantId, userId, role),
+      analyticsService.getTeamPerformance(tenantId, userId, role),
+      analyticsService.getRevenueOverTime(tenantId, userId, role),
+      analyticsService.getLeadSources(tenantId, userId, role),
+      analyticsService.getKeyMetrics(tenantId, userId, role)
     ])
-    res.json({ distribution, conversion, avgTime, salesPerformance, teamPerformance })
+    
+    res.json({ 
+      distribution, 
+      conversion, 
+      avgTime, 
+      salesPerformance, 
+      teamPerformance,
+      revenueOverTime,
+      leadSources,
+      keyMetrics
+    })
   },
 
   getLeadTimeline: async (req: Request, res: Response) => {

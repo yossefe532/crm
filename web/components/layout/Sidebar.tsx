@@ -18,6 +18,7 @@ const navByRole = {
     { href: "/finance", label: "المالية" },
     { href: "/requests", label: "الطلبات" },
     { href: "/settings/users", label: "إدارة المستخدمين" },
+    { href: "/settings/roles", label: "إدارة الصلاحيات" },
     { href: "/connect", label: "التواصل" },
     { href: "/account", label: "إدارة الحساب" }
   ],
@@ -65,6 +66,7 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
     "المالية": t("finance"),
     "الطلبات": "الطلبات",
     "إدارة المستخدمين": t("users"),
+    "إدارة الصلاحيات": t("roles"),
     "التواصل": t("connect"),
     "إدارة الحساب": t("account")
   }

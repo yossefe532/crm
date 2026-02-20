@@ -14,13 +14,20 @@ import { LeadProgress } from "./LeadProgress"
 import { leadService } from "../../lib/services/leadService"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "../../lib/auth/AuthContext"
-import { CallLog, Meeting } from "../../lib/types"
+import { ConfirmationModal } from "../ui/ConfirmationModal"
+import { useRouter } from "next/navigation"
+import { ClosureModal } from "./ClosureModal"
+import { FailureModal } from "./FailureModal"
 
 export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; showProgress?: boolean }) => {
   const { token, role } = useAuth()
+  const router = useRouter()
   const queryClient = useQueryClient()
   const [isCallDialogOpen, setIsCallDialogOpen] = useState(false)
   const [isMeetingDialogOpen, setIsMeetingDialogOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isClosureModalOpen, setIsClosureModalOpen] = useState(false)
+  const [isFailureModalOpen, setIsFailureModalOpen] = useState(false)
   const [meetingTitle, setMeetingTitle] = useState("اجتماع جديد")
   const [activeTab, setActiveTab] = useState<"details" | "activity" | "notes">("details")
 
@@ -46,7 +53,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
       return leadService.delete(leadId, token || undefined)
     },
     onSuccess: () => {
-      window.location.href = "/leads"
+      router.push("/leads")
     }
   })
 
@@ -178,11 +185,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
                   <Button
                     variant="outline"
                     className="flex-1 md:flex-none border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 gap-2"
-                    onClick={() => {
-                      if (confirm("هل أنت متأكد من حذف هذا العميل؟ لا يمكن التراجع عن هذا الإجراء.")) {
-                        deleteLeadMutation.mutate()
-                      }
-                    }}
+                    onClick={() => setIsDeleteModalOpen(true)}
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     حذف
@@ -191,6 +194,28 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
           </div>
         </div>
       </div>
+      
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={() => deleteLeadMutation.mutate()}
+        title="تأكيد حذف العميل"
+        description="هل أنت متأكد من حذف هذا العميل؟ لا يمكن التراجع عن هذا الإجراء."
+        confirmText="حذف العميل"
+        variant="danger"
+      />
+
+      <ClosureModal
+        isOpen={isClosureModalOpen}
+        onClose={() => setIsClosureModalOpen(false)}
+        lead={lead}
+      />
+
+      <FailureModal
+        isOpen={isFailureModalOpen}
+        onClose={() => setIsFailureModalOpen(false)}
+        lead={lead}
+      />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         {/* Main Content */}

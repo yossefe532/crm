@@ -9,6 +9,7 @@ export const NotificationManager = () => {
   const [permission, setPermission] = useState<NotificationPermission>("default")
   const { isSubscribed, subscribe } = usePush()
   const [deviceId, setDeviceId] = useState<string | null>(null)
+  const [isDeniedBannerVisible, setIsDeniedBannerVisible] = useState(false)
 
   const requestPermission = useCallback(async () => {
     if (!("Notification" in window)) return
@@ -67,9 +68,28 @@ export const NotificationManager = () => {
     run()
   }, [userId, requestPermission])
 
-  // Render a permission request banner if permission is default and user is logged in
+  useEffect(() => {
+    let dismissed: string | null = null
+    try {
+      dismissed = localStorage.getItem("notification_denied_dismissed")
+    } catch {}
+    if (permission === "denied" && !dismissed) {
+      setIsDeniedBannerVisible(true)
+    } else {
+      setIsDeniedBannerVisible(false)
+    }
+  }, [permission])
+
+  const dismissDeniedBanner = () => {
+    setIsDeniedBannerVisible(false)
+    try {
+      localStorage.setItem("notification_denied_dismissed", "true")
+    } catch {}
+  }
+
+  let banner: JSX.Element | null = null
   if (permission === "default" && userId) {
-    return (
+    banner = (
       <div className="fixed bottom-4 left-4 right-4 z-50 rounded-lg border border-brand-200 bg-white p-4 shadow-lg dark:border-brand-800 dark:bg-base-900 md:left-auto md:right-4 md:w-96">
         <div className="flex items-start gap-4">
           <div className="rounded-full bg-brand-100 p-2 text-brand-600 dark:bg-brand-900/30">
@@ -96,30 +116,8 @@ export const NotificationManager = () => {
         </div>
       </div>
     )
-  }
-
-  const [isDeniedBannerVisible, setIsDeniedBannerVisible] = useState(false)
-
-  useEffect(() => {
-    let dismissed: string | null = null
-    try {
-      dismissed = localStorage.getItem("notification_denied_dismissed")
-    } catch {}
-    if (permission === "denied" && !dismissed) {
-      setIsDeniedBannerVisible(true)
-    }
-  }, [permission])
-
-  const dismissDeniedBanner = () => {
-    setIsDeniedBannerVisible(false)
-    try {
-      localStorage.setItem("notification_denied_dismissed", "true")
-    } catch {}
-  }
-
-  // If denied, show a hint banner to enable notifications from browser settings
-  if (permission === "denied" && userId && isDeniedBannerVisible) {
-    return (
+  } else if (permission === "denied" && userId && isDeniedBannerVisible) {
+    banner = (
       <div className="fixed bottom-4 left-4 right-4 z-50 rounded-lg border border-rose-200 bg-white p-4 shadow-lg dark:border-rose-800 dark:bg-base-900 md:left-auto md:right-4 md:w-96">
         <div className="flex items-start gap-4">
           <div className="rounded-full bg-rose-100 p-2 text-rose-600 dark:bg-rose-900/30">
@@ -142,5 +140,5 @@ export const NotificationManager = () => {
     )
   }
 
-  return null
+  return banner
 }

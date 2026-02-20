@@ -1,5 +1,6 @@
 import { prisma } from "../../prisma/client"
 import { conversationService } from "../conversations/service"
+import { hashPassword } from "../../utils/auth"
 
 export const coreService = {
   createTenant: (data: { name: string; timezone?: string }) =>
@@ -25,11 +26,112 @@ export const coreService = {
         teamsLed: { where: { deletedAt: null } }
       }
     }),
+  
+  updateUser: async (tenantId: string, userId: string, data: { email?: string; phone?: string; status?: string; passwordHash?: string; mustChangePassword?: boolean; firstName?: string; lastName?: string }) => {
+    const user = await prisma.user.findFirst({ where: { id: userId, tenantId } })
+    if (!user) throw { status: 404, message: "User not found" }
+    
+    if (data.email && data.email !== user.email) {
+      const existing = await prisma.user.findFirst({ where: { tenantId, email: data.email, id: { not: userId } } })
+      if (existing) throw { status: 409, message: "Email already in use" }
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        email: data.email,
+        phone: data.phone,
+        status: data.status,
+        passwordHash: data.passwordHash,
+        mustChangePassword: data.mustChangePassword,
+        updatedAt: new Date()
+      }
+    })
+
+    if (data.firstName !== undefined || data.lastName !== undefined) {
+      const profile = await prisma.userProfile.findUnique({ where: { userId } })
+      if (profile) {
+        await prisma.userProfile.update({ 
+          where: { userId }, 
+          data: { 
+            firstName: data.firstName ?? profile.firstName, 
+            lastName: data.lastName ?? profile.lastName 
+          } 
+        })
+      } else {
+        await prisma.userProfile.create({ 
+          data: { 
+            tenantId, 
+            userId, 
+            firstName: data.firstName || "", 
+            lastName: data.lastName || "" 
+          } 
+        })
+      }
+    }
+
+    return updatedUser
+  },
+
+  deleteUser: async (tenantId: string, userId: string) => {
+    const user = await prisma.user.findFirst({ where: { id: userId, tenantId, deletedAt: null } })
+    if (!user) throw { status: 404, message: "User not found" }
+    
+    const ownerRole = await prisma.role.findFirst({ where: { name: "owner", tenantId } })
+    if (ownerRole) {
+      const isOwner = await prisma.userRole.findFirst({ where: { tenantId, userId, roleId: ownerRole.id, revokedAt: null } })
+      if (isOwner) {
+        const otherOwners = await prisma.userRole.count({ 
+          where: { 
+            tenantId, 
+            roleId: ownerRole.id, 
+            revokedAt: null, 
+            userId: { not: userId } 
+          } 
+        })
+        if (otherOwners === 0) throw { status: 400, message: "Cannot delete the last owner" }
+      }
+    }
+
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: userId }, data: { deletedAt: new Date(), status: "inactive" } }),
+      prisma.lead.updateMany({ where: { assignedUserId: userId, tenantId }, data: { assignedUserId: null } }),
+      prisma.teamMember.updateMany({ where: { userId, tenantId, leftAt: null }, data: { leftAt: new Date() } }),
+      prisma.userRole.updateMany({ where: { userId, tenantId, revokedAt: null }, data: { revokedAt: new Date() } })
+    ])
+    
+    return { status: "ok" }
+  },
+
+  resetPassword: async (tenantId: string, userId: string) => {
+    const user = await prisma.user.findFirst({ where: { id: userId, tenantId, deletedAt: null } })
+    if (!user) throw { status: 404, message: "User not found" }
+    
+    const tempPassword = Math.random().toString(36).slice(-8)
+    const hash = await hashPassword(tempPassword)
+    
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: hash, mustChangePassword: true, updatedAt: new Date() }
+    })
+    
+    return { temporaryPassword: tempPassword }
+  },
 
   createRole: (tenantId: string, data: { name: string; scope?: string }) =>
     prisma.role.create({ data: { tenantId, name: data.name, scope: data.scope || "tenant" } }),
 
   listRoles: (tenantId: string) => prisma.role.findMany({ where: { tenantId, deletedAt: null } }),
+
+  deleteRole: async (tenantId: string, roleId: string) => {
+    const role = await prisma.role.findFirst({ where: { id: roleId, tenantId, deletedAt: null } })
+    if (!role) throw { status: 404, message: "Role not found" }
+    // Check if role is assigned to any user
+    const assignedCount = await prisma.userRole.count({ where: { tenantId, roleId, revokedAt: null } })
+    if (assignedCount > 0) throw { status: 400, message: "Cannot delete role assigned to users" }
+    
+    return prisma.role.update({ where: { id: roleId }, data: { deletedAt: new Date() } })
+  },
 
   listPermissions: () => prisma.permission.findMany({ orderBy: { code: "asc" } }),
 
@@ -187,83 +289,4 @@ export const coreService = {
     await conversationService.ensureTeamGroup(tenantId, teamId)
     return result
   },
-
-  transferTeamMember: async (tenantId: string, userId: string, teamId: string, role?: string) => {
-    const oldMemberships = await prisma.teamMember.findMany({ where: { tenantId, userId, leftAt: null, deletedAt: null } })
-    await prisma.teamMember.updateMany({ where: { tenantId, userId, leftAt: null, deletedAt: null }, data: { leftAt: new Date() } })
-    const result = await prisma.teamMember.create({ data: { tenantId, teamId, userId, role: role || "member" } })
-    
-    await conversationService.ensureTeamGroup(tenantId, teamId)
-    for (const old of oldMemberships) {
-      await conversationService.ensureTeamGroup(tenantId, old.teamId)
-    }
-    return result
-  },
-
-  revokeRole: async (tenantId: string, userId: string, roleId: string) => {
-    const result = await prisma.userRole.updateMany({ where: { tenantId, userId, roleId, revokedAt: null }, data: { revokedAt: new Date() } })
-    const role = await prisma.role.findUnique({ where: { id: roleId } })
-    if (role && (role.name === "owner" || role.name === "team_leader")) {
-      await conversationService.ensureOwnerGroup(tenantId)
-    }
-    return result
-  },
-
-  getTeamByLeader: (tenantId: string, leaderUserId: string) =>
-    prisma.team.findFirst({ where: { tenantId, leaderUserId, deletedAt: null } }),
-  getTeamByName: (tenantId: string, name: string) =>
-    prisma.team.findFirst({ where: { tenantId, name, deletedAt: null } }),
-
-  getUserById: (tenantId: string, userId: string) =>
-    prisma.user.findFirst({
-      where: { id: userId, tenantId, deletedAt: null },
-      include: {
-        roleLinks: { where: { revokedAt: null }, include: { role: true } },
-        profile: true
-      }
-    }),
-
-  updateUser: async (tenantId: string, userId: string, data: { email?: string; phone?: string; firstName?: string; lastName?: string; status?: string }) => {
-    const { firstName, lastName, ...userData } = data
-    const user = await prisma.user.update({
-      where: { id: userId, tenantId },
-      data: userData
-    })
-    
-    if (firstName !== undefined || lastName !== undefined) {
-      const profileData: any = {}
-      if (firstName !== undefined) profileData.firstName = firstName
-      if (lastName !== undefined) profileData.lastName = lastName
-      
-      await prisma.userProfile.upsert({
-        where: { userId },
-        create: { tenantId, userId, ...profileData },
-        update: profileData
-      })
-    }
-    return user
-  },
-
-  deleteUser: (tenantId: string, userId: string) =>
-    prisma.user.update({
-      where: { id: userId, tenantId },
-      data: { deletedAt: new Date() }
-    }),
-  resetUserPassword: (tenantId: string, userId: string, passwordHash: string, mustChangePassword: boolean) =>
-    prisma.user.update({ where: { id: userId, tenantId }, data: { passwordHash, mustChangePassword } }),
-
-  createUserRequest: (tenantId: string, data: { requestedBy: string; requestType: string; payload: any }) =>
-    prisma.userRequest.create({ data: { tenantId, requestedBy: data.requestedBy, requestType: data.requestType, payload: data.payload } }),
-
-  listUserRequests: (tenantId: string) =>
-    prisma.userRequest.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" }, include: { requester: true, decider: true } }),
-
-  decideUserRequest: (tenantId: string, requestId: string, data: { status: string; decidedBy: string }) =>
-    prisma.userRequest.update({ where: { id: requestId, tenantId }, data: { status: data.status, decidedBy: data.decidedBy, decidedAt: new Date() } }),
-
-  createFinanceEntry: (tenantId: string, data: { entryType: string; category: string; amount: number; note?: string; occurredAt: Date; createdBy?: string }) =>
-    prisma.financeEntry.create({ data: { tenantId, entryType: data.entryType, category: data.category, amount: data.amount, note: data.note, occurredAt: data.occurredAt, createdBy: data.createdBy } }),
-
-  listFinanceEntries: (tenantId: string) =>
-    prisma.financeEntry.findMany({ where: { tenantId }, orderBy: { occurredAt: "desc" }, include: { creator: true } })
 }

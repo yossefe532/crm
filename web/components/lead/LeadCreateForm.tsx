@@ -56,8 +56,10 @@ export const LeadCreateForm = () => {
   useEffect(() => {
     if (role === "team_leader" && teamLeaderTeam?.id) {
       setTeamId(teamLeaderTeam.id)
+    } else if (role === "sales" && myTeam?.id) {
+      setTeamId(myTeam.id)
     }
-  }, [role, teamLeaderTeam?.id])
+  }, [role, teamLeaderTeam?.id, myTeam?.id])
 
   const isValidEmail = (email: string) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
@@ -81,7 +83,7 @@ export const LeadCreateForm = () => {
         teamId: teamId || undefined
       }
 
-      // Try to detect sales role or just attempt creation and handle 403
+      // Sales role ALWAYS creates a request, never directly creates a lead
       if (role === "sales") {
         return coreService.createUserRequest({
           requestType: "create_lead",
@@ -89,29 +91,19 @@ export const LeadCreateForm = () => {
         }, token || undefined)
       }
 
-      try {
-        return await leadService.create(payload, token || undefined)
-      } catch (error: any) {
-        // If 403 Forbidden, it likely means we need to send a request instead
-        if (error?.response?.status === 403 || error?.status === 403) {
-           return coreService.createUserRequest({
-            requestType: "create_lead",
-            payload
-          }, token || undefined)
-        }
-        throw error
-      }
+      // Other roles (Owner, Team Leader) create directly
+      return await leadService.create(payload, token || undefined)
     },
     onSuccess: (data: any) => {
       // Check for request response (has requestType or status=pending)
-      // A lead object has leadCode, a request object does not
-      if (data?.requestType === "create_lead" || (data?.status === "pending" && !data?.leadCode)) {
+      if (data?.requestType === "create_lead" || (role === "sales" && data?.status === "pending")) {
         setMessage("تم إرسال طلب إضافة العميل للموافقة")
-        // Notify owners to review quickly
+        
+        // Notify owners
         try {
           notificationService.broadcast(
             { type: "role", value: "owner" },
-            `طلب إضافة عميل جديد بانتظار الموافقة`,
+            `طلب إضافة عميل جديد: ${name}`,
             ["push", "in_app"],
             token || undefined
           )
@@ -119,17 +111,17 @@ export const LeadCreateForm = () => {
           if (myTeam?.leaderUserId) {
              notificationService.broadcast(
               { type: "user", value: myTeam.leaderUserId },
-              `طلب إضافة عميل جديد بانتظار الموافقة`,
+              `طلب إضافة عميل جديد من ${users?.find(u => u.id === userId)?.name || "عضو فريق"}`,
               ["push", "in_app"],
               token || undefined
             )
           }
         } catch {}
-      } else if (data?.message && data?.request) {
-        setMessage(data.message)
       } else {
         setMessage("تم إضافة العميل بنجاح")
       }
+      
+      // Reset form
       setLeadCode("")
       setName("")
       setPhone("")
@@ -144,36 +136,15 @@ export const LeadCreateForm = () => {
       setAssignedUserId("")
       setTeamId("")
       queryClient.invalidateQueries({ queryKey: ["leads"] })
+      queryClient.invalidateQueries({ queryKey: ["user_requests"] })
     },
     onError: (err: any) => {
       if (err?.status === 409 && err?.lead) {
         const existing = err.lead as { name?: string; phone?: string; email?: string; status?: string }
-        setMessage(`هذا العميل مسجل بالفعل: ${existing.name || ""} ${existing.phone || ""} ${existing.email || ""} ${existing.status ? `(${existing.status})` : ""}`.trim())
-        return
-      }
-      if (err?.response?.status === 403 || err?.status === 403) {
-        setMessage("صلاحياتك لا تسمح بالإضافة المباشرة. تم إرسال تنبيه للمالك.")
-        ;(async () => {
-          try {
-            const group = await conversationService.getOwnerGroup(token || undefined)
-            await conversationService.sendMessage(group.id, { content: `طلب إضافة عميل: ${name} - ${phone} - ${email || ""}`, contentType: "text" }, token || undefined)
-            try {
-              await notificationService.broadcast({ type: "role", value: "owner" }, "CHAT_MESSAGE: طلب إضافة عميل جديد", ["push"], token || undefined)
-            } catch {}
-          } catch {}
-        })()
+        setMessage(`هذا العميل مسجل بالفعل: ${existing.name || ""} ${existing.phone || ""} ${existing.status ? `(${existing.status})` : ""}`.trim())
         return
       }
       setMessage(`حدث خطأ: ${err?.message || "فشل تنفيذ الطلب"}`)
-      // Also alert owner about failure so they can assist
-      try {
-        notificationService.broadcast(
-          { type: "role", value: "owner" },
-          `تعذر على السيلز إضافة عميل جديد: تحقق من الصلاحيات`,
-          ["push", "in_app"],
-          token || undefined
-        )
-      } catch {}
     }
   })
 

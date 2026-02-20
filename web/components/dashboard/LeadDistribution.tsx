@@ -1,23 +1,26 @@
 "use client"
 
 import { Card } from "../ui/Card"
-import { useLeads } from "../../lib/hooks/useLeads"
-import { useUsers } from "../../lib/hooks/useUsers"
+import { useDashboardAnalytics } from "../../lib/hooks/useDashboardAnalytics"
 
 export const LeadDistribution = () => {
-  const { data: leads } = useLeads()
-  const { data: users } = useUsers()
+  const { data, isLoading } = useDashboardAnalytics()
 
-  const byUser = (leads || []).reduce<Record<string, number>>((acc, lead) => {
-    const key = lead.assignedUserId || "unassigned"
-    acc[key] = (acc[key] || 0) + 1
-    return acc
-  }, {})
-
-  const rows = (Object.entries(byUser) as Array<[string, number]>).map(([userId, count]) => {
-    const user = users?.find((u) => u.id === userId)
-    return { id: userId, name: user?.email || "غير مُسند", count }
+  const rows = (data?.salesPerformance || []).map((user) => {
+    return { id: user.userId, name: user.name, count: user.total }
   })
+
+  if (isLoading) {
+    return (
+      <Card title="توزيع العملاء">
+         <div className="space-y-3">
+           {[1, 2, 3].map(i => (
+             <div key={i} className="h-10 bg-base-200 animate-pulse rounded" />
+           ))}
+         </div>
+      </Card>
+    )
+  }
 
   return (
     <Card title="توزيع العملاء">

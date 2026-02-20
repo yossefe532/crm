@@ -13,26 +13,40 @@ import {
   YAxis
 } from "recharts"
 
-const revenueData = [
-  { name: "يناير", value: 4000 },
-  { name: "فبراير", value: 3000 },
-  { name: "مارس", value: 2000 },
-  { name: "أبريل", value: 2780 },
-  { name: "مايو", value: 1890 },
-  { name: "يونيو", value: 2390 },
-  { name: "يوليو", value: 3490 }
-]
-
-const leadSourceData = [
-  { name: "فيسبوك", value: 400 },
-  { name: "انستجرام", value: 300 },
-  { name: "موقع", value: 300 },
-  { name: "إحالة", value: 200 },
-  { name: "تيك توك", value: 278 },
-  { name: "جوجل", value: 189 }
-]
+import { useDashboardAnalytics } from "../../lib/hooks/useDashboardAnalytics"
 
 export const PerformanceCharts = () => {
+  const { data, isLoading, isError } = useDashboardAnalytics()
+
+  const revenueData = data?.revenueOverTime || []
+  const leadSourceData = data?.leadSources || []
+
+  if (isLoading) {
+    return (
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <div className="h-[300px] w-full bg-base-200 animate-pulse rounded-lg" />
+        </Card>
+        <Card>
+          <div className="h-[300px] w-full bg-base-200 animate-pulse rounded-lg" />
+        </Card>
+      </div>
+    )
+  }
+
+  if (isError) {
+    return (
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <div className="h-[300px] w-full flex items-center justify_center text-sm text-rose-600">تعذر تحميل البيانات</div>
+        </Card>
+        <Card>
+          <div className="h-[300px] w-full flex items-center justify_center text-sm text-rose-600">تعذر تحميل البيانات</div>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <Card title="إجمالي الإيرادات (شهري)">

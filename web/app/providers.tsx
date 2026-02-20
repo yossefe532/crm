@@ -7,13 +7,13 @@ import { ThemeProvider } from "../lib/theme/ThemeProvider"
 import { LocaleProvider } from "../lib/i18n/LocaleContext"
 import dynamic from "next/dynamic"
 
-const CustomCursor = dynamic(() => import("../components/ui/CustomCursor").then(mod => mod.CustomCursor), {
-  ssr: false,
-})
+// const CustomCursor = dynamic(() => import("../components/ui/CustomCursor").then(mod => mod.CustomCursor), {
+//   ssr: false,
+// })
 
-const NotificationManager = dynamic(() => import("../components/ui/NotificationManager").then(mod => mod.NotificationManager), {
-  ssr: false,
-})
+// const NotificationManager = dynamic(() => import("../components/ui/NotificationManager").then(mod => mod.NotificationManager), {
+//   ssr: false,
+// })
 
 export const Providers = ({ children }: { children: ReactNode }) => {
   const [client] = useState(() => new QueryClient({
@@ -40,8 +40,8 @@ export const Providers = ({ children }: { children: ReactNode }) => {
       <AuthProvider>
         <ThemeProvider>
           <LocaleProvider>
-            <CustomCursor />
-            <NotificationManager />
+            {/* <CustomCursor /> */}
+            {/* <NotificationManager /> */}
             {children}
           </LocaleProvider>
         </ThemeProvider>

@@ -21,6 +21,8 @@ const metricLabels: Record<string, string> = {
   calls: "مكالمات"
 }
 
+import { ConfirmationModal } from "../../../../components/ui/ConfirmationModal"
+
 export default function GoalsPage() {
   const { role, userId, token } = useAuth()
   const { data: users } = useUsers()
@@ -32,6 +34,7 @@ export default function GoalsPage() {
   const [isEditing, setIsEditing] = useState(false)
   const [targets, setTargets] = useState<Array<{ subjectType: "user" | "team" | "all"; subjectId: string; metricKey: string; targetValue: string }>>([])
   const [message, setMessage] = useState<string | null>(null)
+  const [deletePlanConfirmationId, setDeletePlanConfirmationId] = useState<string | null>(null)
 
   const { data: plans } = useQuery({
     queryKey: ["goal_plans"],
@@ -299,11 +302,7 @@ export default function GoalsPage() {
                   type="button"
                   variant="ghost"
                   className="text-rose-600 hover:bg-rose-50"
-                  onClick={() => {
-                    if (window.confirm("هل أنت متأكد من حذف هذه الخطة؟")) {
-                      deletePlanMutation.mutate(selectedPlanId)
-                    }
-                  }}
+                  onClick={() => setDeletePlanConfirmationId(selectedPlanId)}
                 >
                   حذف الخطة
                 </Button>
@@ -317,6 +316,19 @@ export default function GoalsPage() {
           </div>
         </Card>
       )}
+
+      <ConfirmationModal
+        isOpen={!!deletePlanConfirmationId}
+        onClose={() => setDeletePlanConfirmationId(null)}
+        onConfirm={() => {
+          if (deletePlanConfirmationId) {
+            deletePlanMutation.mutate(deletePlanConfirmationId)
+          }
+        }}
+        title="تأكيد حذف الخطة"
+        description="هل أنت متأكد من حذف هذه الخطة؟ سيتم حذف جميع الأهداف المرتبطة بها ولا يمكن التراجع عن هذا الإجراء."
+        confirmText="حذف الخطة"
+      />
 
       {selectedPlanId && report && (
         <Card title="تقرير الأهداف التراكمي">

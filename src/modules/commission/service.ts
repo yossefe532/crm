@@ -2,8 +2,18 @@ import { prisma } from "../../prisma/client"
 import { Prisma } from "@prisma/client"
 
 export const commissionService = {
-  listLedger: (tenantId: string, limit = 50) =>
-    prisma.commissionLedger.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" }, take: limit }),
+  listLedger: (tenantId: string, userId?: string, limit = 50) => {
+    const where: Prisma.CommissionLedgerWhereInput = { tenantId }
+    if (userId) {
+      where.userId = userId
+    }
+    return prisma.commissionLedger.findMany({ 
+      where, 
+      include: { commissionApprovals: true },
+      orderBy: { createdAt: "desc" }, 
+      take: limit 
+    })
+  },
   createPlan: (tenantId: string, data: { name: string }) =>
     prisma.commissionPlan.create({ data: { tenantId, name: data.name } }),
 

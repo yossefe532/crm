@@ -4,8 +4,26 @@ export interface DashboardMetrics {
   distribution: Array<{ stage: string; count: number }>
   conversion: { total: number; won: number; rate: number }
   avgTime: Array<{ stage: string; avgHours: number }>
-  salesPerformance: Array<{ userId: string; name: string; deals: number; value: number }>
-  teamPerformance: Array<{ teamId: string; teamName: string; leaderName: string; deals: number; value: number }>
+  salesPerformance: Array<{
+    userId: string
+    name: string
+    deals: number
+    value: number
+    total: number
+    conversionRate: number
+  }>
+  teamPerformance: Array<{
+    teamId: string
+    teamName: string
+    leaderName: string
+    deals: number
+    value: number
+    total: number
+    conversionRate: number
+  }>
+  revenueOverTime: Array<{ name: string; value: number }>
+  leadSources: Array<{ name: string; value: number }>
+  keyMetrics: Array<{ label: string; value: number; change: number }>
 }
 
 export interface TimelineEvent {

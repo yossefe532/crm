@@ -76,7 +76,28 @@ export const TeamBoard = ({ leads }: { leads?: Lead[] }) => {
   const mutation = useMutation({
     mutationFn: (payload: { leadId: string; teamId: string | null }) =>
       leadService.update(payload.leadId, { teamId: payload.teamId, assignedUserId: null }, token || undefined),
-    onSuccess: () => {
+    onMutate: async (newAssignment) => {
+      await queryClient.cancelQueries({ queryKey: ["leads"] })
+      const previousLeads = queryClient.getQueryData<Lead[]>(["leads", ""])
+      
+      if (previousLeads) {
+        queryClient.setQueryData<Lead[]>(["leads", ""], (old) => {
+          if (!old) return []
+          return old.map((lead) => 
+            lead.id === newAssignment.leadId 
+              ? { ...lead, teamId: newAssignment.teamId, assignedUserId: null } 
+              : lead
+          )
+        })
+      }
+      return { previousLeads }
+    },
+    onError: (err, newAssignment, context) => {
+      if (context?.previousLeads) {
+        queryClient.setQueryData<Lead[]>(["leads", ""], context.previousLeads)
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] })
     }
   })
@@ -90,13 +111,23 @@ export const TeamBoard = ({ leads }: { leads?: Lead[] }) => {
   }, [resolvedLeads, role, teams, userId])
 
   const lanes = useMemo(() => {
-    const all = teams || []
-    const lanes = [{ id: "unassigned", title: "غير مسند" }, ...all.map((team) => ({ id: team.id, title: team.name }))]
-    return lanes.map((lane) => ({
-      ...lane,
-      leads: scopedLeads.filter((lead) => (lane.id === "unassigned" ? !lead.teamId : lead.teamId === lane.id))
-    }))
-  }, [scopedLeads, teams])
+    let all = teams || []
+    if (role === "team_leader") {
+      all = all.filter(t => t.leaderUserId === userId)
+    }
+    const lanes = [{ id: "unassigned", title: "غير مسند" }, ...all.map((team) => ({ id: team.id, title: team.name, count: 0 }))]
+    return lanes.map((lane) => {
+      const laneLeads = scopedLeads.filter((lead) => {
+        if (lane.id === "unassigned") return !lead.teamId
+        return lead.teamId === lane.id
+      })
+      return {
+        ...lane,
+        leads: laneLeads,
+        count: laneLeads.length
+      }
+    })
+  }, [scopedLeads, teams, role, userId])
 
   if (role === "sales") return null
 

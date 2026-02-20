@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { useQueryClient, useMutation } from "@tanstack/react-query"
 import { useLeads } from "../../lib/hooks/useLeads"
 import { Badge } from "../ui/Badge"
@@ -24,7 +24,9 @@ import { LeadDetail } from "../lead/LeadDetail"
 import { ClientDate } from "../ui/ClientDate"
 
 export const LeadList = () => {
-  const { data, isLoading, isError } = useLeads()
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const { data, isLoading, isError } = useLeads({ page, pageSize })
   const { data: users } = useUsers()
   const { data: deadlines } = useLeadDeadlines()
   const { data: teams } = useTeams()
@@ -61,13 +63,17 @@ export const LeadList = () => {
     if (role === "team_leader") {
       const myTeams = (teams || []).filter((item) => item.leaderUserId === userId)
       const myTeamIds = new Set(myTeams.map(t => t.id))
+      const myMemberIds = new Set<string>()
+      myTeams.forEach(t => t.members?.forEach(m => myMemberIds.add(m.userId)))
+
       return base.filter((lead) => {
         // Strict visibility: 
         // 1. Lead assigned to me
         // 2. Lead in one of my teams
-        // 3. Lead assigned to a member of my team (even if teamId is missing on lead) - this is handled by backend but good to have here
+        // 3. Lead assigned to a member of my team (even if teamId is missing on lead)
         if (lead.assignedUserId === userId) return true
         if (lead.teamId && myTeamIds.has(lead.teamId)) return true
+        if (lead.assignedUserId && myMemberIds.has(lead.assignedUserId)) return true
         return false
       })
     }
@@ -92,12 +98,36 @@ export const LeadList = () => {
   })
 
   const stageMutation = useMutation({
-    mutationFn: (payload: { id: string; stage: string }) => leadService.updateStage(payload.id, payload.stage),
+    mutationFn: (payload: { id: string; stage: string }) => leadService.updateStage(payload.id, payload.stage, token || undefined),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["leads"] })
       queryClient.invalidateQueries({ queryKey: ["lead", variables.id] })
     }
   })
+
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return (
+      <Card title="إدارة العملاء المحتملين">
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center justify-between p-4 border rounded-lg bg-base-50 animate-pulse">
+              <div className="h-10 w-10 bg-base-200 rounded-full" />
+              <div className="flex-1 px-4 space-y-2">
+                <div className="h-4 w-32 bg-base-200 rounded" />
+                <div className="h-3 w-24 bg-base-200 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+    )
+  }
 
   return (
     <Card title="إدارة العملاء المحتملين">
@@ -212,10 +242,10 @@ export const LeadList = () => {
             <div className="mt-4">
               <StageProgress
                 stage={lead.status}
-                readOnly={!(role === "sales" && lead.assignedUserId === userId)}
+                readOnly={!(role === "owner" || role === "team_leader" || (role === "sales" && lead.assignedUserId === userId))}
                 onStageChange={() => router.push(`/leads/${lead.id}`)}
               />
-              {(role === "sales" && lead.assignedUserId === userId) && (
+              {(role === "owner" || role === "team_leader" || (role === "sales" && lead.assignedUserId === userId)) && (
                 <div className="mt-2">
                   <StageControls
                     currentStage={lead.status}
@@ -244,6 +274,41 @@ export const LeadList = () => {
             )}
           </div>
         ))}
+
+        <div className="mt-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-base-500">عدد العناصر في الصفحة</span>
+            <Select
+              value={String(pageSize)}
+              onChange={(e) => {
+                const next = Number(e.target.value)
+                setPageSize(next)
+                setPage(1)
+              }}
+            >
+              <option value="10">10</option>
+              <option value="20">20</option>
+              <option value="50">50</option>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              onClick={() => setPage((p) => Math.max(1, p - 1))} 
+              disabled={page <= 1 || isLoading}
+            >
+              السابق
+            </Button>
+            <span className="text-xs text-base-500">صفحة {page}</span>
+            <Button 
+              variant="ghost" 
+              onClick={() => setPage((p) => p + 1)} 
+              disabled={(data || []).length < pageSize || isLoading}
+            >
+              التالي
+            </Button>
+          </div>
+        </div>
       </div>
 
       <Modal

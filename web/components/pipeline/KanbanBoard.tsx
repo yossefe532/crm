@@ -199,7 +199,40 @@ export const KanbanBoard = ({ leads }: { leads?: Lead[] }) => {
   const updateStageMutation = useMutation({
     mutationFn: (payload: { id: string; stage: string }) =>
       leadService.updateStage(payload.id, payload.stage, token || undefined),
-    onSuccess: () => {
+    onMutate: async (newLead) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ["leads"] })
+
+      // Snapshot the previous value
+      const previousLeads = queryClient.getQueryData<Lead[]>(["leads", ""])
+
+      // Optimistically update to the new value
+      if (previousLeads) {
+        queryClient.setQueryData<Lead[]>(["leads", ""], (old) => {
+          if (!old) return []
+          return old.map((lead) => 
+            lead.id === newLead.id ? { ...lead, status: newLead.stage } : lead
+          )
+        })
+      }
+
+      // Return a context object with the snapshotted value
+      return { previousLeads }
+    },
+    onError: (err, newLead, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousLeads) {
+        queryClient.setQueryData<Lead[]>(["leads", ""], context.previousLeads)
+      }
+      notificationService.broadcast(
+        { type: "user", value: userId || "" }, 
+        "فشل تحديث مرحلة العميل", 
+        ["in_app"], 
+        token || undefined
+      )
+    },
+    onSettled: () => {
+      // Always refetch after error or success:
       queryClient.invalidateQueries({ queryKey: ["leads"] })
     }
   })
@@ -222,18 +255,17 @@ export const KanbanBoard = ({ leads }: { leads?: Lead[] }) => {
     if (role === "sales") {
       filtered = filtered.filter((l) => l.assignedUserId === userId)
     } else if (role === "team_leader") {
-      const myTeam = (teams || []).find((t) => t.leaderUserId === userId)
-      if (myTeam) {
-        const memberIds = new Set((myTeam.members || []).map((m) => m.userId))
-        filtered = filtered.filter(
-          (l) =>
-            l.teamId === myTeam.id ||
-            (l.assignedUserId ? memberIds.has(l.assignedUserId) : false) ||
-            l.assignedUserId === userId
-        )
-      } else {
-        filtered = filtered.filter((l) => l.assignedUserId === userId)
-      }
+      const myTeams = (teams || []).filter((t) => t.leaderUserId === userId)
+      const myTeamIds = new Set(myTeams.map(t => t.id))
+      const myMemberIds = new Set<string>()
+      myTeams.forEach(t => t.members?.forEach(m => myMemberIds.add(m.userId)))
+
+      filtered = filtered.filter(
+        (l) =>
+          l.assignedUserId === userId ||
+          (l.teamId && myTeamIds.has(l.teamId)) ||
+          (l.assignedUserId && myMemberIds.has(l.assignedUserId))
+      )
     }
 
     return filtered.map((lead) => ({

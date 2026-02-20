@@ -30,25 +30,34 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="flex h-full w-full items-center justify-center p-6">
-          <Card className="max-w-md w-full text-center p-6">
-            <h2 className="text-xl font-bold text-rose-600 mb-2">عذراً، حدث خطأ ما</h2>
-            <p className="text-base-600 mb-4 text-sm">
+        <div style={{ padding: "2rem", textAlign: "center", direction: "rtl" }}>
+          <div style={{ maxWidth: "500px", margin: "0 auto", backgroundColor: "#fff", padding: "2rem", borderRadius: "8px", boxShadow: "0 4px 6px rgba(0,0,0,0.1)" }}>
+            <h2 style={{ fontSize: "1.5rem", fontWeight: "bold", color: "#e11d48", marginBottom: "1rem" }}>عذراً، حدث خطأ ما</h2>
+            <p style={{ color: "#475569", marginBottom: "1rem" }}>
               حدث خطأ غير متوقع في عرض هذه الصفحة.
             </p>
-            <div className="bg-base-100 p-3 rounded text-left text-xs text-base-500 overflow-auto max-h-32 mb-4 dir-ltr">
+            <div style={{ backgroundColor: "#f1f5f9", padding: "1rem", borderRadius: "4px", textAlign: "left", fontSize: "0.875rem", color: "#64748b", overflow: "auto", maxHeight: "150px", marginBottom: "1rem", direction: "ltr" }}>
               {this.state.error?.message}
             </div>
-            <Button
+            <button
               onClick={() => {
                 this.setState({ hasError: false, error: null })
                 window.location.reload()
               }}
-              className="w-full"
+              style={{
+                width: "100%",
+                padding: "0.75rem",
+                backgroundColor: "#2563eb",
+                color: "#fff",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                fontWeight: "bold"
+              }}
             >
               إعادة تحميل الصفحة
-            </Button>
-          </Card>
+            </button>
+          </div>
         </div>
       )
     }

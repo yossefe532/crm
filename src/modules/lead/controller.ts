@@ -48,6 +48,32 @@ const resolveAssignmentTarget = async (tenantId: string, actor: UserPayload | un
   throw { status: 403, message: "غير مصرح بتنفيذ التعيين" }
 }
 
+const checkLeadAccess = async (lead: any, user: UserPayload, requireAction: boolean = true) => {
+  if (user.roles?.includes("owner")) return true
+  
+  if (user.roles?.includes("team_leader")) {
+    if (lead.assignedUserId === user.id) return true
+    
+    // Check if lead is assigned to a member of the leader's team
+    const team = await prisma.team.findFirst({
+      where: { tenantId: user.tenantId, leaderUserId: user.id, deletedAt: null },
+      include: { members: true }
+    })
+    
+    if (team) {
+      const memberIds = team.members.map(m => m.userId)
+      if (lead.assignedUserId && memberIds.includes(lead.assignedUserId)) return true
+      if (lead.teamId === team.id) return true
+    }
+  }
+
+  if (user.roles?.includes("sales")) {
+    if (lead.assignedUserId === user.id) return true
+  }
+
+  return false
+}
+
 export const leadController = {
   createLead: async (req: Request, res: Response) => {
     try {
@@ -214,8 +240,10 @@ export const leadController = {
     if (!state) throw { status: 404, message: "المرحلة غير موجودة" }
     const existing = await leadService.getLeadForUser(tenantId, req.params.id, req.user)
     if (!existing) throw { status: 404, message: "العميل غير موجود" }
-    if (!req.user?.roles?.includes("sales") || existing.assignedUserId !== req.user?.id) {
-      throw { status: 403, message: "غير مصرح بتنفيذ المراحل" }
+    if (req.user?.roles?.includes("sales") && !req.user?.roles?.includes("owner") && !req.user?.roles?.includes("team_leader")) {
+      if (existing.assignedUserId !== req.user?.id) {
+        throw { status: 403, message: "غير مصرح بتنفيذ المراحل" }
+      }
     }
     const orderMap: Record<string, number> = { new: 0, call: 0, meeting: 1, site_visit: 2, closing: 3 }
     const currentIndex = orderMap[existing.status] ?? 0
@@ -224,13 +252,24 @@ export const leadController = {
       throw { status: 400, message: "انتقال غير صالح بين المراحل" }
     }
     const updatedState = await lifecycleService.transitionLead(tenantId, req.params.id, state.id, req.user?.id)
+    const lead = await prisma.lead.findFirst({ where: { tenantId, id: req.params.id }, select: { id: true, name: true, assignedUserId: true, teamId: true } })
+    const stageLabelMap: Record<string, string> = { new: "جديد", call: "مكالمة هاتفية", meeting: "اجتماع", site_visit: "رؤية الموقع", closing: "إغلاق الصفقة" }
+    const messageAr = `تم نقل العميل ${lead?.name || req.params.id} إلى مرحلة ${stageLabelMap[updatedState.code] || updatedState.code}`
     const event = await notificationService.publishEvent(tenantId, "lead.stage.completed", {
       leadId: req.params.id,
+      leadName: lead?.name,
       stage: updatedState.code,
       changedBy: req.user?.id,
-      targets: ["owner", "team_leader"]
+      recipientUserId: lead?.assignedUserId,
+      targets: ["owner", "team_leader", "sales"],
+      messageAr
     })
     await notificationService.queueDelivery(tenantId, event.id, "in_app")
+    if (lead?.assignedUserId) {
+      await notificationService.broadcast(tenantId, { type: "user", value: lead.assignedUserId }, messageAr, ["push"])
+    }
+    await notificationService.broadcast(tenantId, { type: "role", value: "team_leader" }, messageAr, ["push"])
+    await notificationService.broadcast(tenantId, { type: "role", value: "owner" }, messageAr, ["push"])
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.stage.updated", entityType: "lead", entityId: req.params.id, metadata: { stage: updatedState.code } })
     intelligenceService.queueTrigger({ type: "lead_changed", tenantId, leadId: req.params.id, userId: req.user?.id })
     res.json(updatedState)
@@ -353,7 +392,27 @@ export const leadController = {
   listClosures: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
     const closures = await leadService.listClosures(tenantId)
-    res.json(closures)
+    
+    let filtered = closures
+    const user = req.user!
+    
+    if (user.roles?.includes("owner")) {
+      // Owner sees all
+    } else if (user.roles?.includes("team_leader")) {
+      const team = await prisma.team.findFirst({
+        where: { tenantId, leaderUserId: user.id, deletedAt: null },
+        include: { members: true }
+      })
+      const memberIds = team?.members.map(m => m.userId) || []
+      filtered = closures.filter(c => 
+        c.closedBy === user.id || (c.closedBy && memberIds.includes(c.closedBy))
+      )
+    } else {
+      // Sales sees own
+      filtered = closures.filter(c => c.closedBy === user.id)
+    }
+
+    res.json(filtered)
   },
   decideClosure: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
@@ -418,9 +477,12 @@ export const leadController = {
     const tenantId = req.user?.tenantId || ""
     const lead = await leadService.getLeadForUser(tenantId, req.params.id, req.user)
     if (!lead) throw { status: 404, message: "العميل غير موجود" }
-    if (!req.user?.roles?.includes("sales") || lead.assignedUserId !== req.user?.id) {
+    
+    const hasAccess = await checkLeadAccess(lead, req.user!)
+    if (!hasAccess) {
       throw { status: 403, message: "غير مصرح بتسجيل الفشل" }
     }
+
     const failureType = String(req.body?.failureType || "surrender")
     const reason = req.body?.reason ? String(req.body.reason) : undefined
     if (failureType !== "overdue" && failureType !== "surrender") throw { status: 400, message: "نوع الفشل غير صالح" }

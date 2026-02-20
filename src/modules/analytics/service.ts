@@ -55,58 +55,154 @@ export const analyticsService = {
       }
     }),
 
-  getStageDistribution: async (tenantId: string) => {
+  getStageDistribution: async (tenantId: string, userId?: string, role?: string) => {
+    let whereClause: any = { tenantId, deletedAt: null }
+
+    if (role === "sales" && userId) {
+      whereClause.assignedUserId = userId
+    } else if (role === "team_leader" && userId) {
+      const myTeams = await prisma.team.findMany({
+        where: { tenantId, leaderUserId: userId },
+        include: { members: true }
+      })
+      const myTeamIds = myTeams.map(t => t.id)
+      const myMemberIds = myTeams.flatMap(t => t.members.map(m => m.userId))
+      whereClause.OR = [
+        { assignedUserId: userId },
+        { teamId: { in: myTeamIds } },
+        { assignedUserId: { in: myMemberIds } }
+      ]
+    }
+
     const distribution = await prisma.lead.groupBy({
       by: ["status"],
-      where: { tenantId, deletedAt: null },
+      where: whereClause,
       _count: { id: true }
     })
     return distribution.map(d => ({ stage: d.status, count: d._count.id }))
   },
 
-  getConversionRate: async (tenantId: string) => {
-    const total = await prisma.lead.count({ where: { tenantId, deletedAt: null } })
-    const won = await prisma.lead.count({ where: { tenantId, deletedAt: null, status: "won" } }) // Assuming 'won' is the success status
+  getConversionRate: async (tenantId: string, userId?: string, role?: string) => {
+    let whereClause: any = { tenantId, deletedAt: null }
+
+    if (role === "sales" && userId) {
+      whereClause.assignedUserId = userId
+    } else if (role === "team_leader" && userId) {
+      const myTeams = await prisma.team.findMany({
+        where: { tenantId, leaderUserId: userId },
+        include: { members: true }
+      })
+      const myTeamIds = myTeams.map(t => t.id)
+      const myMemberIds = myTeams.flatMap(t => t.members.map(m => m.userId))
+      whereClause.OR = [
+        { assignedUserId: userId },
+        { teamId: { in: myTeamIds } },
+        { assignedUserId: { in: myMemberIds } }
+      ]
+    }
+
+    const total = await prisma.lead.count({ where: whereClause })
+    const won = await prisma.lead.count({ where: { ...whereClause, status: "won" } })
     return { total, won, rate: total > 0 ? (won / total) * 100 : 0 }
   },
 
-  getSalesPerformance: async (tenantId: string) => {
-    const performance = await prisma.lead.groupBy({
+  getSalesPerformance: async (tenantId: string, userId?: string, role?: string) => {
+    let whereClause: any = { tenantId, deletedAt: null, assignedUserId: { not: null } }
+    let wonWhereClause: any = { tenantId, deletedAt: null, status: "won", assignedUserId: { not: null } }
+
+    if (role === "sales" && userId) {
+      whereClause.assignedUserId = userId
+      wonWhereClause.assignedUserId = userId
+    } else if (role === "team_leader" && userId) {
+      const myTeams = await prisma.team.findMany({
+        where: { tenantId, leaderUserId: userId },
+        include: { members: true }
+      })
+      const myMemberIds = myTeams.flatMap(t => t.members.map(m => m.userId))
+      // Include the leader themselves if they have leads, plus their team members
+      const relevantUserIds = [...new Set([userId, ...myMemberIds])]
+      
+      whereClause.assignedUserId = { in: relevantUserIds }
+      wonWhereClause.assignedUserId = { in: relevantUserIds }
+    }
+
+    // Get won leads per user
+    const wonPerformance = await prisma.lead.groupBy({
       by: ["assignedUserId"],
-      where: { tenantId, deletedAt: null, status: "won", assignedUserId: { not: null } },
+      where: wonWhereClause,
       _count: { id: true },
       _sum: { budget: true }
     })
     
+    // Get total assigned leads per user
+    const totalPerformance = await prisma.lead.groupBy({
+      by: ["assignedUserId"],
+      where: whereClause,
+      _count: { id: true }
+    })
+
+    const userIds = [...new Set([...wonPerformance.map(p => p.assignedUserId!), ...totalPerformance.map(p => p.assignedUserId!)])].filter(Boolean)
+
     // Enrich with user names
     const users = await prisma.user.findMany({
-      where: { id: { in: performance.map(p => p.assignedUserId!).filter(Boolean) } },
+      where: { id: { in: userIds } },
       select: { id: true, email: true, profile: { select: { firstName: true, lastName: true } } }
     })
 
-    return performance.map(p => {
-      const user = users.find(u => u.id === p.assignedUserId)
-      const name = user?.profile ? `${user.profile.firstName || ""} ${user.profile.lastName || ""}`.trim() : user?.email
+    return users.map(user => {
+      const wonStats = wonPerformance.find(p => p.assignedUserId === user.id)
+      const totalStats = totalPerformance.find(p => p.assignedUserId === user.id)
+      
+      const name = user.profile ? `${user.profile.firstName || ""} ${user.profile.lastName || ""}`.trim() : user.email
+      
       return {
-        userId: p.assignedUserId,
+        userId: user.id,
         name: name || "Unknown",
-        deals: p._count.id,
-        value: p._sum.budget || 0
+        deals: wonStats?._count.id || 0,
+        value: wonStats?._sum.budget || 0,
+        total: totalStats?._count.id || 0,
+        conversionRate: totalStats?._count.id ? Math.round(((wonStats?._count.id || 0) / totalStats._count.id) * 100) : 0
       }
     }).sort((a, b) => b.deals - a.deals)
   },
 
-  getTeamPerformance: async (tenantId: string) => {
-    // Group leads by team
-    const performance = await prisma.lead.groupBy({
+  getTeamPerformance: async (tenantId: string, userId?: string, role?: string) => {
+    let whereClause: any = { tenantId, deletedAt: null, teamId: { not: null } }
+    let wonWhereClause: any = { tenantId, deletedAt: null, status: "won", teamId: { not: null } }
+
+    if (role === "sales") {
+       // Sales users typically don't see team performance, or only their own team if assigned?
+       // For now return empty or maybe just their team?
+       // Let's assume they don't see this chart or it's empty.
+       return [] 
+    } else if (role === "team_leader" && userId) {
+      const myTeams = await prisma.team.findMany({
+        where: { tenantId, leaderUserId: userId }
+      })
+      const myTeamIds = myTeams.map(t => t.id)
+      whereClause.teamId = { in: myTeamIds }
+      wonWhereClause.teamId = { in: myTeamIds }
+    }
+
+    // Get won leads
+    const wonPerformance = await prisma.lead.groupBy({
       by: ["teamId"],
-      where: { tenantId, deletedAt: null, status: "won", teamId: { not: null } },
+      where: wonWhereClause,
       _count: { id: true },
       _sum: { budget: true }
     })
 
+    // Get total leads
+    const totalPerformance = await prisma.lead.groupBy({
+      by: ["teamId"],
+      where: whereClause,
+      _count: { id: true }
+    })
+
+    const teamIds = [...new Set([...wonPerformance.map(p => p.teamId!), ...totalPerformance.map(p => p.teamId!)])].filter(Boolean)
+
     const teams = await prisma.team.findMany({
-      where: { id: { in: performance.map(p => p.teamId!).filter(Boolean) } },
+      where: { id: { in: teamIds } },
       select: { id: true, name: true, leaderUserId: true }
     })
     
@@ -117,17 +213,21 @@ export const analyticsService = {
       select: { id: true, email: true, profile: { select: { firstName: true, lastName: true } } }
     })
 
-    return performance.map(p => {
-      const team = teams.find(t => t.id === p.teamId)
-      const leader = leaders.find(u => u.id === team?.leaderUserId)
+    return teams.map(team => {
+      const wonStats = wonPerformance.find(p => p.teamId === team.id)
+      const totalStats = totalPerformance.find(p => p.teamId === team.id)
+      
+      const leader = leaders.find(u => u.id === team.leaderUserId)
       const leaderName = leader?.profile ? `${leader.profile.firstName || ""} ${leader.profile.lastName || ""}`.trim() : leader?.email
 
       return {
-        teamId: p.teamId,
-        teamName: team?.name || "Unknown Team",
+        teamId: team.id,
+        teamName: team.name || "Unknown Team",
         leaderName: leaderName || "No Leader",
-        deals: p._count.id,
-        value: p._sum.budget || 0
+        deals: wonStats?._count.id || 0,
+        value: wonStats?._sum.budget || 0,
+        total: totalStats?._count.id || 0,
+        conversionRate: totalStats?._count.id ? Math.round(((wonStats?._count.id || 0) / totalStats._count.id) * 100) : 0
       }
     }).sort((a, b) => b.deals - a.deals)
   },
@@ -265,5 +365,121 @@ export const analyticsService = {
       }
     })
     return rows.sort((a, b) => b.points - a.points)
+  },
+
+  getRevenueOverTime: async (tenantId: string, userId?: string, role?: string) => {
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    let whereClause: any = { 
+      tenantId, 
+      status: "approved", 
+      closedAt: { gte: sixMonthsAgo } 
+    }
+
+    if (role === "sales" && userId) {
+      whereClause.closedBy = userId
+    } else if (role === "team_leader" && userId) {
+      const myTeams = await prisma.team.findMany({
+        where: { tenantId, leaderUserId: userId },
+        include: { members: true }
+      })
+      const myMemberIds = myTeams.flatMap(t => t.members.map(m => m.userId))
+      const relevantUserIds = [...new Set([userId, ...myMemberIds])]
+      whereClause.closedBy = { in: relevantUserIds }
+    }
+
+    const closures = await prisma.leadClosure.findMany({
+      where: whereClause,
+      orderBy: { closedAt: "asc" }
+    });
+
+    // Initialize with 0 for all months
+    const revenueByMonth: Record<string, number> = {};
+    const monthNames = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"];
+    
+    // Fill last 6 months keys
+    for (let i = 5; i >= 0; i--) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - i);
+        const m = monthNames[d.getMonth()];
+        revenueByMonth[m] = 0;
+    }
+
+    closures.forEach(c => {
+      const date = new Date(c.closedAt);
+      const monthName = monthNames[date.getMonth()];
+      const amount = typeof c.amount === "object" && "toNumber" in c.amount ? c.amount.toNumber() : Number(c.amount);
+      if (revenueByMonth[monthName] !== undefined) {
+         revenueByMonth[monthName] += (Number.isFinite(amount) ? amount : 0);
+      }
+    });
+
+    return Object.entries(revenueByMonth).map(([name, value]) => ({ name, value }));
+  },
+
+  getLeadSources: async (tenantId: string, userId?: string, role?: string) => {
+    let whereClause: any = { tenantId, deletedAt: null }
+
+    if (role === "sales" && userId) {
+      whereClause.assignedUserId = userId
+    } else if (role === "team_leader" && userId) {
+      const myTeams = await prisma.team.findMany({
+        where: { tenantId, leaderUserId: userId },
+        include: { members: true }
+      })
+      const myTeamIds = myTeams.map(t => t.id)
+      const myMemberIds = myTeams.flatMap(t => t.members.map(m => m.userId))
+      whereClause.OR = [
+        { assignedUserId: userId },
+        { teamId: { in: myTeamIds } },
+        { assignedUserId: { in: myMemberIds } }
+      ]
+    }
+
+    const sources = await prisma.lead.groupBy({
+      by: ["sourceLabel"],
+      where: whereClause,
+      _count: { id: true }
+    });
+    
+    return sources.map(s => ({
+      name: s.sourceLabel || "غير محدد",
+      value: s._count.id
+    })).sort((a, b) => b.value - a.value);
+  },
+
+  getKeyMetrics: async (tenantId: string, userId?: string, role?: string) => {
+    let where: any = { tenantId, deletedAt: null };
+
+    if (role === "sales" && userId) {
+      where.assignedUserId = userId;
+    } else if (role === "team_leader" && userId) {
+      const myTeams = await prisma.team.findMany({
+        where: { tenantId, leaderUserId: userId },
+        include: { members: true }
+      })
+      const myTeamIds = myTeams.map(t => t.id)
+      const myMemberIds = myTeams.flatMap(t => t.members.map(m => m.userId))
+      where.OR = [
+        { assignedUserId: userId },
+        { teamId: { in: myTeamIds } },
+        { assignedUserId: { in: myMemberIds } }
+      ]
+    }
+
+    const [totalLeads, newLeads, activeLeads, wonLeads] = await Promise.all([
+      prisma.lead.count({ where }),
+      prisma.lead.count({ where: { ...where, status: "new" } }),
+      prisma.lead.count({ where: { ...where, status: { notIn: ["won", "lost", "archived"] } } }),
+      prisma.lead.count({ where: { ...where, status: "won" } })
+    ]);
+
+    return [
+      { label: "إجمالي العملاء", value: totalLeads, change: 0 },
+      { label: "عملاء جدد", value: newLeads, change: 0 },
+      { label: "عملاء نشطين", value: activeLeads, change: 0 },
+      { label: "صفقات ناجحة", value: wonLeads, change: 0 }
+    ];
   }
 }

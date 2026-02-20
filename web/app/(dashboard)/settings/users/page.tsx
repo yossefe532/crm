@@ -17,6 +17,8 @@ import { coreService } from "../../../../lib/services/coreService"
 import { useTeams } from "../../../../lib/hooks/useTeams"
 import { useLeads } from "../../../../lib/hooks/useLeads"
 
+import { ConfirmationModal } from "../../../../components/ui/ConfirmationModal"
+
 export default function UsersSettingsPage() {
   const { role, token, userId: currentUserId } = useAuth()
   const { data } = useUsers()
@@ -31,6 +33,8 @@ export default function UsersSettingsPage() {
   const [teamSetupMembers, setTeamSetupMembers] = useState<string[]>([])
   const [editValues, setEditValues] = useState<Record<string, { email?: string; phone?: string; status?: string }>>({})
   const [auditUserId, setAuditUserId] = useState<string | null>(null)
+  const [deleteUserConfirmationId, setDeleteUserConfirmationId] = useState<string | null>(null)
+  const [deleteTeamConfirmationId, setDeleteTeamConfirmationId] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const decideMutation = useMutation({
     mutationFn: (payload: { requestId: string; status: "approved" | "rejected" }) =>
@@ -49,8 +53,8 @@ export default function UsersSettingsPage() {
     }
   })
   const updateUserMutation = useMutation({
-    mutationFn: (payload: { userId: string; email?: string; phone?: string; status?: string }) =>
-      coreService.updateUser(payload.userId, { email: payload.email, phone: payload.phone || undefined, status: payload.status }, token || undefined),
+    mutationFn: (payload: { userId: string; name?: string; email?: string; phone?: string; status?: string }) =>
+      coreService.updateUser(payload.userId, { name: payload.name, email: payload.email, phone: payload.phone || undefined, status: payload.status }, token || undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["users"] })
     }
@@ -178,11 +182,7 @@ export default function UsersSettingsPage() {
                 </div>
                 <Button
                   variant="ghost"
-                  onClick={() => {
-                    const confirmed = window.confirm("سيتم حذف الفريق وإلغاء إسناد العملاء إليه. هل أنت متأكد؟")
-                    if (!confirmed) return
-                    deleteTeamMutation.mutate(team.id)
-                  }}
+                  onClick={() => setDeleteTeamConfirmationId(team.id)}
                 >
                   حذف الفريق
                 </Button>
@@ -309,6 +309,7 @@ export default function UsersSettingsPage() {
                     onClick={() =>
                       updateUserMutation.mutate({
                         userId: user.id,
+                        name: editValues[user.id]?.name ?? user.name,
                         email: editValues[user.id]?.email ?? user.email,
                         phone: editValues[user.id]?.phone ?? user.phone ?? undefined,
                         status: editValues[user.id]?.status ?? user.status
@@ -325,11 +326,7 @@ export default function UsersSettingsPage() {
                   </Button>
                   <Button
                     variant="ghost"
-                    onClick={() => {
-                      const confirmed = window.confirm("سيتم حذف المستخدم وتعطيل دخوله للنظام. هل أنت متأكد؟")
-                      if (!confirmed) return
-                      deleteUserMutation.mutate(user.id)
-                    }}
+                    onClick={() => setDeleteUserConfirmationId(user.id)}
                   >
                     حذف المستخدم
                   </Button>
@@ -436,6 +433,32 @@ export default function UsersSettingsPage() {
           </div>
         </div>
       )}
+      
+      <ConfirmationModal
+        isOpen={!!deleteTeamConfirmationId}
+        onClose={() => setDeleteTeamConfirmationId(null)}
+        onConfirm={() => {
+            if (deleteTeamConfirmationId) {
+                deleteTeamMutation.mutate(deleteTeamConfirmationId)
+            }
+        }}
+        title="تأكيد حذف الفريق"
+        description="سيتم حذف الفريق وإلغاء إسناد العملاء إليه. هل أنت متأكد؟"
+        confirmText="حذف الفريق"
+      />
+
+      <ConfirmationModal
+        isOpen={!!deleteUserConfirmationId}
+        onClose={() => setDeleteUserConfirmationId(null)}
+        onConfirm={() => {
+            if (deleteUserConfirmationId) {
+                deleteUserMutation.mutate(deleteUserConfirmationId)
+            }
+        }}
+        title="تأكيد حذف المستخدم"
+        description="سيتم حذف المستخدم وتعطيل دخوله للنظام. هل أنت متأكد؟"
+        confirmText="حذف المستخدم"
+      />
     </div>
   )
 }

@@ -11,6 +11,10 @@ router.get("/tenants", asyncHandler(coreController.listTenants))
 router.post("/users", requirePermission("users.create"), asyncHandler(coreController.createUser))
 router.get("/users", requirePermission("users.read"), asyncHandler(coreController.listUsers))
 router.get("/users/:userId/audit", requireOwner, requirePermission("users.read"), asyncHandler(coreController.listUserAuditLogs))
+router.put("/users/:userId", requireOwner, requirePermission("users.update"), asyncHandler(coreController.updateUser))
+router.delete("/users/:userId", requireOwner, requirePermission("users.delete"), asyncHandler(coreController.deleteUser))
+router.post("/users/:userId/reset-password", requireOwner, requirePermission("users.update"), asyncHandler(coreController.resetUserPassword))
+router.get("/activity", asyncHandler(coreController.listMyActivity))
 router.post("/users/:userId/transfer", requireOwner, requirePermission("users.update"), asyncHandler(coreController.transferUserTeam))
 router.post("/users/:userId/promote", requireOwner, requirePermission("users.update"), asyncHandler(coreController.promoteToTeamLeader))
 router.post("/user-requests", (req, res, next) => {
@@ -22,6 +26,7 @@ router.post("/user-requests/:requestId/decide", requirePermission("user_requests
 
 router.post("/roles", requireOwner, requirePermission("roles.create"), asyncHandler(coreController.createRole))
 router.get("/roles", requireOwner, requirePermission("roles.read"), asyncHandler(coreController.listRoles))
+router.delete("/roles/:roleId", requireOwner, requirePermission("roles.delete"), asyncHandler(coreController.deleteRole))
 router.get("/permissions", requireOwner, requirePermission("permissions.read"), asyncHandler(coreController.listPermissions))
 router.get("/roles/:roleId/permissions", requireOwner, requirePermission("roles.read"), asyncHandler(coreController.listRolePermissions))
 router.put("/roles/:roleId/permissions", requireOwner, requirePermission("roles.update"), asyncHandler(coreController.updateRolePermissions))
