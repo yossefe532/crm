@@ -29,17 +29,6 @@ export const LeadList = () => {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const { data, isLoading, isError } = useLeads({ page, pageSize })
-  
-  // ... rest of the code ...
-
-  return (
-    <Card title="العملاء">
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex gap-2">
-           {/* Filters... */}
-        </div>
-        <ExportButton data={filteredLeads} filename="leads_report" />
-      </div>
 
   const { data: users } = useUsers()
   const { data: deadlines } = useLeadDeadlines()
