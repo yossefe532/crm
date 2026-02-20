@@ -10,6 +10,8 @@ import { lifecycleService } from "../lifecycle/service"
 import { prisma } from "../../prisma/client"
 import { UserPayload } from "../../utils/auth"
 
+const isValidUUID = (id: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+
 const resolveAssignmentTarget = async (tenantId: string, actor: UserPayload | undefined, assignedUserId: string) => {
   const targetUser = await prisma.user.findFirst({ where: { id: assignedUserId, tenantId, deletedAt: null, status: "active" } })
   if (!targetUser) throw { status: 404, message: "المستخدم غير موجود" }
@@ -79,12 +81,36 @@ export const leadController = {
     try {
       const tenantId = req.user?.tenantId || ""
       const roles = req.user?.roles || []
+      const name = String(req.body?.name || "").trim()
       
       if (roles.includes("sales") && !roles.includes("owner") && !roles.includes("team_leader")) {
-        throw { status: 403, message: "غير مصرح لك بإضافة عملاء مباشرة. يرجى إرسال طلب إضافة." }
+        const actor = await prisma.user.findUnique({ where: { id: req.user?.id }, select: { profile: { select: { firstName: true, lastName: true } }, email: true } })
+        const actorName = actor?.profile ? `${actor.profile.firstName || ""} ${actor.profile.lastName || ""}`.trim() : (actor?.email || "Unknown")
+        
+        const requestPayload = { ...req.body, assignedUserId: req.user?.id }
+        const request = await coreService.createUserRequest(tenantId, req.user?.id || "", "create_lead", requestPayload)
+        await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.request.created", entityType: "user_request", entityId: request.id })
+        
+        // Notify admins/team leaders
+        const admins = await prisma.userRole.findMany({ 
+          where: { tenantId, role: { name: { in: ["owner", "admin", "team_leader"] } }, revokedAt: null },
+          select: { userId: true }
+        })
+        const recipientIds = [...new Set(admins.map(a => a.userId))]
+        await notificationService.send(tenantId, recipientIds, {
+          title: "طلب إضافة عميل جديد",
+          message: `طلب المندوب ${actorName} إضافة عميل جديد: ${name}`,
+          type: "lead_request",
+          entityId: request.id
+        })
+
+        return res.json({ 
+          message: "تم إرسال طلب إضافة العميل للموافقة", 
+          request,
+          status: "pending" 
+        })
       }
 
-      const name = String(req.body?.name || "").trim()
       const leadCode = String(req.body?.leadCode || "").trim()
       if (!name) throw { status: 400, message: "اسم العميل مطلوب" }
 
@@ -188,6 +214,7 @@ export const leadController = {
   },
   updateLead: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
+    if (!isValidUUID(req.params.id)) throw { status: 404, message: "العميل غير موجود" }
     const existing = await leadService.getLeadForUser(tenantId, req.params.id, req.user)
     if (!existing) throw { status: 404, message: "العميل غير موجود" }
     const phone = req.body?.phone ? String(req.body.phone).trim() : undefined
@@ -220,6 +247,7 @@ export const leadController = {
   },
   getLead: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
+    if (!isValidUUID(req.params.id)) throw { status: 404, message: "العميل غير موجود" }
     const lead = await leadService.getLeadForUser(tenantId, req.params.id, req.user)
     if (!lead) throw { status: 404, message: "العميل غير موجود" }
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.viewed", entityType: "lead", entityId: lead.id })
@@ -227,6 +255,7 @@ export const leadController = {
   },
   deleteLead: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
+    if (!isValidUUID(req.params.id)) throw { status: 404, message: "العميل غير موجود" }
     const existing = await leadService.getLeadForUser(tenantId, req.params.id, req.user)
     if (!existing) throw { status: 404, message: "العميل غير موجود" }
     const lead = await leadService.deleteLead(tenantId, req.params.id)
@@ -235,6 +264,7 @@ export const leadController = {
   },
   updateStage: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
+    if (!isValidUUID(req.params.id)) throw { status: 404, message: "العميل غير موجود" }
     const stageCode = String(req.body?.stage || req.body?.code || "").trim().toLowerCase()
     if (!stageCode) throw { status: 400, message: "المرحلة مطلوبة" }
     const state = await lifecycleService.getStateByCode(tenantId, stageCode)
@@ -311,6 +341,7 @@ export const leadController = {
   },
   assignLead: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
+    if (!isValidUUID(req.params.id)) throw { status: 404, message: "العميل غير موجود" }
     const assignedUserId = String(req.body?.assignedUserId || "").trim()
     if (!assignedUserId) throw { status: 400, message: "المستخدم المُسند مطلوب" }
     const lead = await leadService.getLeadForUser(tenantId, req.params.id, req.user)
@@ -323,6 +354,7 @@ export const leadController = {
   },
   unassignLead: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
+    if (!isValidUUID(req.params.id)) throw { status: 404, message: "العميل غير موجود" }
     const lead = await leadService.getLeadForUser(tenantId, req.params.id, req.user)
     if (!lead) throw { status: 404, message: "العميل غير موجود" }
     const updated = await leadService.unassignLead(tenantId, req.params.id)
@@ -332,12 +364,14 @@ export const leadController = {
   },
   addLeadContact: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
+    if (!isValidUUID(req.params.id)) throw { status: 404, message: "العميل غير موجود" }
     const link = await leadService.createLeadContact(tenantId, req.params.id, req.body.contactId, req.body.role)
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.contact.added", entityType: "lead", entityId: req.params.id, metadata: { contactId: req.body.contactId } })
     res.json(link)
   },
   addLeadTask: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
+    if (!isValidUUID(req.params.id)) throw { status: 404, message: "العميل غير موجود" }
     const task = await leadService.createLeadTask(tenantId, { leadId: req.params.id, assignedUserId: req.body.assignedUserId, taskType: req.body.taskType, dueAt: req.body.dueAt })
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.task.created", entityType: "lead_task", entityId: task.id, metadata: { leadId: req.params.id } })
     intelligenceService.queueTrigger({ type: "task_changed", tenantId, leadId: req.params.id, userId: req.body.assignedUserId })
@@ -345,6 +379,7 @@ export const leadController = {
   },
   addCallLog: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
+    if (!isValidUUID(req.params.id)) throw { status: 404, message: "العميل غير موجود" }
     const outcome = req.body?.outcome ? String(req.body.outcome) : undefined
     if (!outcome) throw { status: 400, message: "نتيجة المكالمة مطلوبة" }
     const lead = await leadService.getLead(tenantId, req.params.id)
@@ -392,6 +427,7 @@ export const leadController = {
   },
   getDeadline: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
+    if (!isValidUUID(req.params.id)) throw { status: 404, message: "العميل غير موجود" }
     const existing = await leadService.getLeadForUser(tenantId, req.params.id, req.user)
     if (!existing) throw { status: 404, message: "العميل غير موجود" }
     const deadline = await leadService.getActiveDeadline(tenantId, req.params.id)
@@ -399,41 +435,28 @@ export const leadController = {
   },
   listDeadlines: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
-    const deadlines = await leadService.listActiveDeadlines(tenantId)
+    const roles = req.user?.roles || []
+    const role = roles.includes("owner") ? "owner" : roles.includes("team_leader") ? "team_leader" : "sales"
+    const deadlines = await leadService.listActiveDeadlines(tenantId, req.user?.id, role)
     res.json(deadlines)
   },
   listFailures: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
-    const failures = await leadService.listFailures(tenantId, req.query.leadId ? String(req.query.leadId) : undefined)
+    const roles = req.user?.roles || []
+    const role = roles.includes("owner") ? "owner" : roles.includes("team_leader") ? "team_leader" : "sales"
+    const failures = await leadService.listFailures(tenantId, req.query.leadId ? String(req.query.leadId) : undefined, req.user?.id, role)
     res.json(failures)
   },
   listClosures: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
-    const closures = await leadService.listClosures(tenantId)
-    
-    let filtered = closures
-    const user = req.user!
-    
-    if (user.roles?.includes("owner")) {
-      // Owner sees all
-    } else if (user.roles?.includes("team_leader")) {
-      const team = await prisma.team.findFirst({
-        where: { tenantId, leaderUserId: user.id, deletedAt: null },
-        include: { members: true }
-      })
-      const memberIds = team?.members.map(m => m.userId) || []
-      filtered = closures.filter(c => 
-        c.closedBy === user.id || (c.closedBy && memberIds.includes(c.closedBy))
-      )
-    } else {
-      // Sales sees own
-      filtered = closures.filter(c => c.closedBy === user.id)
-    }
-
-    res.json(filtered)
+    const roles = req.user?.roles || []
+    const role = roles.includes("owner") ? "owner" : roles.includes("team_leader") ? "team_leader" : "sales"
+    const closures = await leadService.listClosures(tenantId, req.user?.id, role)
+    res.json(closures)
   },
   decideClosure: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
+    if (!isValidUUID(req.params.closureId)) throw { status: 404, message: "طلب الإغلاق غير موجود" }
     if (!req.user?.roles?.includes("owner")) throw { status: 403, message: "غير مصرح" }
     const status = String(req.body?.status || "").trim()
     if (!status || !["approved", "rejected"].includes(status)) throw { status: 400, message: "قرار غير صالح" }
@@ -490,6 +513,7 @@ export const leadController = {
   },
   closeLead: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
+    if (!isValidUUID(req.params.id)) throw { status: 404, message: "العميل غير موجود" }
     const lead = await leadService.getLeadForUser(tenantId, req.params.id, req.user)
     if (!lead) throw { status: 404, message: "العميل غير موجود" }
     if (!req.user?.roles?.includes("sales") || lead.assignedUserId !== req.user?.id) {
@@ -516,6 +540,7 @@ export const leadController = {
   },
   failLead: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
+    if (!isValidUUID(req.params.id)) throw { status: 404, message: "العميل غير موجود" }
     const lead = await leadService.getLeadForUser(tenantId, req.params.id, req.user)
     if (!lead) throw { status: 404, message: "العميل غير موجود" }
     
@@ -554,6 +579,7 @@ export const leadController = {
   },
   resolveFailure: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
+    if (!isValidUUID(req.params.failureId)) throw { status: 404, message: "طلب الفشل غير موجود" }
     const reason = String(req.body?.reason || "").trim()
     if (!reason) throw { status: 400, message: "سبب الفشل مطلوب" }
     const failure = await leadService.resolveFailure(tenantId, req.params.failureId, reason)
@@ -583,6 +609,7 @@ export const leadController = {
   createMeeting: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
     const leadId = req.params.leadId
+    if (!isValidUUID(leadId)) throw { status: 404, message: "العميل غير موجود" }
     const title = String(req.body.title || "اجتماع جديد")
     const startsAt = req.body.startsAt ? new Date(req.body.startsAt) : new Date()
     const durationMinutes = req.body.durationMinutes ? parseInt(req.body.durationMinutes) : 60

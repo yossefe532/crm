@@ -1,3 +1,9 @@
 {
-    "editor.directLink": true
+    "editor.directLink": true,
+    "files.autoSave": "afterDelay",
+    "editor.defaultFormatter": "vscode.typescript-language-features",
+    "workbench.colorTheme": "Visual Studio Dark",
+    "editor.tabSize": 5,
+    "editor.mouseWheelZoom": true,
+    "editor.aiStats.enabled": true
 }

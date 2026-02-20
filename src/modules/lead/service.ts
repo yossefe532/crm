@@ -222,11 +222,33 @@ export const leadService = {
   getActiveDeadline: (tenantId: string, leadId: string) =>
     prisma.leadDeadline.findFirst({ where: { tenantId, leadId, status: "active" }, orderBy: { dueAt: "asc" } }),
 
-  listActiveDeadlines: (tenantId: string) =>
-    prisma.leadDeadline.findMany({ where: { tenantId, status: "active" }, orderBy: { dueAt: "asc" } }),
+  listActiveDeadlines: async (tenantId: string, userId?: string, role?: string) => {
+    let where: any = { tenantId, status: "active" }
+    
+    if (role === "sales" && userId) {
+      where.lead = { assignedUserId: userId }
+    } else if (role === "team_leader" && userId) {
+      const myTeams = await prisma.team.findMany({ where: { tenantId, leaderUserId: userId }, include: { members: true } })
+      const memberIds = myTeams.flatMap(t => t.members.map(m => m.userId))
+      where.lead = { assignedUserId: { in: [userId, ...memberIds] } }
+    }
 
-  listFailures: (tenantId: string, leadId?: string) =>
-    prisma.leadFailure.findMany({ where: { tenantId, ...(leadId ? { leadId } : {}) }, orderBy: { createdAt: "desc" } }),
+    return prisma.leadDeadline.findMany({ where, orderBy: { dueAt: "asc" }, include: { lead: true } })
+  },
+
+  listFailures: async (tenantId: string, leadId?: string, userId?: string, role?: string) => {
+    let where: any = { tenantId, ...(leadId ? { leadId } : {}) }
+
+    if (role === "sales" && userId) {
+      where.failedBy = userId
+    } else if (role === "team_leader" && userId) {
+      const myTeams = await prisma.team.findMany({ where: { tenantId, leaderUserId: userId }, include: { members: true } })
+      const memberIds = myTeams.flatMap(t => t.members.map(m => m.userId))
+      where.failedBy = { in: [userId, ...memberIds] }
+    }
+
+    return prisma.leadFailure.findMany({ where, orderBy: { createdAt: "desc" }, include: { lead: true } })
+  },
 
   createFailure: (tenantId: string, data: { leadId: string; failedBy?: string; failureType: string; reason?: string; status?: string }) =>
     prisma.leadFailure.create({
@@ -243,8 +265,19 @@ export const leadService = {
   resolveFailure: (tenantId: string, failureId: string, reason: string) =>
     prisma.leadFailure.update({ where: { id: failureId, tenantId }, data: { reason, status: "resolved", resolvedAt: new Date() } }),
 
-  listClosures: (tenantId: string) =>
-    prisma.leadClosure.findMany({ where: { tenantId }, orderBy: { closedAt: "desc" } }),
+  listClosures: async (tenantId: string, userId?: string, role?: string) => {
+    let where: any = { tenantId }
+
+    if (role === "sales" && userId) {
+      where.closedBy = userId
+    } else if (role === "team_leader" && userId) {
+      const myTeams = await prisma.team.findMany({ where: { tenantId, leaderUserId: userId }, include: { members: true } })
+      const memberIds = myTeams.flatMap(t => t.members.map(m => m.userId))
+      where.closedBy = { in: [userId, ...memberIds] }
+    }
+
+    return prisma.leadClosure.findMany({ where, orderBy: { closedAt: "desc" }, include: { lead: true } })
+  },
 
   createClosure: (tenantId: string, data: { leadId: string; closedBy?: string; amount: number; note?: string; address?: string }) =>
     prisma.leadClosure.create({

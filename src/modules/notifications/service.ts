@@ -110,5 +110,40 @@ export const notificationService = {
         }
       }
     }
+  },
+
+  send: async (
+    tenantId: string,
+    userIds: string[],
+    payload: { title: string; message: string; type: string; entityId?: string }
+  ) => {
+    // 1. Store In-App Notification
+    await prisma.notificationEvent.create({
+      data: {
+        tenantId,
+        eventKey: payload.type,
+        payload: {
+          message: payload.message,
+          title: payload.title,
+          entityId: payload.entityId,
+          recipients: userIds
+        } as Prisma.InputJsonValue
+      }
+    })
+
+    // 2. Emit Socket Event
+    try {
+      const io = getIO()
+      userIds.forEach((userId) => {
+        io.to(`user:${userId}`).emit("notification", {
+          title: payload.title,
+          message: payload.message,
+          type: payload.type,
+          entityId: payload.entityId
+        })
+      })
+    } catch (e) {
+      // Socket might not be initialized
+    }
   }
 }

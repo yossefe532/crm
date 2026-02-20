@@ -1,8 +1,43 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.coreService = void 0;
 const client_1 = require("../../prisma/client");
-const service_1 = require("../conversations/service");
+const service_1 = require("../lifecycle/service");
+const activity_1 = require("../../utils/activity");
+const service_2 = require("../intelligence/service");
 exports.coreService = {
     createTenant: (data) => client_1.prisma.tenant.create({ data: { name: data.name, timezone: data.timezone || "UTC" } }),
     listTenants: () => client_1.prisma.tenant.findMany(),
@@ -22,8 +57,118 @@ exports.coreService = {
             teamsLed: { where: { deletedAt: null } }
         }
     }),
+    updateUser: async (tenantId, userId, data) => {
+        const user = await client_1.prisma.user.findFirst({ where: { id: userId, tenantId } });
+        if (!user)
+            throw { status: 404, message: "User not found" };
+        if (data.email && data.email !== user.email) {
+            const existing = await client_1.prisma.user.findFirst({ where: { tenantId, email: data.email, id: { not: userId } } });
+            if (existing)
+                throw { status: 409, message: "Email already in use" };
+        }
+        const updatedUser = await client_1.prisma.user.update({
+            where: { id: userId },
+            data: {
+                email: data.email,
+                phone: data.phone,
+                status: data.status,
+                passwordHash: data.passwordHash,
+                mustChangePassword: data.mustChangePassword,
+                updatedAt: new Date()
+            }
+        });
+        if (data.firstName !== undefined || data.lastName !== undefined) {
+            const profile = await client_1.prisma.userProfile.findUnique({ where: { userId } });
+            if (profile) {
+                await client_1.prisma.userProfile.update({
+                    where: { userId },
+                    data: {
+                        firstName: data.firstName ?? profile.firstName,
+                        lastName: data.lastName ?? profile.lastName
+                    }
+                });
+            }
+            else {
+                await client_1.prisma.userProfile.create({
+                    data: {
+                        tenantId,
+                        userId,
+                        firstName: data.firstName || "",
+                        lastName: data.lastName || ""
+                    }
+                });
+            }
+        }
+        return updatedUser;
+    },
+    deleteUser: async (tenantId, userId) => {
+        const user = await client_1.prisma.user.findFirst({ where: { id: userId, tenantId, deletedAt: null } });
+        if (!user)
+            throw { status: 404, message: "User not found" };
+        const ownerRole = await client_1.prisma.role.findFirst({ where: { name: "owner", tenantId } });
+        if (ownerRole) {
+            const isOwner = await client_1.prisma.userRole.findFirst({ where: { tenantId, userId, roleId: ownerRole.id, revokedAt: null } });
+            if (isOwner) {
+                const otherOwners = await client_1.prisma.userRole.count({
+                    where: {
+                        tenantId,
+                        roleId: ownerRole.id,
+                        revokedAt: null,
+                        userId: { not: userId }
+                    }
+                });
+                if (otherOwners === 0)
+                    throw { status: 400, message: "Cannot delete the last owner" };
+            }
+        }
+        await client_1.prisma.$transaction([
+            client_1.prisma.user.update({ where: { id: userId }, data: { deletedAt: new Date(), status: "inactive" } }),
+            client_1.prisma.lead.updateMany({ where: { assignedUserId: userId, tenantId }, data: { assignedUserId: null } }),
+            client_1.prisma.teamMember.updateMany({ where: { userId, tenantId, leftAt: null }, data: { leftAt: new Date() } }),
+            client_1.prisma.userRole.updateMany({ where: { userId, tenantId, revokedAt: null }, data: { revokedAt: new Date() } })
+        ]);
+        return { status: "ok" };
+    },
+    resetPassword: async (tenantId, userId, passwordHash, mustChangePassword = false) => {
+        let newPasswordHash = passwordHash;
+        let tempPassword;
+        if (!newPasswordHash) {
+            const { generateStrongPassword, hashPassword } = await Promise.resolve().then(() => __importStar(require("../auth/password")));
+            tempPassword = generateStrongPassword();
+            newPasswordHash = await hashPassword(tempPassword);
+            mustChangePassword = true;
+        }
+        await client_1.prisma.user.update({
+            where: { id: userId, tenantId },
+            data: { passwordHash: newPasswordHash, mustChangePassword, updatedAt: new Date() }
+        });
+        return { temporaryPassword: tempPassword };
+    },
     createRole: (tenantId, data) => client_1.prisma.role.create({ data: { tenantId, name: data.name, scope: data.scope || "tenant" } }),
+    revokeRole: (tenantId, userId, roleId) => client_1.prisma.userRole.updateMany({
+        where: { tenantId, userId, roleId, revokedAt: null },
+        data: { revokedAt: new Date() }
+    }),
+    transferTeamMember: async (tenantId, userId, teamId, role) => {
+        await client_1.prisma.teamMember.updateMany({
+            where: { tenantId, userId, leftAt: null },
+            data: { leftAt: new Date() }
+        });
+        return client_1.prisma.teamMember.create({
+            data: { tenantId, teamId, userId, role: role || "member" }
+        });
+    },
     listRoles: (tenantId) => client_1.prisma.role.findMany({ where: { tenantId, deletedAt: null } }),
+    deleteRole: async (tenantId, roleId) => {
+        const role = await client_1.prisma.role.findFirst({ where: { id: roleId, tenantId, deletedAt: null } });
+        if (!role)
+            throw { status: 404, message: "Role not found" };
+        // Check if role is assigned to any user
+        const assignedCount = await client_1.prisma.userRole.count({ where: { tenantId, roleId, revokedAt: null } });
+        if (assignedCount > 0)
+            throw { status: 400, message: "Cannot delete role assigned to users" };
+        return client_1.prisma.role.update({ where: { id: roleId }, data: { deletedAt: new Date() } });
+    },
     listPermissions: () => client_1.prisma.permission.findMany({ orderBy: { code: "asc" } }),
     listRolePermissions: (tenantId, roleId) => client_1.prisma.rolePermission.findMany({ where: { tenantId, roleId }, include: { permission: true } }),
     listUserPermissions: async (tenantId, userId) => {
@@ -136,83 +281,131 @@ exports.coreService = {
     createNote: (tenantId, data) => client_1.prisma.note.create({ data: { tenantId, entityType: data.entityType, entityId: data.entityId, body: data.body, createdBy: data.createdBy } }),
     createContact: (tenantId, data) => client_1.prisma.contact.create({ data: { tenantId, firstName: data.firstName, lastName: data.lastName, primaryEmail: data.primaryEmail, primaryPhone: data.primaryPhone } }),
     listContacts: (tenantId) => client_1.prisma.contact.findMany({ where: { tenantId, deletedAt: null } }),
-    getOrCreateRole: async (tenantId, name) => {
-        const existing = await client_1.prisma.role.findFirst({ where: { tenantId, name, deletedAt: null } });
-        if (existing)
-            return existing;
-        return client_1.prisma.role.create({ data: { tenantId, name, scope: "tenant" } });
-    },
-    assignRole: async (tenantId, userId, roleId, assignedBy) => {
-        const result = await client_1.prisma.userRole.create({ data: { tenantId, userId, roleId, assignedBy } });
-        const role = await client_1.prisma.role.findUnique({ where: { id: roleId } });
-        if (role && (role.name === "owner" || role.name === "team_leader")) {
-            await service_1.conversationService.ensureOwnerGroup(tenantId);
-        }
-        return result;
-    },
-    addTeamMember: async (tenantId, teamId, userId, role) => {
-        const currentCount = await client_1.prisma.teamMember.count({ where: { teamId, leftAt: null, deletedAt: null } });
-        if (currentCount >= 10)
-            throw { status: 400, message: "Team is full (max 10 members)" };
-        const result = await client_1.prisma.teamMember.create({ data: { tenantId, teamId, userId, role: role || "member" } });
-        await service_1.conversationService.ensureTeamGroup(tenantId, teamId);
-        return result;
-    },
-    transferTeamMember: async (tenantId, userId, teamId, role) => {
-        const oldMemberships = await client_1.prisma.teamMember.findMany({ where: { tenantId, userId, leftAt: null, deletedAt: null } });
-        await client_1.prisma.teamMember.updateMany({ where: { tenantId, userId, leftAt: null, deletedAt: null }, data: { leftAt: new Date() } });
-        const result = await client_1.prisma.teamMember.create({ data: { tenantId, teamId, userId, role: role || "member" } });
-        await service_1.conversationService.ensureTeamGroup(tenantId, teamId);
-        for (const old of oldMemberships) {
-            await service_1.conversationService.ensureTeamGroup(tenantId, old.teamId);
-        }
-        return result;
-    },
-    revokeRole: async (tenantId, userId, roleId) => {
-        const result = await client_1.prisma.userRole.updateMany({ where: { tenantId, userId, roleId, revokedAt: null }, data: { revokedAt: new Date() } });
-        const role = await client_1.prisma.role.findUnique({ where: { id: roleId } });
-        if (role && (role.name === "owner" || role.name === "team_leader")) {
-            await service_1.conversationService.ensureOwnerGroup(tenantId);
-        }
-        return result;
-    },
-    getTeamByLeader: (tenantId, leaderUserId) => client_1.prisma.team.findFirst({ where: { tenantId, leaderUserId, deletedAt: null } }),
-    getTeamByName: (tenantId, name) => client_1.prisma.team.findFirst({ where: { tenantId, name, deletedAt: null } }),
     getUserById: (tenantId, userId) => client_1.prisma.user.findFirst({
         where: { id: userId, tenantId, deletedAt: null },
         include: {
             roleLinks: { where: { revokedAt: null }, include: { role: true } },
-            profile: true
+            profile: true,
+            teamMembers: { where: { leftAt: null, deletedAt: null }, include: { team: true } },
+            teamsLed: { where: { deletedAt: null } }
         }
     }),
-    updateUser: async (tenantId, userId, data) => {
-        const { firstName, lastName, ...userData } = data;
-        const user = await client_1.prisma.user.update({
-            where: { id: userId, tenantId },
-            data: userData
-        });
-        if (firstName !== undefined || lastName !== undefined) {
-            const profileData = {};
-            if (firstName !== undefined)
-                profileData.firstName = firstName;
-            if (lastName !== undefined)
-                profileData.lastName = lastName;
-            await client_1.prisma.userProfile.upsert({
-                where: { userId },
-                create: { tenantId, userId, ...profileData },
-                update: profileData
-            });
-        }
-        return user;
+    getTeamByLeader: (tenantId, leaderUserId) => client_1.prisma.team.findFirst({ where: { tenantId, leaderUserId, deletedAt: null } }),
+    getTeamByName: (tenantId, name) => client_1.prisma.team.findFirst({ where: { tenantId, name, deletedAt: null } }),
+    getOrCreateRole: async (tenantId, name) => {
+        const role = await client_1.prisma.role.findFirst({ where: { tenantId, name, deletedAt: null } });
+        if (role)
+            return role;
+        return client_1.prisma.role.create({ data: { tenantId, name, scope: "global" } });
     },
-    deleteUser: (tenantId, userId) => client_1.prisma.user.update({
-        where: { id: userId, tenantId },
-        data: { deletedAt: new Date() }
+    assignRole: (tenantId, userId, roleId, assignedBy) => client_1.prisma.userRole.create({ data: { tenantId, userId, roleId, assignedBy } }),
+    addTeamMember: (tenantId, teamId, userId, role) => client_1.prisma.teamMember.create({ data: { tenantId, teamId, userId, role } }),
+    createUserRequest: (tenantId, userId, type, payload) => client_1.prisma.userRequest.create({
+        data: {
+            tenantId,
+            requestedBy: userId,
+            requestType: type,
+            payload,
+            status: "pending"
+        }
     }),
-    resetUserPassword: (tenantId, userId, passwordHash, mustChangePassword) => client_1.prisma.user.update({ where: { id: userId, tenantId }, data: { passwordHash, mustChangePassword } }),
-    createUserRequest: (tenantId, data) => client_1.prisma.userRequest.create({ data: { tenantId, requestedBy: data.requestedBy, requestType: data.requestType, payload: data.payload } }),
-    listUserRequests: (tenantId) => client_1.prisma.userRequest.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" }, include: { requester: true, decider: true } }),
-    decideUserRequest: (tenantId, requestId, data) => client_1.prisma.userRequest.update({ where: { id: requestId, tenantId }, data: { status: data.status, decidedBy: data.decidedBy, decidedAt: new Date() } }),
-    createFinanceEntry: (tenantId, data) => client_1.prisma.financeEntry.create({ data: { tenantId, entryType: data.entryType, category: data.category, amount: data.amount, note: data.note, occurredAt: data.occurredAt, createdBy: data.createdBy } }),
-    listFinanceEntries: (tenantId) => client_1.prisma.financeEntry.findMany({ where: { tenantId }, orderBy: { occurredAt: "desc" }, include: { creator: true } })
+    decideUserRequest: async (tenantId, requestId, data) => {
+        const request = await client_1.prisma.userRequest.findUnique({ where: { id: requestId, tenantId } });
+        if (!request)
+            throw { status: 404, message: "Request not found" };
+        if (request.status !== "pending")
+            throw { status: 400, message: "Request already decided" };
+        const updated = await client_1.prisma.userRequest.update({
+            where: { id: requestId },
+            data: { status: data.status, decidedBy: data.decidedBy, decidedAt: new Date() }
+        });
+        if (data.status === "approved" && request.requestType === "create_lead") {
+            const payload = request.payload;
+            // Auto-assign to requester
+            const assignedUserId = request.requestedBy;
+            // Resolve team
+            let teamId = payload.teamId;
+            if (!teamId && assignedUserId) {
+                const membership = await client_1.prisma.teamMember.findFirst({
+                    where: { tenantId, userId: assignedUserId, leftAt: null, deletedAt: null },
+                    select: { teamId: true }
+                });
+                teamId = membership?.teamId;
+                if (!teamId) {
+                    const ledTeam = await client_1.prisma.team.findFirst({
+                        where: { tenantId, leaderUserId: assignedUserId, deletedAt: null },
+                        select: { id: true }
+                    });
+                    teamId = ledTeam?.id;
+                }
+            }
+            const stages = await service_1.lifecycleService.ensureDefaultStages(tenantId);
+            const callStage = stages.find((stage) => stage.code === "call");
+            const status = payload.status || callStage?.code || "call";
+            const lead = await client_1.prisma.lead.create({
+                data: {
+                    tenantId,
+                    leadCode: payload.leadCode || `L-${Date.now()}`,
+                    name: payload.name,
+                    phone: payload.phone,
+                    email: payload.email,
+                    budget: payload.budget ? Number(payload.budget) : undefined,
+                    status,
+                    sourceId: payload.sourceId,
+                    assignedUserId,
+                    teamId,
+                    notes: payload.notes
+                }
+            });
+            const initialState = await service_1.lifecycleService.getStateByCode(tenantId, status);
+            if (initialState) {
+                await client_1.prisma.leadStateHistory.create({
+                    data: {
+                        tenantId,
+                        leadId: lead.id,
+                        toStateId: initialState.id,
+                        changedBy: request.requestedBy,
+                        changedAt: new Date()
+                    }
+                });
+                await client_1.prisma.leadDeadline.create({
+                    data: {
+                        tenantId,
+                        leadId: lead.id,
+                        stateId: initialState.id,
+                        dueAt: new Date(Date.now() + 7 * 24 * 3600 * 1000)
+                    }
+                });
+                // Log creation activity
+                await (0, activity_1.logActivity)({
+                    tenantId,
+                    actorUserId: request.decidedBy || undefined, // The person who approved it
+                    action: "lead.created",
+                    entityType: "lead",
+                    entityId: lead.id,
+                    metadata: { source: "request_approval", requestedBy: request.requestedBy }
+                });
+                // Queue intelligence trigger
+                service_2.intelligenceService.queueTrigger({ type: "lead_changed", tenantId, leadId: lead.id, userId: lead.assignedUserId || undefined });
+            }
+        }
+        return updated;
+    },
+    createFinanceEntry: (tenantId, data) => client_1.prisma.financeEntry.create({
+        data: {
+            tenantId,
+            entryType: data.entryType,
+            category: data.category,
+            amount: data.amount,
+            note: data.note,
+            occurredAt: data.occurredAt,
+            createdBy: data.createdBy
+        }
+    }),
+    listFinanceEntries: (tenantId) => client_1.prisma.financeEntry.findMany({
+        where: { tenantId },
+        orderBy: { occurredAt: "desc" },
+        include: { creator: { select: { id: true, email: true } } }
+    }),
+    listUserRequests: (tenantId) => client_1.prisma.userRequest.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } })
 };

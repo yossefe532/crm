@@ -3,17 +3,36 @@ import { Prisma } from "@prisma/client"
 import { cache } from "../../utils/cache"
 
 export const analyticsService = {
-  listDailyMetrics: (tenantId: string, from?: string, to?: string) =>
-    prisma.leadMetricsDaily.findMany({
-      where: {
-        tenantId,
-        metricDate: {
-          gte: from ? new Date(from) : new Date(Date.now() - 30 * 24 * 3600 * 1000),
-          lte: to ? new Date(to) : new Date()
-        }
-      },
+  listDailyMetrics: async (tenantId: string, from?: string, to?: string, userId?: string, role?: string) => {
+    const where: any = {
+      tenantId,
+      metricDate: {
+        gte: from ? new Date(from) : new Date(Date.now() - 30 * 24 * 3600 * 1000),
+        lte: to ? new Date(to) : new Date()
+      }
+    }
+
+    if (role === "sales" && userId) {
+      where.userId = userId
+    } else if (role === "team_leader" && userId) {
+      const myTeams = await prisma.team.findMany({ where: { tenantId, leaderUserId: userId }, select: { id: true } })
+      const teamIds = myTeams.map(t => t.id)
+      // Show metrics for the team leader (if any) and their teams
+      // Note: LeadMetricsDaily might have userId set or teamId set.
+      // If we want to show team aggregate, we filter by teamId.
+      // If we want to show individual members, we need to find members.
+      // Let's assume for daily metrics list, we want to see rows relevant to the user's scope.
+      where.OR = [
+        { userId: userId },
+        { teamId: { in: teamIds } }
+      ]
+    }
+
+    return prisma.leadMetricsDaily.findMany({
+      where,
       orderBy: { metricDate: "asc" }
-    }),
+    })
+  },
 
   listRankingSnapshots: (tenantId: string, type?: string, limit = 20) =>
     prisma.rankingSnapshot.findMany({
@@ -144,6 +163,10 @@ export const analyticsService = {
   },
 
   getConversionRate: async (tenantId: string, userId?: string, role?: string) => {
+    const cacheKey = `analytics:conversion-rate:${tenantId}:${userId || 'all'}:${role || 'all'}`
+    const cached = await cache.get(cacheKey)
+    if (cached) return cached
+
     let whereClause: any = { tenantId, deletedAt: null }
 
     if (role === "sales" && userId) {
@@ -235,6 +258,10 @@ export const analyticsService = {
   },
 
   getTeamPerformance: async (tenantId: string, userId?: string, role?: string) => {
+    const cacheKey = `analytics:team-performance:${tenantId}:${userId || 'all'}:${role || 'all'}`
+    const cached = await cache.get(cacheKey)
+    if (cached) return cached
+
     let whereClause: any = { tenantId, deletedAt: null, teamId: { not: null } }
     let wonWhereClause: any = { tenantId, deletedAt: null, status: "won", teamId: { not: null } }
 
@@ -281,7 +308,7 @@ export const analyticsService = {
       select: { id: true, email: true, profile: { select: { firstName: true, lastName: true } } }
     })
 
-    return teams.map(team => {
+    const result = teams.map(team => {
       const wonStats = wonPerformance.find(p => p.teamId === team.id)
       const totalStats = totalPerformance.find(p => p.teamId === team.id)
       
@@ -303,39 +330,72 @@ export const analyticsService = {
     return result
   },
 
-  getAvgTimePerStage: async (tenantId: string) => {
-    const cacheKey = `analytics:avg-time-stage:${tenantId}`
+  getAvgTimePerStage: async (tenantId: string, userId?: string, role?: string) => {
+    const cacheKey = `analytics:avg-time-stage:${tenantId}:${userId || 'all'}:${role || 'all'}`
     const cached = await cache.get(cacheKey)
     if (cached) return cached
 
-    // Optimized raw query to calculate average time in each stage
-    // Uses window function LEAD to get the next state change time for the same lead
-    const result = await prisma.$queryRaw`
-      SELECT
-        s.name as stage,
-        AVG(EXTRACT(EPOCH FROM (h.next_changed_at - h.changed_at)) / 3600) as "avgHours"
-      FROM (
+    // Validate UUID format to prevent "invalid input syntax for type uuid" error
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    if (!tenantId || !uuidRegex.test(tenantId)) {
+      return []
+    }
+
+    try {
+      let filterClause = Prisma.sql``;
+
+      if (role === "sales" && userId) {
+        filterClause = Prisma.sql`AND l.assigned_user_id = ${userId}::uuid`
+      } else if (role === "team_leader" && userId) {
+        const myTeams = await prisma.team.findMany({
+          where: { tenantId, leaderUserId: userId },
+          include: { members: true }
+        })
+        const myTeamIds = myTeams.map(t => t.id)
+        const myMemberIds = myTeams.flatMap(t => t.members.map(m => m.userId))
+        
+        const conditions: any[] = [Prisma.sql`l.assigned_user_id = ${userId}::uuid`]
+        if (myTeamIds.length > 0) conditions.push(Prisma.sql`l.team_id IN (${Prisma.join(myTeamIds)})`)
+        if (myMemberIds.length > 0) conditions.push(Prisma.sql`l.assigned_user_id IN (${Prisma.join(myMemberIds)})`)
+        
+        filterClause = Prisma.sql`AND (${Prisma.join(conditions, ' OR ')})`
+      }
+
+      // Optimized raw query to calculate average time in each stage
+      // Uses window function LEAD to get the next state change time for the same lead
+      const result = await prisma.$queryRaw`
         SELECT
-          lead_id,
-          to_state_id,
-          changed_at,
-          LEAD(changed_at) OVER (PARTITION BY lead_id ORDER BY changed_at) as next_changed_at
-        FROM lead_state_history
-        WHERE tenant_id = ${tenantId}::uuid
-      ) h
-      JOIN lead_state_definitions s ON h.to_state_id = s.id
-      WHERE h.next_changed_at IS NOT NULL
-      GROUP BY s.name
-    ` as { stage: string, avgHours: number }[]
+          s.name as stage,
+          AVG(EXTRACT(EPOCH FROM (h.next_changed_at - h.changed_at)) / 3600) as "avgHours"
+        FROM (
+          SELECT
+            lsh.lead_id,
+            lsh.to_state_id,
+            lsh.changed_at,
+            LEAD(lsh.changed_at) OVER (PARTITION BY lsh.lead_id ORDER BY lsh.changed_at) as next_changed_at
+          FROM lead_state_history lsh
+          JOIN leads l ON lsh.lead_id = l.id
+          WHERE lsh.tenant_id = ${tenantId}::uuid
+            AND l.deleted_at IS NULL
+            ${filterClause}
+        ) h
+        JOIN lead_state_definitions s ON h.to_state_id = s.id
+        WHERE h.next_changed_at IS NOT NULL
+        GROUP BY s.name
+      ` as { stage: string, avgHours: number }[]
+  
+      // Format result
+      const formatted = result.map(r => ({
+        stage: r.stage,
+        avgHours: Number(r.avgHours) || 0
+      }))
 
-    // Format result
-    const formatted = result.map(r => ({
-      stage: r.stage,
-      avgHours: Number(r.avgHours) || 0
-    }))
-
-    await cache.set(cacheKey, formatted, 3600) // Cache for 1 hour
-    return formatted
+      await cache.set(cacheKey, formatted, 3600)
+      return formatted
+    } catch (error) {
+      console.error("Error calculating avg time per stage:", error)
+      return []
+    }
   },
 
   getLeadTimeline: async (tenantId: string, leadId: string) => {
@@ -528,6 +588,10 @@ export const analyticsService = {
   },
 
   getKeyMetrics: async (tenantId: string, userId?: string, role?: string) => {
+    const cacheKey = `analytics:key-metrics:${tenantId}:${userId || 'all'}:${role || 'all'}`
+    const cached = await cache.get(cacheKey)
+    if (cached) return cached
+
     let where: any = { tenantId, deletedAt: null };
 
     if (role === "sales" && userId) {

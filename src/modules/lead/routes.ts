@@ -11,25 +11,91 @@ router.post("/", (req, res, next) => {
   if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
   return requirePermission("leads.create")(req, res, next)
 }, validate(createLeadSchema), asyncHandler(leadController.createLead))
-router.get("/", requirePermission("leads.read"), asyncHandler(leadController.listLeads))
-router.get("/failures", requirePermission("leads.read"), asyncHandler(leadController.listFailures))
-router.get("/closures", requirePermission("leads.read"), asyncHandler(leadController.listClosures))
+router.get("/", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("leads.read")(req, res, next)
+}, asyncHandler(leadController.listLeads))
+router.get("/failures", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("leads.read")(req, res, next)
+}, asyncHandler(leadController.listFailures))
+
+router.get("/closures", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("leads.read")(req, res, next)
+}, asyncHandler(leadController.listClosures))
+
 router.post("/closures/:closureId/decide", requirePermission("leads.update"), asyncHandler(leadController.decideClosure))
-router.get("/deadlines", requirePermission("leads.read"), asyncHandler(leadController.listDeadlines))
-router.get("/tasks", requirePermission("leads.read"), asyncHandler(leadController.listTasks))
+
+router.get("/deadlines", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("leads.read")(req, res, next)
+}, asyncHandler(leadController.listDeadlines))
+router.get("/tasks", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("leads.read")(req, res, next)
+}, asyncHandler(leadController.listTasks))
 router.post("/sources", requirePermission("lead_sources.create"), asyncHandler(leadController.createLeadSource))
-router.get("/sources", requirePermission("lead_sources.read"), asyncHandler(leadController.listLeadSources))
-router.get("/:id", requirePermission("leads.read"), asyncHandler(leadController.getLead))
-router.get("/:id/deadline", requirePermission("leads.read"), asyncHandler(leadController.getDeadline))
-router.patch("/:id", requirePermission("leads.update"), asyncHandler(leadController.updateLead))
-router.patch("/:id/stage", requirePermission("leads.update"), asyncHandler(leadController.updateStage))
-router.post("/:id/stage/undo", requirePermission("leads.update"), asyncHandler(leadController.undoStage))
-router.post("/:id/close", requirePermission("leads.update"), asyncHandler(leadController.closeLead))
-router.post("/:id/fail", requirePermission("leads.update"), asyncHandler(leadController.failLead))
-router.post("/failures/:failureId/resolve", requirePermission("leads.update"), asyncHandler(leadController.resolveFailure))
+
+router.get("/sources", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("lead_sources.read")(req, res, next)
+}, asyncHandler(leadController.listLeadSources))
+router.get("/:id", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("leads.read")(req, res, next)
+}, asyncHandler(leadController.getLead))
+router.get("/:id/deadline", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("leads.read")(req, res, next)
+}, asyncHandler(leadController.getDeadline))
+
+router.patch("/:id", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("leads.update")(req, res, next)
+}, asyncHandler(leadController.updateLead))
+
+router.patch("/:id/stage", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("leads.update")(req, res, next)
+}, asyncHandler(leadController.updateStage))
+
+router.post("/:id/stage/undo", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("leads.update")(req, res, next)
+}, asyncHandler(leadController.undoStage))
+
+router.post("/:id/close", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("leads.update")(req, res, next)
+}, asyncHandler(leadController.closeLead))
+
+router.post("/:id/fail", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("leads.update")(req, res, next)
+}, asyncHandler(leadController.failLead))
+
+router.post("/failures/:failureId/resolve", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("leads.update")(req, res, next)
+}, asyncHandler(leadController.resolveFailure))
+
 router.delete("/:id", requirePermission("leads.delete"), asyncHandler(leadController.deleteLead))
+
 router.post("/:id/assign", requirePermission("leads.assign"), asyncHandler(leadController.assignLead))
 router.post("/:id/unassign", requirePermission("leads.assign"), asyncHandler(leadController.unassignLead))
-router.post("/:id/contacts", requirePermission("leads.update"), asyncHandler(leadController.addLeadContact))
-router.post("/:id/tasks", requirePermission("leads.update"), asyncHandler(leadController.addLeadTask))
-router.post("/:id/calls", requirePermission("leads.update"), asyncHandler(leadController.addCallLog))
+
+router.post("/:id/contacts", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("leads.update")(req, res, next)
+}, asyncHandler(leadController.addLeadContact))
+
+router.post("/:id/tasks", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("leads.update")(req, res, next)
+}, asyncHandler(leadController.addLeadTask))
+
+router.post("/:id/calls", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("leads.update")(req, res, next)
+}, asyncHandler(leadController.addCallLog))

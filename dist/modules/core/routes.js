@@ -11,10 +11,14 @@ exports.router.get("/tenants", (0, asyncHandler_1.asyncHandler)(controller_1.cor
 exports.router.post("/users", (0, rbac_1.requirePermission)("users.create"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.createUser));
 exports.router.get("/users", (0, rbac_1.requirePermission)("users.read"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.listUsers));
 exports.router.get("/users/:userId/audit", rbac_1.requireOwner, (0, rbac_1.requirePermission)("users.read"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.listUserAuditLogs));
+exports.router.put("/users/:userId", rbac_1.requireOwner, (0, rbac_1.requirePermission)("users.update"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.updateUser));
+exports.router.delete("/users/:userId", rbac_1.requireOwner, (0, rbac_1.requirePermission)("users.delete"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.deleteUser));
+exports.router.post("/users/:userId/reset-password", rbac_1.requireOwner, (0, rbac_1.requirePermission)("users.update"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.resetUserPassword));
+exports.router.get("/activity", (0, asyncHandler_1.asyncHandler)(controller_1.coreController.listMyActivity));
 exports.router.post("/users/:userId/transfer", rbac_1.requireOwner, (0, rbac_1.requirePermission)("users.update"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.transferUserTeam));
 exports.router.post("/users/:userId/promote", rbac_1.requireOwner, (0, rbac_1.requirePermission)("users.update"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.promoteToTeamLeader));
 exports.router.post("/user-requests", (req, res, next) => {
-    if (req.user?.roles?.includes("team_leader"))
+    if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales"))
         return next();
     return (0, rbac_1.requirePermission)("user_requests.create")(req, res, next);
 }, (0, asyncHandler_1.asyncHandler)(controller_1.coreController.createUserRequest));
@@ -22,6 +26,7 @@ exports.router.get("/user-requests", (0, rbac_1.requirePermission)("user_request
 exports.router.post("/user-requests/:requestId/decide", (0, rbac_1.requirePermission)("user_requests.decide"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.decideUserRequest));
 exports.router.post("/roles", rbac_1.requireOwner, (0, rbac_1.requirePermission)("roles.create"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.createRole));
 exports.router.get("/roles", rbac_1.requireOwner, (0, rbac_1.requirePermission)("roles.read"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.listRoles));
+exports.router.delete("/roles/:roleId", rbac_1.requireOwner, (0, rbac_1.requirePermission)("roles.delete"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.deleteRole));
 exports.router.get("/permissions", rbac_1.requireOwner, (0, rbac_1.requirePermission)("permissions.read"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.listPermissions));
 exports.router.get("/roles/:roleId/permissions", rbac_1.requireOwner, (0, rbac_1.requirePermission)("roles.read"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.listRolePermissions));
 exports.router.put("/roles/:roleId/permissions", rbac_1.requireOwner, (0, rbac_1.requirePermission)("roles.update"), (0, asyncHandler_1.asyncHandler)(controller_1.coreController.updateRolePermissions));

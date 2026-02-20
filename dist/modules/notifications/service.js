@@ -4,6 +4,7 @@ exports.notificationService = void 0;
 const client_1 = require("../../prisma/client");
 const pushService_1 = require("./pushService");
 const smsService_1 = require("./smsService");
+const socket_1 = require("../../socket");
 exports.notificationService = {
     listEvents: (tenantId, limit = 20) => client_1.prisma.notificationEvent.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" }, take: limit }),
     publishEvent: (tenantId, eventKey, payload) => client_1.prisma.notificationEvent.create({ data: { tenantId, eventKey, payload: payload } }),
@@ -66,6 +67,19 @@ exports.notificationService = {
                     }
                 }
             });
+            // Emit Socket Event
+            try {
+                const io = (0, socket_1.getIO)();
+                users.forEach((user) => {
+                    io.to(`user:${user.id}`).emit("notification", {
+                        message: normalizedMessage,
+                        type: "info",
+                    });
+                });
+            }
+            catch (e) {
+                // Socket might not be initialized in some contexts
+            }
         }
         // 2. Send Push
         if (channels.includes("push")) {
@@ -84,6 +98,36 @@ exports.notificationService = {
                     await smsService_1.smsService.send(user.phone, normalizedMessage);
                 }
             }
+        }
+    },
+    send: async (tenantId, userIds, payload) => {
+        // 1. Store In-App Notification
+        await client_1.prisma.notificationEvent.create({
+            data: {
+                tenantId,
+                eventKey: payload.type,
+                payload: {
+                    message: payload.message,
+                    title: payload.title,
+                    entityId: payload.entityId,
+                    recipients: userIds
+                }
+            }
+        });
+        // 2. Emit Socket Event
+        try {
+            const io = (0, socket_1.getIO)();
+            userIds.forEach((userId) => {
+                io.to(`user:${userId}`).emit("notification", {
+                    title: payload.title,
+                    message: payload.message,
+                    type: payload.type,
+                    entityId: payload.entityId
+                });
+            });
+        }
+        catch (e) {
+            // Socket might not be initialized
         }
     }
 };

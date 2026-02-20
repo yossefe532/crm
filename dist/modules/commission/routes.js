@@ -6,7 +6,11 @@ const asyncHandler_1 = require("../../utils/asyncHandler");
 const controller_1 = require("./controller");
 const rbac_1 = require("../../middleware/rbac");
 exports.router = (0, express_1.Router)();
-exports.router.get("/ledger", (0, rbac_1.requirePermission)("commissions.read"), (0, asyncHandler_1.asyncHandler)(controller_1.commissionController.listLedger));
+exports.router.get("/ledger", (req, res, next) => {
+    if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales"))
+        return next();
+    return (0, rbac_1.requirePermission)("commissions.read")(req, res, next);
+}, (0, asyncHandler_1.asyncHandler)(controller_1.commissionController.listLedger));
 exports.router.post("/plans", (0, rbac_1.requirePermission)("commissions.create"), (0, asyncHandler_1.asyncHandler)(controller_1.commissionController.createPlan));
 exports.router.post("/rules", (0, rbac_1.requirePermission)("commissions.create"), (0, asyncHandler_1.asyncHandler)(controller_1.commissionController.createRule));
 exports.router.post("/ledger", (0, rbac_1.requirePermission)("commissions.create"), (0, asyncHandler_1.asyncHandler)(controller_1.commissionController.createLedgerEntry));

@@ -1,11 +1,16 @@
 import { Request, Response } from "express"
 import { analyticsService } from "./service"
 import { logActivity } from "../../utils/activity"
+import { prisma } from "../../prisma/client"
 
 export const analyticsController = {
   listDailyMetrics: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
-    const metrics = await analyticsService.listDailyMetrics(tenantId, req.query.from as string | undefined, req.query.to as string | undefined)
+    const userId = req.user?.id
+    const roles = req.user?.roles || []
+    const role = roles.includes("owner") ? "owner" : roles.includes("team_leader") ? "team_leader" : "sales"
+
+    const metrics = await analyticsService.listDailyMetrics(tenantId, req.query.from as string | undefined, req.query.to as string | undefined, userId, role)
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "metrics.daily.listed", entityType: "lead_metrics_daily" })
     res.json(metrics)
   },
@@ -39,12 +44,13 @@ export const analyticsController = {
   getDashboardMetrics: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
     const userId = req.user?.id || ""
-    const role = req.user?.roles?.[0] || "" // Assuming single role or primary role
+    const roles = req.user?.roles || []
+    const role = roles.includes("owner") ? "owner" : roles.includes("team_leader") ? "team_leader" : "sales"
 
     const [distribution, conversion, avgTime, salesPerformance, teamPerformance, revenueOverTime, leadSources, keyMetrics, salesStageSummary] = await Promise.all([
       analyticsService.getStageDistribution(tenantId, userId, role),
       analyticsService.getConversionRate(tenantId, userId, role),
-      analyticsService.getAvgTimePerStage(tenantId),
+      analyticsService.getAvgTimePerStage(tenantId, userId, role),
       analyticsService.getSalesPerformance(tenantId, userId, role),
       analyticsService.getTeamPerformance(tenantId, userId, role),
       analyticsService.getRevenueOverTime(tenantId, userId, role),
@@ -68,6 +74,11 @@ export const analyticsController = {
 
   getLeadTimeline: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
+    // Check if user has access to this lead
+    if (req.user?.roles?.includes("sales") && !req.user?.roles?.includes("team_leader") && !req.user?.roles?.includes("owner")) {
+       const lead = await prisma.lead.findFirst({ where: { id: req.params.leadId, tenantId, assignedUserId: req.user.id } })
+       if (!lead) throw { status: 403, message: "غير مصرح" }
+    }
     const timeline = await analyticsService.getLeadTimeline(tenantId, req.params.leadId)
     res.json(timeline)
   },

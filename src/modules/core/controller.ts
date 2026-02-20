@@ -51,7 +51,7 @@ export const coreController = {
         if (!leaderTeam) throw { status: 400, message: "لا يوجد فريق مرتبط بهذا القائد" }
         
         const payload = { name, email, phone, role: "sales", teamId: leaderTeam.id }
-        const request = await coreService.createUserRequest(tenantId, { requestedBy: req.user?.id || "", requestType: "create_sales", payload })
+        const request = await coreService.createUserRequest(tenantId, req.user?.id || "", "create_sales", payload)
         await logActivity({ tenantId, actorUserId: req.user?.id, action: "user_request.created", entityType: "user_request", entityId: request.id })
         res.status(202).json({ message: "تم إرسال طلب إنشاء المستخدم للموافقة", request })
         return
@@ -169,19 +169,36 @@ export const coreController = {
   },
   updateUser: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
-    const userId = req.params.userId
-    const { email, phone, status, name } = req.body
+    const name = req.body.name ? String(req.body.name).trim() : undefined
+    const email = req.body.email ? String(req.body.email).trim().toLowerCase() : undefined
+    const phone = req.body.phone ? String(req.body.phone).trim() : undefined
+    if (await isOwnerAccount(tenantId, req.params.userId)) throw { status: 403, message: "لا يمكن تعديل حساب المالك" }
     
-    let firstName: string | undefined, lastName: string | undefined
+    let firstName: string | undefined
+    let lastName: string | undefined
+    
     if (name) {
-      const parts = name.trim().split(" ")
+      const parts = name.split(" ")
       firstName = parts[0]
-      lastName = parts.slice(1).join(" ")
+      lastName = parts.slice(1).join(" ") || undefined
     }
 
-    await coreService.updateUser(tenantId, userId, { email, phone, status, firstName, lastName })
-    await logActivity({ tenantId, actorUserId: req.user?.id, action: "user.updated", entityType: "user", entityId: userId })
-    res.json({ status: "ok" })
+    if (phone) {
+      const existingPhone = await coreService.listUsers(tenantId)
+      if (existingPhone.some((user) => user.phone === phone && user.id !== req.params.userId)) {
+        throw { status: 409, message: "رقم الهاتف مستخدم بالفعل" }
+      }
+    }
+    const updated = await coreService.updateUser(tenantId, req.params.userId, {
+      email,
+      phone,
+      firstName,
+      lastName,
+      status: req.body?.status ? String(req.body.status) : undefined
+    })
+
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "user.updated", entityType: "user", entityId: updated.id })
+    res.json(updated)
   },
   getUser: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
@@ -221,17 +238,29 @@ export const coreController = {
   },
   deleteUser: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
-    const userId = req.params.userId
-    await coreService.deleteUser(tenantId, userId)
-    await logActivity({ tenantId, actorUserId: req.user?.id, action: "user.deleted", entityType: "user", entityId: userId })
+    if (req.user?.id === req.params.userId) throw { status: 400, message: "لا يمكن حذف الحساب الحالي" }
+    if (await isOwnerAccount(tenantId, req.params.userId)) throw { status: 403, message: "لا يمكن حذف حساب المالك" }
+    await coreService.deleteUser(tenantId, req.params.userId)
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "user.deleted", entityType: "user", entityId: req.params.userId })
     res.json({ status: "ok" })
   },
   resetUserPassword: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
-    const userId = req.params.userId
-    const result = await coreService.resetPassword(tenantId, userId)
-    await logActivity({ tenantId, actorUserId: req.user?.id, action: "user.password.reset", entityType: "user", entityId: userId })
-    res.json(result)
+    const password = req.body?.password ? String(req.body.password) : ""
+    if (await isOwnerAccount(tenantId, req.params.userId)) throw { status: 403, message: "لا يمكن تعديل حساب المالك" }
+    let passwordHash: string
+    let temporaryPassword: string | undefined
+    if (password) {
+      const strength = validatePasswordStrength(password)
+      if (!strength.ok) throw { status: 400, message: strength.reasons[0] || "كلمة المرور ضعيفة" }
+      passwordHash = await hashPassword(password)
+    } else {
+      temporaryPassword = generateStrongPassword()
+      passwordHash = await hashPassword(temporaryPassword)
+    }
+    await coreService.resetPassword(tenantId, req.params.userId, passwordHash, true)
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "user.password.reset", entityType: "user", entityId: req.params.userId })
+    res.json({ status: "ok", ...(temporaryPassword ? { temporaryPassword } : {}) })
   },
   createRole: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
@@ -509,11 +538,7 @@ export const coreController = {
       const payload = req.body.payload
       if (!payload || !payload.name || !payload.phone) throw { status: 400, message: "بيانات العميل غير مكتملة" }
       
-      const request = await coreService.createUserRequest(tenantId, { 
-        requestedBy: userId, 
-        requestType: "create_lead", 
-        payload 
-      })
+      const request = await coreService.createUserRequest(tenantId, userId, "create_lead", payload)
       await logActivity({ tenantId, actorUserId: userId, action: "user_request.created", entityType: "user_request", entityId: request.id })
       res.json(request)
       return
@@ -530,7 +555,7 @@ export const coreController = {
     const leaderTeam = await coreService.getTeamByLeader(tenantId, userId)
     if (!leaderTeam) throw { status: 400, message: "لا يوجد فريق مرتبط بهذا القائد" }
     const payload = { name, email, phone, role: "sales", teamId: leaderTeam.id }
-    const request = await coreService.createUserRequest(tenantId, { requestedBy: userId, requestType: "create_sales", payload })
+    const request = await coreService.createUserRequest(tenantId, userId, "create_sales", payload)
     await logActivity({ tenantId, actorUserId: userId, action: "user_request.created", entityType: "user_request", entityId: request.id })
     res.json(request)
   },
@@ -654,86 +679,7 @@ export const coreController = {
     res.json(contacts)
   },
 
-  getUser: async (req: Request, res: Response) => {
-    const tenantId = req.user?.tenantId || ""
-    const user = await coreService.getUserById(tenantId, req.params.userId)
-    if (!user) throw { status: 404, message: "User not found" }
-    
-    await logActivity({ tenantId, actorUserId: req.user?.id, action: "user.read", entityType: "user", entityId: user.id })
-    
-    res.json({
-      id: user.id,
-      tenantId: user.tenantId,
-      email: user.email,
-      phone: user.phone,
-      status: user.status,
-      mustChangePassword: user.mustChangePassword,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      firstName: user.profile?.firstName,
-      lastName: user.profile?.lastName,
-      roles: (user.roleLinks || []).map((link) => link.role.name)
-    })
-  },
 
-  updateUser: async (req: Request, res: Response) => {
-    const tenantId = req.user?.tenantId || ""
-    const name = req.body.name ? String(req.body.name).trim() : undefined
-    const email = req.body.email ? String(req.body.email).trim().toLowerCase() : undefined
-    const phone = req.body.phone ? String(req.body.phone).trim() : undefined
-    if (await isOwnerAccount(tenantId, req.params.userId)) throw { status: 403, message: "لا يمكن تعديل حساب المالك" }
-    
-    let firstName: string | undefined
-    let lastName: string | undefined
-    
-    if (name) {
-      const parts = name.split(" ")
-      firstName = parts[0]
-      lastName = parts.slice(1).join(" ") || undefined
-    }
 
-    if (phone) {
-      const existingPhone = await coreService.listUsers(tenantId)
-      if (existingPhone.some((user) => user.phone === phone && user.id !== req.params.userId)) {
-        throw { status: 409, message: "رقم الهاتف مستخدم بالفعل" }
-      }
-    }
-    const updated = await coreService.updateUser(tenantId, req.params.userId, {
-      email,
-      phone,
-      firstName,
-      lastName,
-      status: req.body?.status ? String(req.body.status) : undefined
-    })
 
-    await logActivity({ tenantId, actorUserId: req.user?.id, action: "user.updated", entityType: "user", entityId: updated.id })
-    res.json(updated)
-  },
-  resetUserPassword: async (req: Request, res: Response) => {
-    const tenantId = req.user?.tenantId || ""
-    const password = req.body?.password ? String(req.body.password) : ""
-    if (await isOwnerAccount(tenantId, req.params.userId)) throw { status: 403, message: "لا يمكن تعديل حساب المالك" }
-    let passwordHash: string
-    let temporaryPassword: string | undefined
-    if (password) {
-      const strength = validatePasswordStrength(password)
-      if (!strength.ok) throw { status: 400, message: strength.reasons[0] || "كلمة المرور ضعيفة" }
-      passwordHash = await hashPassword(password)
-    } else {
-      temporaryPassword = generateStrongPassword()
-      passwordHash = await hashPassword(temporaryPassword)
-    }
-    await coreService.resetUserPassword(tenantId, req.params.userId, passwordHash, true)
-    await logActivity({ tenantId, actorUserId: req.user?.id, action: "user.password.reset", entityType: "user", entityId: req.params.userId })
-    res.json({ status: "ok", ...(temporaryPassword ? { temporaryPassword } : {}) })
-  },
-
-  deleteUser: async (req: Request, res: Response) => {
-    const tenantId = req.user?.tenantId || ""
-    if (req.user?.id === req.params.userId) throw { status: 400, message: "لا يمكن حذف الحساب الحالي" }
-    if (await isOwnerAccount(tenantId, req.params.userId)) throw { status: 403, message: "لا يمكن حذف حساب المالك" }
-    await coreService.deleteUser(tenantId, req.params.userId)
-    await logActivity({ tenantId, actorUserId: req.user?.id, action: "user.deleted", entityType: "user", entityId: req.params.userId })
-    res.json({ status: "ok" })
-  }
 }

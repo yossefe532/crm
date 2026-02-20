@@ -9,7 +9,7 @@ export const commissionService = {
     }
     return prisma.commissionLedger.findMany({ 
       where, 
-      include: { commissionApprovals: true },
+      include: { approvals: true },
       orderBy: { createdAt: "desc" }, 
       take: limit 
     })

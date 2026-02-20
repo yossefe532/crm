@@ -2,12 +2,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.leadController = void 0;
 const service_1 = require("./service");
+const service_2 = require("../core/service");
 const pagination_1 = require("../../utils/pagination");
 const activity_1 = require("../../utils/activity");
-const service_2 = require("../intelligence/service");
-const service_3 = require("../notifications/service");
-const service_4 = require("../lifecycle/service");
+const service_3 = require("../intelligence/service");
+const service_4 = require("../notifications/service");
+const service_5 = require("../lifecycle/service");
 const client_1 = require("../../prisma/client");
+const isValidUUID = (id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 const resolveAssignmentTarget = async (tenantId, actor, assignedUserId) => {
     const targetUser = await client_1.prisma.user.findFirst({ where: { id: assignedUserId, tenantId, deletedAt: null, status: "active" } });
     if (!targetUser)
@@ -50,15 +52,61 @@ const resolveAssignmentTarget = async (tenantId, actor, assignedUserId) => {
     }
     throw { status: 403, message: "غير مصرح بتنفيذ التعيين" };
 };
+const checkLeadAccess = async (lead, user, requireAction = true) => {
+    if (user.roles?.includes("owner"))
+        return true;
+    if (user.roles?.includes("team_leader")) {
+        if (lead.assignedUserId === user.id)
+            return true;
+        // Check if lead is assigned to a member of the leader's team
+        const team = await client_1.prisma.team.findFirst({
+            where: { tenantId: user.tenantId, leaderUserId: user.id, deletedAt: null },
+            include: { members: true }
+        });
+        if (team) {
+            const memberIds = team.members.map(m => m.userId);
+            if (lead.assignedUserId && memberIds.includes(lead.assignedUserId))
+                return true;
+            if (lead.teamId === team.id)
+                return true;
+        }
+    }
+    if (user.roles?.includes("sales")) {
+        if (lead.assignedUserId === user.id)
+            return true;
+    }
+    return false;
+};
 exports.leadController = {
     createLead: async (req, res) => {
         try {
             const tenantId = req.user?.tenantId || "";
             const roles = req.user?.roles || [];
-            if (roles.includes("sales") && !roles.includes("owner") && !roles.includes("team_leader")) {
-                throw { status: 403, message: "غير مصرح لك بإضافة عملاء مباشرة. يرجى إرسال طلب إضافة." };
-            }
             const name = String(req.body?.name || "").trim();
+            if (roles.includes("sales") && !roles.includes("owner") && !roles.includes("team_leader")) {
+                const actor = await client_1.prisma.user.findUnique({ where: { id: req.user?.id }, select: { profile: { select: { firstName: true, lastName: true } }, email: true } });
+                const actorName = actor?.profile ? `${actor.profile.firstName || ""} ${actor.profile.lastName || ""}`.trim() : (actor?.email || "Unknown");
+                const requestPayload = { ...req.body, assignedUserId: req.user?.id };
+                const request = await service_2.coreService.createUserRequest(tenantId, req.user?.id || "", "create_lead", requestPayload);
+                await (0, activity_1.logActivity)({ tenantId, actorUserId: req.user?.id, action: "lead.request.created", entityType: "user_request", entityId: request.id });
+                // Notify admins/team leaders
+                const admins = await client_1.prisma.userRole.findMany({
+                    where: { tenantId, role: { name: { in: ["owner", "admin", "team_leader"] } }, revokedAt: null },
+                    select: { userId: true }
+                });
+                const recipientIds = [...new Set(admins.map(a => a.userId))];
+                await service_4.notificationService.send(tenantId, recipientIds, {
+                    title: "طلب إضافة عميل جديد",
+                    message: `طلب المندوب ${actorName} إضافة عميل جديد: ${name}`,
+                    type: "lead_request",
+                    entityId: request.id
+                });
+                return res.json({
+                    message: "تم إرسال طلب إضافة العميل للموافقة",
+                    request,
+                    status: "pending"
+                });
+            }
             const leadCode = String(req.body?.leadCode || "").trim();
             if (!name)
                 throw { status: 400, message: "اسم العميل مطلوب" };
@@ -133,7 +181,7 @@ exports.leadController = {
                 await (0, activity_1.logActivity)({ tenantId, actorUserId: req.user?.id, action: "lead.assigned", entityType: "lead", entityId: lead.id, metadata: { assignedUserId } });
             }
             await (0, activity_1.logActivity)({ tenantId, actorUserId: req.user?.id, action: "lead.created", entityType: "lead", entityId: lead.id });
-            service_2.intelligenceService.queueTrigger({ type: "lead_changed", tenantId, leadId: lead.id, userId: lead.assignedUserId || undefined });
+            service_3.intelligenceService.queueTrigger({ type: "lead_changed", tenantId, leadId: lead.id, userId: lead.assignedUserId || undefined });
             res.json(lead);
         }
         catch (error) {
@@ -160,6 +208,8 @@ exports.leadController = {
     },
     updateLead: async (req, res) => {
         const tenantId = req.user?.tenantId || "";
+        if (!isValidUUID(req.params.id))
+            throw { status: 404, message: "العميل غير موجود" };
         const existing = await service_1.leadService.getLeadForUser(tenantId, req.params.id, req.user);
         if (!existing)
             throw { status: 404, message: "العميل غير موجود" };
@@ -185,14 +235,17 @@ exports.leadController = {
             desiredLocation: req.body?.desiredLocation ? String(req.body.desiredLocation) : undefined,
             propertyType: req.body?.propertyType ? String(req.body.propertyType) : undefined,
             profession: req.body?.profession ? String(req.body.profession) : undefined,
-            notes: req.body?.notes ? String(req.body.notes) : undefined
+            notes: req.body?.notes ? String(req.body.notes) : undefined,
+            isWrongNumber: phone && phone !== existing.phone ? false : undefined
         });
         await (0, activity_1.logActivity)({ tenantId, actorUserId: req.user?.id, action: "lead.updated", entityType: "lead", entityId: lead.id });
-        service_2.intelligenceService.queueTrigger({ type: "lead_changed", tenantId, leadId: lead.id, userId: lead.assignedUserId || undefined });
+        service_3.intelligenceService.queueTrigger({ type: "lead_changed", tenantId, leadId: lead.id, userId: lead.assignedUserId || undefined });
         res.json(lead);
     },
     getLead: async (req, res) => {
         const tenantId = req.user?.tenantId || "";
+        if (!isValidUUID(req.params.id))
+            throw { status: 404, message: "العميل غير موجود" };
         const lead = await service_1.leadService.getLeadForUser(tenantId, req.params.id, req.user);
         if (!lead)
             throw { status: 404, message: "العميل غير موجود" };
@@ -201,6 +254,8 @@ exports.leadController = {
     },
     deleteLead: async (req, res) => {
         const tenantId = req.user?.tenantId || "";
+        if (!isValidUUID(req.params.id))
+            throw { status: 404, message: "العميل غير موجود" };
         const existing = await service_1.leadService.getLeadForUser(tenantId, req.params.id, req.user);
         if (!existing)
             throw { status: 404, message: "العميل غير موجود" };
@@ -210,17 +265,21 @@ exports.leadController = {
     },
     updateStage: async (req, res) => {
         const tenantId = req.user?.tenantId || "";
+        if (!isValidUUID(req.params.id))
+            throw { status: 404, message: "العميل غير موجود" };
         const stageCode = String(req.body?.stage || req.body?.code || "").trim().toLowerCase();
         if (!stageCode)
             throw { status: 400, message: "المرحلة مطلوبة" };
-        const state = await service_4.lifecycleService.getStateByCode(tenantId, stageCode);
+        const state = await service_5.lifecycleService.getStateByCode(tenantId, stageCode);
         if (!state)
             throw { status: 404, message: "المرحلة غير موجودة" };
         const existing = await service_1.leadService.getLeadForUser(tenantId, req.params.id, req.user);
         if (!existing)
             throw { status: 404, message: "العميل غير موجود" };
-        if (!req.user?.roles?.includes("sales") || existing.assignedUserId !== req.user?.id) {
-            throw { status: 403, message: "غير مصرح بتنفيذ المراحل" };
+        if (req.user?.roles?.includes("sales") && !req.user?.roles?.includes("owner") && !req.user?.roles?.includes("team_leader")) {
+            if (existing.assignedUserId !== req.user?.id) {
+                throw { status: 403, message: "غير مصرح بتنفيذ المراحل" };
+            }
         }
         const orderMap = { new: 0, call: 0, meeting: 1, site_visit: 2, closing: 3 };
         const currentIndex = orderMap[existing.status] ?? 0;
@@ -228,16 +287,27 @@ exports.leadController = {
         if (targetIndex === undefined || targetIndex !== currentIndex + 1) {
             throw { status: 400, message: "انتقال غير صالح بين المراحل" };
         }
-        const updatedState = await service_4.lifecycleService.transitionLead(tenantId, req.params.id, state.id, req.user?.id);
-        const event = await service_3.notificationService.publishEvent(tenantId, "lead.stage.completed", {
+        const updatedState = await service_5.lifecycleService.transitionLead(tenantId, req.params.id, state.id, req.user?.id);
+        const lead = await client_1.prisma.lead.findFirst({ where: { tenantId, id: req.params.id }, select: { id: true, name: true, assignedUserId: true, teamId: true } });
+        const stageLabelMap = { new: "جديد", call: "مكالمة هاتفية", meeting: "اجتماع", site_visit: "رؤية الموقع", closing: "إغلاق الصفقة" };
+        const messageAr = `تم نقل العميل ${lead?.name || req.params.id} إلى مرحلة ${stageLabelMap[updatedState.code] || updatedState.code}`;
+        const event = await service_4.notificationService.publishEvent(tenantId, "lead.stage.completed", {
             leadId: req.params.id,
+            leadName: lead?.name,
             stage: updatedState.code,
             changedBy: req.user?.id,
-            targets: ["owner", "team_leader"]
+            recipientUserId: lead?.assignedUserId,
+            targets: ["owner", "team_leader", "sales"],
+            messageAr
         });
-        await service_3.notificationService.queueDelivery(tenantId, event.id, "in_app");
+        await service_4.notificationService.queueDelivery(tenantId, event.id, "in_app");
+        if (lead?.assignedUserId) {
+            await service_4.notificationService.broadcast(tenantId, { type: "user", value: lead.assignedUserId }, messageAr, ["push"]);
+        }
+        await service_4.notificationService.broadcast(tenantId, { type: "role", value: "team_leader" }, messageAr, ["push"]);
+        await service_4.notificationService.broadcast(tenantId, { type: "role", value: "owner" }, messageAr, ["push"]);
         await (0, activity_1.logActivity)({ tenantId, actorUserId: req.user?.id, action: "lead.stage.updated", entityType: "lead", entityId: req.params.id, metadata: { stage: updatedState.code } });
-        service_2.intelligenceService.queueTrigger({ type: "lead_changed", tenantId, leadId: req.params.id, userId: req.user?.id });
+        service_3.intelligenceService.queueTrigger({ type: "lead_changed", tenantId, leadId: req.params.id, userId: req.user?.id });
         res.json(updatedState);
     },
     undoStage: async (req, res) => {
@@ -275,11 +345,13 @@ exports.leadController = {
         await client_1.prisma.leadDeadline.updateMany({ where: { tenantId, leadId: lead.id, status: "active" }, data: { status: "completed" } });
         await client_1.prisma.leadDeadline.create({ data: { tenantId, leadId: lead.id, stateId: previousState.id, dueAt: new Date(Date.now() + 7 * 24 * 3600 * 1000) } });
         await (0, activity_1.logActivity)({ tenantId, actorUserId: req.user?.id, action: "lead.stage.undone", entityType: "lead", entityId: lead.id, metadata: { toStage: previousState.code } });
-        service_2.intelligenceService.queueTrigger({ type: "lead_changed", tenantId, leadId: lead.id, userId: req.user?.id });
+        service_3.intelligenceService.queueTrigger({ type: "lead_changed", tenantId, leadId: lead.id, userId: req.user?.id });
         res.json({ status: previousState.code });
     },
     assignLead: async (req, res) => {
         const tenantId = req.user?.tenantId || "";
+        if (!isValidUUID(req.params.id))
+            throw { status: 404, message: "العميل غير موجود" };
         const assignedUserId = String(req.body?.assignedUserId || "").trim();
         if (!assignedUserId)
             throw { status: 400, message: "المستخدم المُسند مطلوب" };
@@ -289,34 +361,42 @@ exports.leadController = {
         const assignmentContext = await resolveAssignmentTarget(tenantId, req.user, assignedUserId);
         const assignment = await service_1.leadService.assignLead(tenantId, req.params.id, assignedUserId, req.user?.id, req.body?.reason, assignmentContext.resolvedTeamId || null);
         await (0, activity_1.logActivity)({ tenantId, actorUserId: req.user?.id, action: "lead.assigned", entityType: "lead", entityId: req.params.id, metadata: { assignedUserId, previousAssignedUserId: lead.assignedUserId || null, reason: req.body?.reason } });
-        service_2.intelligenceService.queueTrigger({ type: "lead_changed", tenantId, leadId: req.params.id, userId: assignedUserId });
+        service_3.intelligenceService.queueTrigger({ type: "lead_changed", tenantId, leadId: req.params.id, userId: assignedUserId });
         res.json(assignment);
     },
     unassignLead: async (req, res) => {
         const tenantId = req.user?.tenantId || "";
+        if (!isValidUUID(req.params.id))
+            throw { status: 404, message: "العميل غير موجود" };
         const lead = await service_1.leadService.getLeadForUser(tenantId, req.params.id, req.user);
         if (!lead)
             throw { status: 404, message: "العميل غير موجود" };
         const updated = await service_1.leadService.unassignLead(tenantId, req.params.id);
         await (0, activity_1.logActivity)({ tenantId, actorUserId: req.user?.id, action: "lead.unassigned", entityType: "lead", entityId: req.params.id, metadata: { previousAssignedUserId: lead.assignedUserId || null } });
-        service_2.intelligenceService.queueTrigger({ type: "lead_changed", tenantId, leadId: req.params.id, userId: req.user?.id });
+        service_3.intelligenceService.queueTrigger({ type: "lead_changed", tenantId, leadId: req.params.id, userId: req.user?.id });
         res.json(updated);
     },
     addLeadContact: async (req, res) => {
         const tenantId = req.user?.tenantId || "";
+        if (!isValidUUID(req.params.id))
+            throw { status: 404, message: "العميل غير موجود" };
         const link = await service_1.leadService.createLeadContact(tenantId, req.params.id, req.body.contactId, req.body.role);
         await (0, activity_1.logActivity)({ tenantId, actorUserId: req.user?.id, action: "lead.contact.added", entityType: "lead", entityId: req.params.id, metadata: { contactId: req.body.contactId } });
         res.json(link);
     },
     addLeadTask: async (req, res) => {
         const tenantId = req.user?.tenantId || "";
+        if (!isValidUUID(req.params.id))
+            throw { status: 404, message: "العميل غير موجود" };
         const task = await service_1.leadService.createLeadTask(tenantId, { leadId: req.params.id, assignedUserId: req.body.assignedUserId, taskType: req.body.taskType, dueAt: req.body.dueAt });
         await (0, activity_1.logActivity)({ tenantId, actorUserId: req.user?.id, action: "lead.task.created", entityType: "lead_task", entityId: task.id, metadata: { leadId: req.params.id } });
-        service_2.intelligenceService.queueTrigger({ type: "task_changed", tenantId, leadId: req.params.id, userId: req.body.assignedUserId });
+        service_3.intelligenceService.queueTrigger({ type: "task_changed", tenantId, leadId: req.params.id, userId: req.body.assignedUserId });
         res.json(task);
     },
     addCallLog: async (req, res) => {
         const tenantId = req.user?.tenantId || "";
+        if (!isValidUUID(req.params.id))
+            throw { status: 404, message: "العميل غير موجود" };
         const outcome = req.body?.outcome ? String(req.body.outcome) : undefined;
         if (!outcome)
             throw { status: 400, message: "نتيجة المكالمة مطلوبة" };
@@ -325,14 +405,30 @@ exports.leadController = {
             throw { status: 404, message: "العميل غير موجود" };
         const call = await service_1.leadService.createCallLog(tenantId, { leadId: req.params.id, callerUserId: req.user?.id, durationSeconds: req.body.durationSeconds, outcome, recordingFileId: req.body.recordingFileId });
         await (0, activity_1.logActivity)({ tenantId, actorUserId: req.user?.id, action: "lead.call.logged", entityType: "call_log", entityId: call.id, metadata: { leadId: req.params.id } });
-        service_2.intelligenceService.queueTrigger({ type: "lead_engaged", tenantId, leadId: req.params.id, userId: req.user?.id });
-        const event = await service_3.notificationService.publishEvent(tenantId, "lead.call.logged", {
-            leadId: req.params.id,
-            outcome,
-            targets: ["owner"],
-            messageAr: `تم تسجيل مكالمة للعميل ${lead.name}`
-        });
-        await service_3.notificationService.queueDelivery(tenantId, event.id, "in_app");
+        service_3.intelligenceService.queueTrigger({ type: "lead_engaged", tenantId, leadId: req.params.id, userId: req.user?.id });
+        if (outcome === "wrong_number") {
+            await service_1.leadService.updateLead(tenantId, lead.id, { isWrongNumber: true });
+            const messageAr = `⚠️ تنبيه: رقم خاطئ تم الإبلاغ عنه للعميل ${lead.name}`;
+            const event = await service_4.notificationService.publishEvent(tenantId, "lead.phone.wrong", {
+                leadId: req.params.id,
+                leadName: lead.name,
+                reportedBy: req.user?.id,
+                phone: lead.phone,
+                messageAr
+            });
+            await service_4.notificationService.queueDelivery(tenantId, event.id, "in_app");
+            // Also broadcast to owner specifically
+            await service_4.notificationService.broadcast(tenantId, { type: "role", value: "owner" }, messageAr, ["in_app", "push"]);
+        }
+        else {
+            const event = await service_4.notificationService.publishEvent(tenantId, "lead.call.logged", {
+                leadId: req.params.id,
+                outcome,
+                targets: ["owner"],
+                messageAr: `تم تسجيل مكالمة للعميل ${lead.name}`
+            });
+            await service_4.notificationService.queueDelivery(tenantId, event.id, "in_app");
+        }
         res.json(call);
     },
     createLeadSource: async (req, res) => {
@@ -349,6 +445,8 @@ exports.leadController = {
     },
     getDeadline: async (req, res) => {
         const tenantId = req.user?.tenantId || "";
+        if (!isValidUUID(req.params.id))
+            throw { status: 404, message: "العميل غير موجود" };
         const existing = await service_1.leadService.getLeadForUser(tenantId, req.params.id, req.user);
         if (!existing)
             throw { status: 404, message: "العميل غير موجود" };
@@ -357,30 +455,57 @@ exports.leadController = {
     },
     listDeadlines: async (req, res) => {
         const tenantId = req.user?.tenantId || "";
-        const deadlines = await service_1.leadService.listActiveDeadlines(tenantId);
+        const roles = req.user?.roles || [];
+        const role = roles.includes("owner") ? "owner" : roles.includes("team_leader") ? "team_leader" : "sales";
+        const deadlines = await service_1.leadService.listActiveDeadlines(tenantId, req.user?.id, role);
         res.json(deadlines);
     },
     listFailures: async (req, res) => {
         const tenantId = req.user?.tenantId || "";
-        const failures = await service_1.leadService.listFailures(tenantId, req.query.leadId ? String(req.query.leadId) : undefined);
+        const roles = req.user?.roles || [];
+        const role = roles.includes("owner") ? "owner" : roles.includes("team_leader") ? "team_leader" : "sales";
+        const failures = await service_1.leadService.listFailures(tenantId, req.query.leadId ? String(req.query.leadId) : undefined, req.user?.id, role);
         res.json(failures);
     },
     listClosures: async (req, res) => {
         const tenantId = req.user?.tenantId || "";
-        const closures = await service_1.leadService.listClosures(tenantId);
+        const roles = req.user?.roles || [];
+        const role = roles.includes("owner") ? "owner" : roles.includes("team_leader") ? "team_leader" : "sales";
+        const closures = await service_1.leadService.listClosures(tenantId, req.user?.id, role);
         res.json(closures);
     },
     decideClosure: async (req, res) => {
         const tenantId = req.user?.tenantId || "";
+        if (!isValidUUID(req.params.closureId))
+            throw { status: 404, message: "طلب الإغلاق غير موجود" };
         if (!req.user?.roles?.includes("owner"))
             throw { status: 403, message: "غير مصرح" };
         const status = String(req.body?.status || "").trim();
         if (!status || !["approved", "rejected"].includes(status))
             throw { status: 400, message: "قرار غير صالح" };
-        const closure = await service_1.leadService.decideClosure(tenantId, req.params.closureId, { status, decidedBy: req.user?.id || "" });
+        const amount = req.body.amount ? Number(req.body.amount) : undefined;
+        const note = req.body.note ? String(req.body.note) : undefined;
+        const closure = await service_1.leadService.decideClosure(tenantId, req.params.closureId, {
+            status,
+            decidedBy: req.user?.id || "",
+            amount,
+            note
+        });
         if (status === "approved") {
-            await client_1.prisma.lead.update({ where: { id: closure.leadId, tenantId }, data: { status: "closed", assignedUserId: null } });
+            await client_1.prisma.lead.update({ where: { id: closure.leadId, tenantId }, data: { status: "won", assignedUserId: null } });
             await client_1.prisma.leadDeadline.updateMany({ where: { tenantId, leadId: closure.leadId, status: "active" }, data: { status: "completed" } });
+            // Create Finance Entry
+            await client_1.prisma.financeEntry.create({
+                data: {
+                    tenantId,
+                    entryType: "income",
+                    category: "sales_revenue",
+                    amount: closure.amount,
+                    note: `إغلاق صفقة للعميل (ID: ${closure.leadId})`,
+                    occurredAt: new Date(),
+                    createdBy: req.user?.id
+                }
+            });
         }
         if (status === "rejected") {
             await client_1.prisma.lead.update({ where: { id: closure.leadId, tenantId }, data: { status: "failed", assignedUserId: null } });
@@ -393,7 +518,7 @@ exports.leadController = {
         const message = status === "approved"
             ? `نجح المستخدم ${actorName || "غير معروف"} في صفقة`
             : `فشل المستخدم ${actorName || "غير معروف"} في صفقة`;
-        const event = await service_3.notificationService.publishEvent(tenantId, "lead.closure.decided", {
+        const event = await service_4.notificationService.publishEvent(tenantId, "lead.closure.decided", {
             leadId: closure.leadId,
             leadName: lead?.name,
             status,
@@ -401,12 +526,14 @@ exports.leadController = {
             targets: ["all"],
             messageAr: message
         });
-        await service_3.notificationService.queueDelivery(tenantId, event.id, "in_app");
+        await service_4.notificationService.queueDelivery(tenantId, event.id, "in_app");
         await (0, activity_1.logActivity)({ tenantId, actorUserId: req.user?.id, action: "lead.close.decided", entityType: "lead_closure", entityId: closure.id, metadata: { status } });
         res.json(closure);
     },
     closeLead: async (req, res) => {
         const tenantId = req.user?.tenantId || "";
+        if (!isValidUUID(req.params.id))
+            throw { status: 404, message: "العميل غير موجود" };
         const lead = await service_1.leadService.getLeadForUser(tenantId, req.params.id, req.user);
         if (!lead)
             throw { status: 404, message: "العميل غير موجود" };
@@ -424,23 +551,26 @@ exports.leadController = {
             throw { status: 400, message: "عنوان الإغلاق مطلوب" };
         const closure = await service_1.leadService.createClosure(tenantId, { leadId: lead.id, closedBy: req.user?.id, amount, note, address });
         await client_1.prisma.lead.update({ where: { id: lead.id, tenantId }, data: { status: "closing", assignedUserId: null } });
-        const event = await service_3.notificationService.publishEvent(tenantId, "lead.closed", {
+        const event = await service_4.notificationService.publishEvent(tenantId, "lead.closed", {
             leadId: lead.id,
             leadName: lead.name,
             amount,
             targets: ["owner"],
             messageAr: `طلب اعتماد صفقة للعميل ${lead.name} بقيمة ${amount.toLocaleString("ar-EG")}`
         });
-        await service_3.notificationService.queueDelivery(tenantId, event.id, "in_app");
+        await service_4.notificationService.queueDelivery(tenantId, event.id, "in_app");
         await (0, activity_1.logActivity)({ tenantId, actorUserId: req.user?.id, action: "lead.close.requested", entityType: "lead", entityId: lead.id, metadata: { amount } });
         res.json(closure);
     },
     failLead: async (req, res) => {
         const tenantId = req.user?.tenantId || "";
+        if (!isValidUUID(req.params.id))
+            throw { status: 404, message: "العميل غير موجود" };
         const lead = await service_1.leadService.getLeadForUser(tenantId, req.params.id, req.user);
         if (!lead)
             throw { status: 404, message: "العميل غير موجود" };
-        if (!req.user?.roles?.includes("sales") || lead.assignedUserId !== req.user?.id) {
+        const hasAccess = await checkLeadAccess(lead, req.user);
+        if (!hasAccess) {
             throw { status: 403, message: "غير مصرح بتسجيل الفشل" };
         }
         const failureType = String(req.body?.failureType || "surrender");
@@ -461,7 +591,7 @@ exports.leadController = {
                 await client_1.prisma.user.update({ where: { id: user.id }, data: { status: "inactive" } });
             }
         }
-        const event = await service_3.notificationService.publishEvent(tenantId, "lead.failed", {
+        const event = await service_4.notificationService.publishEvent(tenantId, "lead.failed", {
             leadId: lead.id,
             leadName: lead.name,
             failureType,
@@ -469,12 +599,14 @@ exports.leadController = {
             targets: ["owner"],
             messageAr: `فشل العميل ${lead.name}${reason ? `: ${reason}` : ""}`
         });
-        await service_3.notificationService.queueDelivery(tenantId, event.id, "in_app");
+        await service_4.notificationService.queueDelivery(tenantId, event.id, "in_app");
         await (0, activity_1.logActivity)({ tenantId, actorUserId: req.user?.id, action: "lead.failed", entityType: "lead", entityId: lead.id, metadata: { failureType } });
         res.json(failure);
     },
     resolveFailure: async (req, res) => {
         const tenantId = req.user?.tenantId || "";
+        if (!isValidUUID(req.params.failureId))
+            throw { status: 404, message: "طلب الفشل غير موجود" };
         const reason = String(req.body?.reason || "").trim();
         if (!reason)
             throw { status: 400, message: "سبب الفشل مطلوب" };
@@ -490,20 +622,22 @@ exports.leadController = {
         const actorName = actor?.profile?.firstName
             ? `${actor.profile.firstName}${actor.profile.lastName ? ` ${actor.profile.lastName}` : ""}`
             : actor?.email;
-        const event = await service_3.notificationService.publishEvent(tenantId, "lead.failure.decided", {
+        const event = await service_4.notificationService.publishEvent(tenantId, "lead.failure.decided", {
             leadId: failure.leadId,
             leadName: lead?.name,
             userId: failure.failedBy,
             targets: ["all"],
             messageAr: `فشل المستخدم ${actorName || "غير معروف"} في صفقة`
         });
-        await service_3.notificationService.queueDelivery(tenantId, event.id, "in_app");
+        await service_4.notificationService.queueDelivery(tenantId, event.id, "in_app");
         await (0, activity_1.logActivity)({ tenantId, actorUserId: req.user?.id, action: "lead.failure.resolved", entityType: "lead_failure", entityId: failure.id });
         res.json(failure);
     },
     createMeeting: async (req, res) => {
         const tenantId = req.user?.tenantId || "";
         const leadId = req.params.leadId;
+        if (!isValidUUID(leadId))
+            throw { status: 404, message: "العميل غير موجود" };
         const title = String(req.body.title || "اجتماع جديد");
         const startsAt = req.body.startsAt ? new Date(req.body.startsAt) : new Date();
         const durationMinutes = req.body.durationMinutes ? parseInt(req.body.durationMinutes) : 60;

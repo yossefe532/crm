@@ -18,7 +18,7 @@ router.get("/activity", asyncHandler(coreController.listMyActivity))
 router.post("/users/:userId/transfer", requireOwner, requirePermission("users.update"), asyncHandler(coreController.transferUserTeam))
 router.post("/users/:userId/promote", requireOwner, requirePermission("users.update"), asyncHandler(coreController.promoteToTeamLeader))
 router.post("/user-requests", (req, res, next) => {
-  if (req.user?.roles?.includes("team_leader")) return next()
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
   return requirePermission("user_requests.create")(req, res, next)
 }, asyncHandler(coreController.createUserRequest))
 router.get("/user-requests", requirePermission("user_requests.read"), asyncHandler(coreController.listUserRequests))

@@ -79,7 +79,7 @@ exports.leadService = {
                     ...search,
                     OR: [
                         { teamId: { in: teamIds } },
-                        { assignedUserId: user.id }
+                        { assignedUserId: { in: memberIds } }
                     ]
                 },
                 skip,
@@ -126,7 +126,9 @@ exports.leadService = {
     getLeadForUser: async (tenantId, leadId, user) => {
         const include = {
             callLogs: { orderBy: { createdAt: "desc" }, include: { caller: true } },
-            meetings: { orderBy: { startsAt: "desc" }, include: { organizer: true } }
+            meetings: { orderBy: { startsAt: "desc" }, include: { organizer: true } },
+            closures: { orderBy: { closedAt: "desc" } },
+            failures: { orderBy: { createdAt: "desc" } }
         };
         if (!user)
             return client_1.prisma.lead.findFirst({ where: { tenantId, id: leadId, deletedAt: null }, include });
@@ -135,6 +137,8 @@ exports.leadService = {
         if (user.roles.includes("team_leader")) {
             const teams = await client_1.prisma.team.findMany({ where: { tenantId, leaderUserId: user.id, deletedAt: null }, select: { id: true } });
             const teamIds = teams.map((team) => team.id);
+            const members = await client_1.prisma.teamMember.findMany({ where: { tenantId, teamId: { in: teamIds }, leftAt: null, deletedAt: null }, select: { userId: true } });
+            const memberIds = Array.from(new Set([...members.map((row) => row.userId), user.id]));
             return client_1.prisma.lead.findFirst({
                 where: {
                     tenantId,
@@ -142,7 +146,7 @@ exports.leadService = {
                     deletedAt: null,
                     OR: [
                         { teamId: { in: teamIds } },
-                        { assignedUserId: user.id }
+                        { assignedUserId: { in: memberIds } }
                     ]
                 },
                 include
@@ -196,8 +200,30 @@ exports.leadService = {
     createLeadSource: (tenantId, data) => client_1.prisma.leadSource.create({ data: { tenantId, name: data.name } }),
     listLeadSources: (tenantId) => client_1.prisma.leadSource.findMany({ where: { tenantId, isActive: true } }),
     getActiveDeadline: (tenantId, leadId) => client_1.prisma.leadDeadline.findFirst({ where: { tenantId, leadId, status: "active" }, orderBy: { dueAt: "asc" } }),
-    listActiveDeadlines: (tenantId) => client_1.prisma.leadDeadline.findMany({ where: { tenantId, status: "active" }, orderBy: { dueAt: "asc" } }),
-    listFailures: (tenantId, leadId) => client_1.prisma.leadFailure.findMany({ where: { tenantId, ...(leadId ? { leadId } : {}) }, orderBy: { createdAt: "desc" } }),
+    listActiveDeadlines: async (tenantId, userId, role) => {
+        let where = { tenantId, status: "active" };
+        if (role === "sales" && userId) {
+            where.lead = { assignedUserId: userId };
+        }
+        else if (role === "team_leader" && userId) {
+            const myTeams = await client_1.prisma.team.findMany({ where: { tenantId, leaderUserId: userId }, include: { members: true } });
+            const memberIds = myTeams.flatMap(t => t.members.map(m => m.userId));
+            where.lead = { assignedUserId: { in: [userId, ...memberIds] } };
+        }
+        return client_1.prisma.leadDeadline.findMany({ where, orderBy: { dueAt: "asc" }, include: { lead: true } });
+    },
+    listFailures: async (tenantId, leadId, userId, role) => {
+        let where = { tenantId, ...(leadId ? { leadId } : {}) };
+        if (role === "sales" && userId) {
+            where.failedBy = userId;
+        }
+        else if (role === "team_leader" && userId) {
+            const myTeams = await client_1.prisma.team.findMany({ where: { tenantId, leaderUserId: userId }, include: { members: true } });
+            const memberIds = myTeams.flatMap(t => t.members.map(m => m.userId));
+            where.failedBy = { in: [userId, ...memberIds] };
+        }
+        return client_1.prisma.leadFailure.findMany({ where, orderBy: { createdAt: "desc" }, include: { lead: true } });
+    },
     createFailure: (tenantId, data) => client_1.prisma.leadFailure.create({
         data: {
             tenantId,
@@ -209,7 +235,18 @@ exports.leadService = {
         }
     }),
     resolveFailure: (tenantId, failureId, reason) => client_1.prisma.leadFailure.update({ where: { id: failureId, tenantId }, data: { reason, status: "resolved", resolvedAt: new Date() } }),
-    listClosures: (tenantId) => client_1.prisma.leadClosure.findMany({ where: { tenantId }, orderBy: { closedAt: "desc" } }),
+    listClosures: async (tenantId, userId, role) => {
+        let where = { tenantId };
+        if (role === "sales" && userId) {
+            where.closedBy = userId;
+        }
+        else if (role === "team_leader" && userId) {
+            const myTeams = await client_1.prisma.team.findMany({ where: { tenantId, leaderUserId: userId }, include: { members: true } });
+            const memberIds = myTeams.flatMap(t => t.members.map(m => m.userId));
+            where.closedBy = { in: [userId, ...memberIds] };
+        }
+        return client_1.prisma.leadClosure.findMany({ where, orderBy: { closedAt: "desc" }, include: { lead: true } });
+    },
     createClosure: (tenantId, data) => client_1.prisma.leadClosure.create({
         data: {
             tenantId,
@@ -220,5 +257,14 @@ exports.leadService = {
             address: data.address
         }
     }),
-    decideClosure: (tenantId, closureId, data) => client_1.prisma.leadClosure.update({ where: { id: closureId, tenantId }, data: { status: data.status, decidedBy: data.decidedBy, decidedAt: new Date() } })
+    decideClosure: (tenantId, closureId, data) => client_1.prisma.leadClosure.update({
+        where: { id: closureId, tenantId },
+        data: {
+            status: data.status,
+            decidedBy: data.decidedBy,
+            decidedAt: new Date(),
+            ...(data.amount ? { amount: data.amount } : {}),
+            ...(data.note ? { note: data.note } : {})
+        }
+    })
 };

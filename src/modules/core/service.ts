@@ -1,6 +1,9 @@
 import { prisma } from "../../prisma/client"
 import { conversationService } from "../conversations/service"
-import { hashPassword } from "../../utils/auth"
+import { lifecycleService } from "../lifecycle/service"
+import { hashPassword } from "../auth/password"
+import { logActivity } from "../../utils/activity"
+import { intelligenceService } from "../intelligence/service"
 
 export const coreService = {
   createTenant: (data: { name: string; timezone?: string }) =>
@@ -103,23 +106,40 @@ export const coreService = {
     return { status: "ok" }
   },
 
-  resetPassword: async (tenantId: string, userId: string) => {
-    const user = await prisma.user.findFirst({ where: { id: userId, tenantId, deletedAt: null } })
-    if (!user) throw { status: 404, message: "User not found" }
-    
-    const tempPassword = Math.random().toString(36).slice(-8)
-    const hash = await hashPassword(tempPassword)
-    
+  resetPassword: async (tenantId: string, userId: string, passwordHash?: string, mustChangePassword = false) => {
+    let newPasswordHash = passwordHash
+    let tempPassword
+    if (!newPasswordHash) {
+      const { generateStrongPassword, hashPassword } = await import("../auth/password")
+      tempPassword = generateStrongPassword()
+      newPasswordHash = await hashPassword(tempPassword)
+      mustChangePassword = true
+    }
     await prisma.user.update({
-      where: { id: userId },
-      data: { passwordHash: hash, mustChangePassword: true, updatedAt: new Date() }
+      where: { id: userId, tenantId },
+      data: { passwordHash: newPasswordHash, mustChangePassword, updatedAt: new Date() }
     })
-    
     return { temporaryPassword: tempPassword }
   },
 
   createRole: (tenantId: string, data: { name: string; scope?: string }) =>
     prisma.role.create({ data: { tenantId, name: data.name, scope: data.scope || "tenant" } }),
+
+  revokeRole: (tenantId: string, userId: string, roleId: string) =>
+    prisma.userRole.updateMany({
+      where: { tenantId, userId, roleId, revokedAt: null },
+      data: { revokedAt: new Date() }
+    }),
+
+  transferTeamMember: async (tenantId: string, userId: string, teamId: string, role?: string) => {
+    await prisma.teamMember.updateMany({
+      where: { tenantId, userId, leftAt: null },
+      data: { leftAt: new Date() }
+    })
+    return prisma.teamMember.create({
+      data: { tenantId, teamId, userId, role: role || "member" }
+    })
+  },
 
   listRoles: (tenantId: string) => prisma.role.findMany({ where: { tenantId, deletedAt: null } }),
 
@@ -267,26 +287,159 @@ export const coreService = {
 
   listContacts: (tenantId: string) => prisma.contact.findMany({ where: { tenantId, deletedAt: null } }),
 
+  getUserById: (tenantId: string, userId: string) =>
+    prisma.user.findFirst({
+      where: { id: userId, tenantId, deletedAt: null },
+      include: {
+        roleLinks: { where: { revokedAt: null }, include: { role: true } },
+        profile: true,
+        teamMembers: { where: { leftAt: null, deletedAt: null }, include: { team: true } },
+        teamsLed: { where: { deletedAt: null } }
+      }
+    }),
+
+  getTeamByLeader: (tenantId: string, leaderUserId: string) =>
+    prisma.team.findFirst({ where: { tenantId, leaderUserId, deletedAt: null } }),
+
+  getTeamByName: (tenantId: string, name: string) =>
+    prisma.team.findFirst({ where: { tenantId, name, deletedAt: null } }),
+
   getOrCreateRole: async (tenantId: string, name: string) => {
-    const existing = await prisma.role.findFirst({ where: { tenantId, name, deletedAt: null } })
-    if (existing) return existing
-    return prisma.role.create({ data: { tenantId, name, scope: "tenant" } })
+    const role = await prisma.role.findFirst({ where: { tenantId, name, deletedAt: null } })
+    if (role) return role
+    return prisma.role.create({ data: { tenantId, name, scope: "global" } })
   },
 
-  assignRole: async (tenantId: string, userId: string, roleId: string, assignedBy?: string) => {
-    const result = await prisma.userRole.create({ data: { tenantId, userId, roleId, assignedBy } })
-    const role = await prisma.role.findUnique({ where: { id: roleId } })
-    if (role && (role.name === "owner" || role.name === "team_leader")) {
-      await conversationService.ensureOwnerGroup(tenantId)
+  assignRole: (tenantId: string, userId: string, roleId: string, assignedBy?: string) =>
+    prisma.userRole.create({ data: { tenantId, userId, roleId, assignedBy } }),
+
+  addTeamMember: (tenantId: string, teamId: string, userId: string, role: string) =>
+    prisma.teamMember.create({ data: { tenantId, teamId, userId, role } }),
+
+  createUserRequest: (tenantId: string, userId: string, type: string, payload: any) =>
+    prisma.userRequest.create({
+      data: {
+        tenantId,
+        requestedBy: userId,
+        requestType: type,
+        payload,
+        status: "pending"
+      }
+    }),
+
+  decideUserRequest: async (tenantId: string, requestId: string, data: { status: string; decidedBy: string }) => {
+    const request = await prisma.userRequest.findUnique({ where: { id: requestId, tenantId } })
+    if (!request) throw { status: 404, message: "Request not found" }
+    
+    if (request.status !== "pending") throw { status: 400, message: "Request already decided" }
+
+    const updated = await prisma.userRequest.update({
+      where: { id: requestId },
+      data: { status: data.status, decidedBy: data.decidedBy, decidedAt: new Date() }
+    })
+
+    if (data.status === "approved" && request.requestType === "create_lead") {
+      const payload = request.payload as any
+      
+      // Auto-assign to requester
+      const assignedUserId = request.requestedBy
+      
+      // Resolve team
+      let teamId = payload.teamId
+      if (!teamId && assignedUserId) {
+        const membership = await prisma.teamMember.findFirst({ 
+          where: { tenantId, userId: assignedUserId, leftAt: null, deletedAt: null },
+          select: { teamId: true }
+        })
+        teamId = membership?.teamId
+        
+        if (!teamId) {
+          const ledTeam = await prisma.team.findFirst({
+            where: { tenantId, leaderUserId: assignedUserId, deletedAt: null },
+            select: { id: true }
+          })
+          teamId = ledTeam?.id
+        }
+      }
+
+      const stages = await lifecycleService.ensureDefaultStages(tenantId)
+      const callStage = stages.find((stage) => stage.code === "call")
+      const status = payload.status || callStage?.code || "call"
+      
+      const lead = await prisma.lead.create({
+        data: {
+          tenantId,
+          leadCode: payload.leadCode || `L-${Date.now()}`,
+          name: payload.name,
+          phone: payload.phone,
+          email: payload.email,
+          budget: payload.budget ? Number(payload.budget) : undefined,
+          status,
+          sourceId: payload.sourceId,
+          assignedUserId,
+          teamId,
+          notes: payload.notes
+        }
+      })
+      
+      const initialState = await lifecycleService.getStateByCode(tenantId, status)
+      if (initialState) {
+        await prisma.leadStateHistory.create({
+          data: {
+            tenantId,
+            leadId: lead.id,
+            toStateId: initialState.id,
+            changedBy: request.requestedBy,
+            changedAt: new Date()
+          }
+        })
+        await prisma.leadDeadline.create({
+          data: {
+            tenantId,
+            leadId: lead.id,
+            stateId: initialState.id,
+            dueAt: new Date(Date.now() + 7 * 24 * 3600 * 1000)
+        }
+      })
+      
+      // Log creation activity
+      await logActivity({
+        tenantId,
+        actorUserId: request.decidedBy || undefined, // The person who approved it
+        action: "lead.created",
+        entityType: "lead",
+        entityId: lead.id,
+        metadata: { source: "request_approval", requestedBy: request.requestedBy }
+      })
+
+      // Queue intelligence trigger
+      intelligenceService.queueTrigger({ type: "lead_changed", tenantId, leadId: lead.id, userId: lead.assignedUserId || undefined })
     }
-    return result
+  }
+
+  return updated
   },
 
-  addTeamMember: async (tenantId: string, teamId: string, userId: string, role?: string) => {
-    const currentCount = await prisma.teamMember.count({ where: { teamId, leftAt: null, deletedAt: null } })
-    if (currentCount >= 10) throw { status: 400, message: "Team is full (max 10 members)" }
-    const result = await prisma.teamMember.create({ data: { tenantId, teamId, userId, role: role || "member" } })
-    await conversationService.ensureTeamGroup(tenantId, teamId)
-    return result
-  },
+  createFinanceEntry: (tenantId: string, data: { entryType: string; category: string; amount: number; note?: string; occurredAt: Date; createdBy?: string }) =>
+    prisma.financeEntry.create({
+      data: {
+        tenantId,
+        entryType: data.entryType,
+        category: data.category,
+        amount: data.amount,
+        note: data.note,
+        occurredAt: data.occurredAt,
+        createdBy: data.createdBy
+      }
+    }),
+
+  listFinanceEntries: (tenantId: string) =>
+    prisma.financeEntry.findMany({
+      where: { tenantId },
+      orderBy: { occurredAt: "desc" },
+      include: { creator: { select: { id: true, email: true } } }
+    }),
+
+  listUserRequests: (tenantId: string) =>
+    prisma.userRequest.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } })
 }

@@ -1,10 +1,8 @@
 import redis from "redis"
-import { config } from "./config"
+import { env } from "../config/env"
 
 // Redis client initialization
-const redisClient = redis.createClient({
-  url: config.REDIS_URL || "redis://localhost:6379"
-})
+const redisClient = redis.createClient({ url: env.redisUrl })
 
 redisClient.on("error", (err) => {
   console.error("Redis Client Error:", err)

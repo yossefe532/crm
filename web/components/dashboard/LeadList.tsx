@@ -23,10 +23,24 @@ import { Modal } from "../ui/Modal"
 import { LeadDetail } from "../lead/LeadDetail"
 import { STAGE_LABELS } from "../../lib/constants"
 
+import { ExportButton } from "../ui/ExportButton"
+
 export const LeadList = () => {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const { data, isLoading, isError } = useLeads({ page, pageSize })
+  
+  // ... rest of the code ...
+
+  return (
+    <Card title="العملاء">
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex gap-2">
+           {/* Filters... */}
+        </div>
+        <ExportButton data={filteredLeads} filename="leads_report" />
+      </div>
+
   const { data: users } = useUsers()
   const { data: deadlines } = useLeadDeadlines()
   const { data: teams } = useTeams()
@@ -148,8 +162,9 @@ export const LeadList = () => {
             ))}
           </div>
         )}
-        <div className="flex flex-col sm:flex-row flex-wrap gap-3 mb-4">
-          <Select
+        <div className="flex flex-col sm:flex-row flex-wrap gap-3 mb-4 items-center justify-between">
+          <div className="flex gap-2 flex-wrap">
+            <Select
               className="w-full sm:w-auto"
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
@@ -161,34 +176,41 @@ export const LeadList = () => {
               <option value="meeting">اجتماع</option>
               <option value="site_visit">رؤية الموقع</option>
               <option value="closing">إغلاق الصفقة</option>
-          </Select>
+            </Select>
 
-          {role === "owner" && (
-            <>
-            <Select
-              className="w-full sm:w-auto"
-              value={teamFilter}
-              onChange={(event) => setTeamFilter(event.target.value)}
-            >
-              <option value="all">كل الفرق</option>
-              <option value="unassigned">بدون فريق</option>
-              {(teams || []).map((team) => (
-                <option key={team.id} value={team.id}>{team.name}</option>
-              ))}
-            </Select>
-            <Select
-              containerClassName="w-full sm:w-auto"
-              value={userFilter}
-              onChange={(event) => setUserFilter(event.target.value)}
-            >
-              <option value="all">كل المستخدمين</option>
-              <option value="unassigned">غير مُسند</option>
-              {(users || []).map((user) => (
-                <option key={user.id} value={user.id}>{user.name || user.email}</option>
-              ))}
-            </Select>
-            </>
-          )}
+            {role === "owner" && (
+              <>
+              <Select
+                className="w-full sm:w-auto"
+                value={teamFilter}
+                onChange={(event) => setTeamFilter(event.target.value)}
+              >
+                <option value="all">كل الفرق</option>
+                <option value="unassigned">بدون فريق</option>
+                {(teams || []).map((team) => (
+                  <option key={team.id} value={team.id}>{team.name}</option>
+                ))}
+              </Select>
+              <Select
+                containerClassName="w-full sm:w-auto"
+                value={userFilter}
+                onChange={(event) => setUserFilter(event.target.value)}
+              >
+                <option value="all">كل المستخدمين</option>
+                <option value="unassigned">غير مُسند</option>
+                {(users || []).map((user) => (
+                  <option key={user.id} value={user.id}>{user.name || user.email}</option>
+                ))}
+              </Select>
+              </>
+            )}
+          </div>
+          <ExportButton 
+             data={filteredLeads} 
+             filename="leads_report" 
+             headers={["الاسم", "رقم الهاتف", "الحالة", "كود العميل", "أقل ميزانية", "أعلى ميزانية", "الملاحظات"]}
+             keys={["name", "phone", "status", "leadCode", "budgetMin", "budgetMax", "notes"]}
+           />
         </div>
         {isLoading && <p className="text-sm text-base-500">جاري تحميل العملاء...</p>}
         {isError && <p className="text-sm text-rose-500">تعذر تحميل العملاء</p>}
