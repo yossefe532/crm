@@ -47,8 +47,18 @@ export const NotificationsPanel = () => {
           const payload = event.payload as Record<string, unknown>
           const message = (payload?.messageAr as string | undefined) || event.eventKey
           const sender = payload?.senderName as string | undefined
+          const leadId = payload?.leadId as string | undefined
+          
           return (
-            <div key={event.id} className="notify-card rounded-lg px-3 py-2">
+            <div 
+                key={event.id} 
+                className={`notify-card rounded-lg px-3 py-2 ${leadId ? 'cursor-pointer hover:bg-base-50 transition-colors' : ''}`}
+                onClick={() => {
+                    if (leadId) {
+                        window.location.href = `/leads/${leadId}`
+                    }
+                }}
+            >
               <p className="text-sm font-medium text-base-900">{message}</p>
               {sender && <p className="text-xs text-base-500">اللي بعت: {sender}</p>}
               <ClientDate 

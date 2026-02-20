@@ -84,15 +84,36 @@ export const LeadCreateForm = () => {
       }
 
       // Sales role ALWAYS creates a request, never directly creates a lead
-      if (role === "sales") {
+      const isSales = role === "sales" || (role as string)?.toLowerCase() === "sales"
+      
+      if (isSales) {
+        const salesPayload = {
+          ...payload,
+          assignedUserId: userId
+        }
         return coreService.createUserRequest({
           requestType: "create_lead",
-          payload
+          payload: salesPayload
         }, token || undefined)
       }
 
       // Other roles (Owner, Team Leader) create directly
-      return await leadService.create(payload, token || undefined)
+      try {
+        return await leadService.create(payload, token || undefined)
+      } catch (error: any) {
+        // Fallback: If 403 Forbidden, try sending as a request
+        if (error?.status === 403 || error?.response?.status === 403) {
+          const salesPayload = {
+            ...payload,
+            assignedUserId: userId
+          }
+          return coreService.createUserRequest({
+            requestType: "create_lead",
+            payload: salesPayload
+          }, token || undefined)
+        }
+        throw error
+      }
     },
     onSuccess: (data: any) => {
       // Check for request response (has requestType or status=pending)

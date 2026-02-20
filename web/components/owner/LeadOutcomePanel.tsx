@@ -2,6 +2,7 @@
 
 import { Card } from "../ui/Card"
 import { Button } from "../ui/Button"
+import { Input } from "../ui/Input"
 import { useAuth } from "../../lib/auth/AuthContext"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { leadService } from "../../lib/services/leadService"
@@ -9,6 +10,7 @@ import { useLeads } from "../../lib/hooks/useLeads"
 import { useLeadFailures } from "../../lib/hooks/useLeadFailures"
 import { useLeadClosures } from "../../lib/hooks/useLeadClosures"
 import { useUsers } from "../../lib/hooks/useUsers"
+import { useState } from "react"
 
 export const LeadOutcomePanel = () => {
   const { role, token } = useAuth()
@@ -17,13 +19,18 @@ export const LeadOutcomePanel = () => {
   const { data: closures } = useLeadClosures()
   const { data: users } = useUsers()
   const queryClient = useQueryClient()
+  const [editingClosureId, setEditingClosureId] = useState<string | null>(null)
+  const [editAmount, setEditAmount] = useState<string>("")
+
   const leadsById = new Map((leads || []).map((lead) => [lead.id, lead]))
   const usersById = new Map((users || []).map((user) => [user.id, user]))
   const decideMutation = useMutation({
-    mutationFn: (payload: { closureId: string; status: "approved" | "rejected" }) => leadService.decideClosure(payload.closureId, { status: payload.status }, token || undefined),
+    mutationFn: (payload: { closureId: string; status: "approved" | "rejected"; amount?: number }) => 
+      leadService.decideClosure(payload.closureId, { status: payload.status, amount: payload.amount }, token || undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lead_closures"] })
       queryClient.invalidateQueries({ queryKey: ["leads"] })
+      setEditingClosureId(null)
     }
   })
 
@@ -33,19 +40,49 @@ export const LeadOutcomePanel = () => {
         <div className="space-y-3">
           {(closures || []).filter((closure) => closure.status === "pending").map((closure) => (
             <div key={closure.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-base-100 px-3 py-2">
-              <div>
+              <div className="flex-1">
                 <p className="text-sm font-semibold text-base-900">{leadsById.get(closure.leadId)?.name || "عميل"}</p>
                 <p className="text-xs text-base-500">{new Date(closure.closedAt).toLocaleDateString("ar-EG")}</p>
-                <p className="text-xs text-base-500">قيمة الإغلاق: {closure.amount.toLocaleString("ar-EG")}</p>
+                {editingClosureId === closure.id ? (
+                  <div className="flex items-center gap-2 mt-1">
+                    <Input 
+                      value={editAmount} 
+                      onChange={(e) => setEditAmount(e.target.value)} 
+                      type="number"
+                      className="w-32 h-8 text-sm"
+                      placeholder="المبلغ"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs text-base-500">قيمة الإغلاق: {Number(closure.amount).toLocaleString("ar-EG")}</p>
+                    {role === "owner" && (
+                      <button 
+                        className="text-xs text-primary-600 hover:underline"
+                        onClick={() => { setEditingClosureId(closure.id); setEditAmount(String(closure.amount)) }}
+                      >
+                        تعديل
+                      </button>
+                    )}
+                  </div>
+                )}
                 {closure.address && <p className="text-xs text-base-500">عنوان الإغلاق: {closure.address}</p>}
+                {closure.note && <p className="text-xs text-base-500 italic">"{closure.note}"</p>}
               </div>
               {role === "owner" && (
                 <div className="flex items-center gap-2">
-                  <Button variant="secondary" onClick={() => decideMutation.mutate({ closureId: closure.id, status: "approved" })}>
-                    نجحت
+                  <Button 
+                    variant="secondary" 
+                    onClick={() => decideMutation.mutate({ 
+                      closureId: closure.id, 
+                      status: "approved",
+                      amount: editingClosureId === closure.id ? Number(editAmount) : undefined
+                    })}
+                  >
+                    اعتماد
                   </Button>
                   <Button variant="ghost" onClick={() => decideMutation.mutate({ closureId: closure.id, status: "rejected" })}>
-                    فشلت
+                    رفض
                   </Button>
                 </div>
               )}

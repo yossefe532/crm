@@ -10,6 +10,7 @@ import { NotificationsPanel } from "../../../components/notifications/Notificati
 import { BroadcastForm } from "../../../components/notifications/BroadcastForm"
 import { PushPolicyForm } from "../../../components/notifications/PushPolicyForm"
 import { LeadOutcomePanel } from "../../../components/owner/LeadOutcomePanel"
+import { LeadStageSummary } from "../../../components/dashboard/LeadStageSummary"
 
 export default function OwnerDashboard() {
   const [mounted, setMounted] = useState(false)
@@ -42,6 +43,7 @@ export default function OwnerDashboard() {
       </div>
       <div className="grid grid-cols-1 gap-6">
         <LeadOutcomePanel />
+        <LeadStageSummary />
         <LeadList />
       </div>
       <div className="grid grid-cols-1 gap-6">

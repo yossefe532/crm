@@ -19,7 +19,7 @@ export default function RequestsPage() {
   const { data: requests, isLoading } = useQuery({
     queryKey: ["user-requests"],
     queryFn: () => coreService.listUserRequests(token || undefined),
-    enabled: !!token && (role === "owner" || role === "team_leader")
+    enabled: !!token
   })
 
   const decideMutation = useMutation({
@@ -36,25 +36,18 @@ export default function RequestsPage() {
     },
   })
 
-  if (role === "sales") {
-    return (
-      <div className="p-6">
-        <Card title="طلباتي">
-          <p className="text-base-500">ليس لديك صلاحية لعرض هذه الصفحة.</p>
-        </Card>
-      </div>
-    )
-  }
-
+  // Filter requests based on role
   const pendingRequests = (requests || []).filter(
-    (req) => req.status === "pending" && req.requestType === "create_lead"
+    (req) => req.status === "pending" && (role === "owner" || role === "team_leader" ? req.requestType === "create_lead" : req.requester?.id === userId)
   )
+
+  const isApprover = role === "owner" || role === "team_leader"
 
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-base-900 dark:text-white">طلبات الموافقة</h1>
-        <Badge variant="outline">{pendingRequests.length} قيد الانتظار</Badge>
+        <h1 className="text-2xl font-bold text-base-900 dark:text-white">{isApprover ? "طلبات الموافقة" : "طلباتي"}</h1>
+        <Badge variant="outline">{pendingRequests.length} {isApprover ? "قيد الانتظار" : "طلبات"}</Badge>
       </div>
 
       {isLoading ? (
@@ -72,7 +65,7 @@ export default function RequestsPage() {
               </svg>
             </div>
             <h3 className="text-lg font-medium text-base-900">لا توجد طلبات معلقة</h3>
-            <p className="mt-1 text-sm text-base-500">جميع الطلبات تمت معالجتها</p>
+            <p className="mt-1 text-sm text-base-500">{isApprover ? "جميع الطلبات تمت معالجتها" : "لم تقم بإرسال أي طلبات بعد"}</p>
           </div>
         </Card>
       ) : (
@@ -92,7 +85,9 @@ export default function RequestsPage() {
                     </p>
                   </div>
                 </div>
-                <Badge variant="warning">جديد</Badge>
+                <Badge variant={req.status === 'pending' ? 'warning' : req.status === 'approved' ? 'success' : 'danger'}>
+                  {req.status === 'pending' ? 'قيد الانتظار' : req.status === 'approved' ? 'مقبول' : 'مرفوض'}
+                </Badge>
               </div>
 
               <div className="mb-6 space-y-2 rounded-lg bg-base-50 p-3 text-sm">
@@ -114,24 +109,26 @@ export default function RequestsPage() {
                 )}
               </div>
 
-              <div className="flex gap-3">
-                <Button
-                  variant="primary"
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700"
-                  disabled={processingId === req.id}
-                  onClick={() => decideMutation.mutate({ id: req.id, status: "approved" })}
-                >
-                  {processingId === req.id ? "جاري المعالجة..." : "قبول"}
-                </Button>
-                <Button
-                  variant="danger"
-                  className="flex-1"
-                  disabled={processingId === req.id}
-                  onClick={() => decideMutation.mutate({ id: req.id, status: "rejected" })}
-                >
-                  رفض
-                </Button>
-              </div>
+              {isApprover && req.status === 'pending' && (
+                <div className="flex gap-3">
+                  <Button
+                    variant="primary"
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                    disabled={processingId === req.id}
+                    onClick={() => decideMutation.mutate({ id: req.id, status: "approved" })}
+                  >
+                    {processingId === req.id ? "جاري المعالجة..." : "قبول"}
+                  </Button>
+                  <Button
+                    variant="danger"
+                    className="flex-1"
+                    disabled={processingId === req.id}
+                    onClick={() => decideMutation.mutate({ id: req.id, status: "rejected" })}
+                  >
+                    رفض
+                  </Button>
+                </div>
+              )}
             </Card>
           ))}
         </div>

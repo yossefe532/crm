@@ -46,6 +46,7 @@ export type Lead = {
   sourceLabel?: string | null
   sourceId?: string | null
   notes?: string | null
+  isWrongNumber?: boolean
   callCount?: number
   callLogs?: CallLog[]
   meetings?: Meeting[]

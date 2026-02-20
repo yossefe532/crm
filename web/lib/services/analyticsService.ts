@@ -24,6 +24,12 @@ export interface DashboardMetrics {
   revenueOverTime: Array<{ name: string; value: number }>
   leadSources: Array<{ name: string; value: number }>
   keyMetrics: Array<{ label: string; value: number; change: number }>
+  salesStageSummary: Array<{
+    userId: string
+    name: string
+    stages: Record<string, number>
+    total: number
+  }>
 }
 
 export interface TimelineEvent {

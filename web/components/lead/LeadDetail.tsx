@@ -4,12 +4,15 @@ import { Card } from "../ui/Card"
 import { Badge } from "../ui/Badge"
 import { Button } from "../ui/Button"
 import { Avatar } from "../ui/Avatar"
+import { Input } from "../ui/Input"
 import { useLead } from "../../lib/hooks/useLead"
 import { useUsers } from "../../lib/hooks/useUsers"
 import { useTeams } from "../../lib/hooks/useTeams"
 import { useState } from "react"
 import { CallLogDialog } from "./CallLogDialog"
 import { MeetingDialog } from "./MeetingDialog"
+import { MeetingOutcomeDialog } from "./MeetingOutcomeDialog"
+import { SiteVisitDialog } from "./SiteVisitDialog"
 import { LeadProgress } from "./LeadProgress"
 import { leadService } from "../../lib/services/leadService"
 import { Meeting } from "../../lib/types"
@@ -20,17 +23,28 @@ import { useRouter } from "next/navigation"
 import { ClosureModal } from "./ClosureModal"
 import { FailureModal } from "./FailureModal"
 
+import { Modal } from "../ui/Modal"
+
 export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; showProgress?: boolean }) => {
   const { token, role } = useAuth()
   const router = useRouter()
   const queryClient = useQueryClient()
   const [isCallDialogOpen, setIsCallDialogOpen] = useState(false)
   const [isMeetingDialogOpen, setIsMeetingDialogOpen] = useState(false)
+  const [isMeetingOutcomeDialogOpen, setIsMeetingOutcomeDialogOpen] = useState(false)
+  const [isSiteVisitDialogOpen, setIsSiteVisitDialogOpen] = useState(false)
+  const [isCallCheckModalOpen, setIsCallCheckModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [isClosureModalOpen, setIsClosureModalOpen] = useState(false)
   const [isFailureModalOpen, setIsFailureModalOpen] = useState(false)
   const [meetingTitle, setMeetingTitle] = useState("اجتماع جديد")
   const [activeTab, setActiveTab] = useState<"details" | "activity" | "notes">("details")
+  const [pendingStage, setPendingStage] = useState<string | null>(null)
+  const [nextAction, setNextAction] = useState<string | null>(null)
+  const [pendingMeeting, setPendingMeeting] = useState<Meeting | undefined>(undefined)
+
+  const [isEditPhoneOpen, setIsEditPhoneOpen] = useState(false)
+  const [newPhone, setNewPhone] = useState("")
 
   const { data: lead, isLoading } = useLead(leadId)
   const { data: users } = useUsers()
@@ -49,6 +63,36 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
     }
   })
 
+  const updatePhoneMutation = useMutation({
+    mutationFn: async () => {
+        // 1. Update Phone
+        await leadService.update(leadId, { phone: newPhone }, token || undefined)
+        // 2. Add log to clear "Wrong Number" status
+        await leadService.addCall(leadId, { 
+            outcome: "answered", 
+            durationSeconds: 0 
+        }, token || undefined)
+        // 3. Add note
+        const currentNotes = lead?.notes || ""
+        await leadService.update(leadId, { 
+            notes: currentNotes + `\n[تحديث]: تم تغيير الرقم بواسطة المالك من ${lead?.phone} إلى ${newPhone}` 
+        }, token || undefined)
+    },
+    onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["lead", leadId] })
+        setIsEditPhoneOpen(false)
+    }
+  })
+
+  const unassignMutation = useMutation({
+    mutationFn: async () => {
+        return leadService.unassign(leadId, token || undefined)
+    },
+    onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["lead", leadId] })
+    }
+  })
+
   const deleteLeadMutation = useMutation({
     mutationFn: async () => {
       return leadService.delete(leadId, token || undefined)
@@ -57,6 +101,48 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
       router.push("/leads")
     }
   })
+
+  const handleStageChange = (index: number) => {
+    if (!lead) return
+    const currentStageIndex = STAGES.indexOf(lead.status)
+    const targetStage = STAGES[index]
+    
+    if (index === currentStageIndex) return
+
+    // Allow moving back
+    if (index < currentStageIndex) {
+      updateStatusMutation.mutate(targetStage)
+      return
+    }
+
+    // Moving forward
+    setPendingStage(targetStage)
+
+    if (lead.status === 'new') {
+        updateStatusMutation.mutate(targetStage)
+        return
+    }
+
+    if (lead.status === 'call') {
+        setIsCallDialogOpen(true)
+        return
+    }
+
+    if (lead.status === 'meeting') {
+        const pending = lead.meetings?.find(m => m.status === 'scheduled')
+        setPendingMeeting(pending)
+        setIsMeetingOutcomeDialogOpen(true)
+        return
+    }
+
+    if (lead.status === 'site_visit') {
+        setIsSiteVisitDialogOpen(true)
+        return
+    }
+    
+    // Fallback
+    updateStatusMutation.mutate(targetStage)
+  }
 
   const usersById = new Map((users || []).map((user) => [user.id, user]))
   const teamsById = new Map((teams || []).map((team) => [team.id, team]))
@@ -86,6 +172,9 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
   const phoneDigits = (lead.phone || "").replace(/\D/g, "");
   const whatsappLink = phoneDigits ? `https://wa.me/${phoneDigits}` : "";
   const callLink = lead.phone ? `tel:${lead.phone}` : "";
+  
+  // Check if the lead is marked as wrong number
+  const isWrongNumber = lead.isWrongNumber
 
   // Combine logs and meetings for timeline
   const activities = [
@@ -98,6 +187,50 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
 
   return (
     <div className="space-y-6 animate-fadeIn">
+      {/* Wrong Number Alert for Owner */}
+      {isWrongNumber && role === 'owner' && (
+        <div className="bg-rose-50 border border-rose-100 rounded-lg p-4 flex flex-col md:flex-row items-center justify-between gap-4 animate-pulse-slow shadow-sm">
+            <div className="flex items-center gap-3">
+                <div className="bg-rose-100 p-2.5 rounded-full">
+                    <span className="text-xl">📞</span>
+                </div>
+                <div>
+                    <h3 className="font-bold text-rose-900">تنبيه: رقم هاتف خاطئ</h3>
+                    <p className="text-sm text-rose-700 mt-1">
+                        أبلغ المندوب أن هذا الرقم ({lead.phone}) خاطئ. يرجى اتخاذ إجراء فوري.
+                    </p>
+                </div>
+            </div>
+            <div className="flex items-center gap-2 w-full md:w-auto">
+                <Button 
+                    variant="danger" 
+                    className="flex-1 md:flex-none bg-rose-600 hover:bg-rose-700 text-white border-transparent shadow-sm"
+                    onClick={() => {
+                        setNewPhone(lead.phone || "")
+                        setIsEditPhoneOpen(true)
+                    }}
+                >
+                    تصحيح الرقم
+                </Button>
+                <Button 
+                    variant="outline"
+                    className="flex-1 md:flex-none border-rose-200 text-rose-700 hover:bg-rose-100"
+                    onClick={() => unassignMutation.mutate()}
+                    disabled={unassignMutation.isPending}
+                >
+                    {unassignMutation.isPending ? "جاري السحب..." : "سحب العميل"}
+                </Button>
+                 <Button 
+                    variant="ghost"
+                    className="flex-1 md:flex-none text-rose-600 hover:bg-rose-100"
+                    onClick={() => setIsDeleteModalOpen(true)}
+                >
+                    حذف
+                </Button>
+            </div>
+        </div>
+      )}
+
       {/* Header Card */}
       <div className="bg-white dark:bg-[#111111] rounded-xl shadow-sm border border-base-200 p-6 relative overflow-hidden">
         {/* Decorative background element */}
@@ -133,12 +266,26 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
                    <span className="opacity-70">💼</span>
                    <span>{lead.profession || "المهنة غير محددة"}</span>
                 </span>
-                <span className="flex items-center gap-1.5 bg-base-50 dark:bg-base-900 px-2 py-1 rounded-md">
-                   <span className="opacity-70">📞</span>
-                   <span className={lead.phone ? "text-base-900 dark:text-white font-medium" : "text-base-400"}>
-                    {lead.phone || "لا يوجد هاتف"}
-                   </span>
-                </span>
+                <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1.5 bg-base-50 dark:bg-base-900 px-2 py-1 rounded-md">
+                    <span className="opacity-70">📞</span>
+                    <span className={lead.phone ? (isWrongNumber ? "text-rose-600 font-bold line-through decoration-2" : "text-base-900 dark:text-white font-medium") : "text-base-400"}>
+                        {lead.phone || "لا يوجد هاتف"}
+                    </span>
+                    {isWrongNumber && <span className="text-xs text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full font-bold">⚠️ رقم خاطئ</span>}
+                    </span>
+                    {role === 'owner' && (
+                        <button 
+                            className="text-xs text-brand-600 hover:text-brand-700 underline"
+                            onClick={() => {
+                                setNewPhone(lead.phone || "")
+                                setIsEditPhoneOpen(true)
+                            }}
+                        >
+                            تعديل
+                        </button>
+                    )}
+                </div>
                 {lead.email && (
                     <span className="flex items-center gap-1.5 bg-base-50 dark:bg-base-900 px-2 py-1 rounded-md">
                         <span className="opacity-70">📧</span>
@@ -216,6 +363,96 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
         isOpen={isFailureModalOpen}
         onClose={() => setIsFailureModalOpen(false)}
         lead={lead}
+      />
+
+      <Modal isOpen={isCallCheckModalOpen} onClose={() => setIsCallCheckModalOpen(false)} title="تأكيد المكالمة">
+        <div className="space-y-4">
+          <p className="text-base-900">هل قمت بإجراء مكالمة هاتفية مع العميل قبل هذا الاجتماع؟</p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => {
+                setIsCallCheckModalOpen(false)
+                setIsMeetingOutcomeDialogOpen(true)
+            }}>لا، متابعة للاجتماع</Button>
+            <Button onClick={() => {
+                setIsCallCheckModalOpen(false)
+                setIsCallDialogOpen(true)
+                setNextAction('open_meeting_outcome')
+            }}>نعم، تسجيل المكالمة أولاً</Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={isEditPhoneOpen} onClose={() => setIsEditPhoneOpen(false)} title="تعديل رقم الهاتف">
+        <div className="space-y-4">
+            <p className="text-sm text-base-500">
+                يرجى إدخال الرقم الصحيح. سيتم تسجيل هذا التغيير في سجل النشاطات.
+            </p>
+            <Input
+                label="رقم الهاتف الجديد"
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                placeholder="01xxxxxxxxx"
+                dir="ltr"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+                <Button variant="ghost" onClick={() => setIsEditPhoneOpen(false)}>إلغاء</Button>
+                <Button onClick={() => updatePhoneMutation.mutate()} disabled={updatePhoneMutation.isPending || !newPhone}>
+                    {updatePhoneMutation.isPending ? "جاري التحديث..." : "حفظ الرقم الجديد"}
+                </Button>
+            </div>
+        </div>
+      </Modal>
+
+      <CallLogDialog
+        isOpen={isCallDialogOpen}
+        onClose={() => setIsCallDialogOpen(false)}
+        leadId={leadId}
+        phone={lead.phone || ""}
+        onSuccess={(outcome) => {
+            if (nextAction === 'open_meeting_outcome') {
+                setNextAction(null)
+                setIsMeetingOutcomeDialogOpen(true)
+                return
+            }
+            if (pendingStage && STAGES.indexOf(pendingStage) > STAGES.indexOf(lead.status)) {
+                if (outcome === 'answered') {
+                    updateStatusMutation.mutate(pendingStage)
+                    setPendingStage(null)
+                }
+            }
+        }}
+      />
+
+      <MeetingDialog
+        isOpen={isMeetingDialogOpen}
+        onClose={() => setIsMeetingDialogOpen(false)}
+        leadId={leadId}
+        initialTitle={meetingTitle}
+      />
+
+      <MeetingOutcomeDialog
+        isOpen={isMeetingOutcomeDialogOpen}
+        onClose={() => setIsMeetingOutcomeDialogOpen(false)}
+        leadId={leadId}
+        meeting={pendingMeeting}
+        onSuccess={() => {
+            if (pendingStage && STAGES.indexOf(pendingStage) > STAGES.indexOf(lead.status)) {
+                updateStatusMutation.mutate(pendingStage)
+                setPendingStage(null)
+            }
+        }}
+      />
+
+      <SiteVisitDialog
+        isOpen={isSiteVisitDialogOpen}
+        onClose={() => setIsSiteVisitDialogOpen(false)}
+        leadId={leadId}
+        onSuccess={() => {
+            if (pendingStage && STAGES.indexOf(pendingStage) > STAGES.indexOf(lead.status)) {
+                updateStatusMutation.mutate(pendingStage)
+                setPendingStage(null)
+            }
+        }}
       />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
@@ -423,12 +660,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
               <LeadProgress 
                 stages={STAGE_LABELS}
                 activeIndex={STAGES.indexOf(lead.status)}
-                onStageChange={(index) => {
-                  const newStatus = STAGES[index]
-                  if (newStatus !== lead.status) {
-                    updateStatusMutation.mutate(newStatus)
-                  }
-                }}
+                onStageChange={handleStageChange}
               />
             </Card>
           )}
@@ -493,8 +725,6 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
         onClose={() => setIsCallDialogOpen(false)}
         leadId={leadId}
         phone={lead.phone || ""}
-        currentStage={lead.status}
-        onUpdateStage={(newStatus) => updateStatusMutation.mutate(newStatus)}
       />
 
       <MeetingDialog

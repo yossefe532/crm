@@ -7,6 +7,8 @@ import { useAuth } from "../../lib/auth/AuthContext"
 import { Modal } from "../ui/Modal"
 import { Button } from "../ui/Button"
 import { Input } from "../ui/Input"
+import { Textarea } from "../ui/Textarea"
+import { useLead } from "../../lib/hooks/useLead"
 
 interface MeetingDialogProps {
   isOpen: boolean
@@ -18,18 +20,49 @@ interface MeetingDialogProps {
 export const MeetingDialog = ({ isOpen, onClose, leadId, initialTitle }: MeetingDialogProps) => {
   const { token } = useAuth()
   const queryClient = useQueryClient()
+  const { data: lead } = useLead(leadId)
+  
   const [title, setTitle] = useState(initialTitle || "اجتماع جديد")
   const [startsAt, setStartsAt] = useState("")
   const [duration, setDuration] = useState("60")
 
+  // Call Log Fields
+  const [showCallFields, setShowCallFields] = useState(false)
+  const [callDuration, setCallDuration] = useState("60")
+  const [callNote, setCallNote] = useState("")
+
+  const hasScheduledMeeting = lead?.meetings?.some(m => m.status === 'scheduled')
+  const hasAnsweredCall = lead?.callLogs?.some(c => c.outcome === 'answered')
+
   useEffect(() => {
     if (isOpen) {
       setTitle(initialTitle || "اجتماع جديد")
+      // Check if call log is needed
+      // We check if lead exists and has NO answered calls
+      if (lead && !hasAnsweredCall) {
+          setShowCallFields(true)
+      } else {
+          setShowCallFields(false)
+      }
     }
-  }, [isOpen, initialTitle])
+  }, [isOpen, initialTitle, lead, hasAnsweredCall])
 
   const meetingMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
+      // 1. Create call log if needed
+      if (showCallFields) {
+          await leadService.addCall(leadId, {
+              outcome: "answered",
+              durationSeconds: parseInt(callDuration) || 0
+          }, token || undefined)
+          
+          if (callNote) {
+               const currentNotes = lead?.notes || ""
+               const newNote = `\n[مكالمة قبل الاجتماع ${new Date().toLocaleDateString('ar-EG')}]: ${callNote}`
+               await leadService.update(leadId, { notes: currentNotes + newNote }, token || undefined)
+          }
+      }
+
       const start = startsAt ? new Date(startsAt) : new Date()
       const durationMinutes = parseInt(duration) || 60
       return leadService.createMeeting(leadId, {
@@ -48,7 +81,41 @@ export const MeetingDialog = ({ isOpen, onClose, leadId, initialTitle }: Meeting
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="جدولة اجتماع">
-      <div className="space-y-4">
+      <div className="space-y-4 max-h-[80vh] overflow-y-auto px-1">
+        
+        {hasScheduledMeeting && (
+             <div className="bg-orange-50 border border-orange-200 text-orange-800 p-3 rounded-md text-sm mb-4 animate-fadeIn">
+                 ⚠️ تنبيه: يوجد بالفعل اجتماع مجدول لهذا العميل. هل أنت متأكد من إضافة اجتماع آخر؟
+             </div>
+        )}
+
+        {showCallFields && (
+            <div className="bg-blue-50 border border-blue-200 p-4 rounded-md mb-4 space-y-3 animate-fadeIn">
+                <div className="flex items-center gap-2 text-blue-800 font-medium text-sm">
+                    <span>📞</span>
+                    <span>لم يتم تسجيل مكالمة ناجحة. يرجى تسجيل تفاصيل المكالمة أولاً:</span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                     <Input
+                        label="مدة المكالمة (ثانية)"
+                        type="number"
+                        value={callDuration}
+                        onChange={(e) => setCallDuration(e.target.value)}
+                    />
+                </div>
+                
+                <Textarea 
+                    label="تفاصيل المكالمة"
+                    placeholder="اكتب ملخص المكالمة هنا..."
+                    value={callNote}
+                    onChange={(e) => setCallNote(e.target.value)}
+                    required
+                    className="min-h-[80px]"
+                />
+            </div>
+        )}
+
         <div className="space-y-2">
           <Input
             label="عنوان الاجتماع"
@@ -81,7 +148,7 @@ export const MeetingDialog = ({ isOpen, onClose, leadId, initialTitle }: Meeting
 
         <div className="flex justify-end gap-2 pt-4">
           <Button variant="ghost" onClick={onClose}>إلغاء</Button>
-          <Button onClick={() => meetingMutation.mutate()} disabled={meetingMutation.isPending || !startsAt}>
+          <Button onClick={() => meetingMutation.mutate()} disabled={meetingMutation.isPending || !startsAt || (showCallFields && !callNote)}>
             {meetingMutation.isPending ? "جاري الحفظ..." : "حفظ الاجتماع"}
           </Button>
         </div>

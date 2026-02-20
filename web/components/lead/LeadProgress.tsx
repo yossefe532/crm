@@ -2,40 +2,109 @@
 
 import { Button } from "../ui/Button"
 import { useLocale } from "../../lib/i18n/LocaleContext"
+import { Lead } from "../../lib/types"
 
 type Props = {
   stages: string[]
   activeIndex?: number
   onStageChange?: (index: number) => void
   readOnly?: boolean
+  lead?: Lead
 }
 
 const STAGE_ICONS: Record<string, any> = {
   "مكالمة هاتفية": (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
     </svg>
   ),
   "اجتماع": (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
     </svg>
   ),
   "رؤية الموقع": (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   ),
   "إغلاق الصفقة": (
-    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   )
 }
 
-export const LeadProgress = ({ stages, activeIndex = 0, onStageChange, readOnly }: Props) => {
+export const LeadProgress = ({ stages, activeIndex = 0, onStageChange, readOnly, lead }: Props) => {
   const { dir } = useLocale()
+
+  const getStageDetails = (stage: string) => {
+    if (!lead) return null
+    
+    // Call Stage
+    if (stage === "مكالمة هاتفية") {
+        const lastCall = lead.callLogs?.filter(c => c.outcome === 'answered').sort((a,b) => new Date(b.callTime).getTime() - new Date(a.callTime).getTime())[0]
+        if (lastCall) {
+            return (
+                <div className="text-xs text-base-500 mt-1 animate-fadeIn p-2 bg-base-50 rounded-md border border-base-100 max-w-[160px]">
+                    <div className="font-medium text-base-700">{new Date(lastCall.callTime).toLocaleDateString('ar-EG')}</div>
+                    <div>مدة: {lastCall.durationSeconds} ثانية</div>
+                </div>
+            )
+        }
+    }
+    
+    // Meeting Stage
+    if (stage === "اجتماع") {
+        const meeting = lead.meetings?.sort((a,b) => new Date(b.startsAt).getTime() - new Date(a.startsAt).getTime())[0]
+        if (meeting) {
+             return (
+                <div className="text-xs text-base-500 mt-1 animate-fadeIn p-2 bg-base-50 rounded-md border border-base-100 max-w-[160px]">
+                    <div className="font-medium text-base-700">{new Date(meeting.startsAt).toLocaleDateString('ar-EG')}</div>
+                    <div className="truncate" title={meeting.title}>{meeting.title}</div>
+                    <div className={`text-[10px] px-1.5 py-0.5 rounded-full inline-block mt-1 ${
+                        meeting.status === 'completed' ? 'bg-green-100 text-green-700' : 
+                        meeting.status === 'scheduled' ? 'bg-blue-100 text-blue-700' : 
+                        meeting.status === 'rescheduled' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100'
+                    }`}>
+                        {meeting.status === 'completed' ? 'تم' : meeting.status === 'scheduled' ? 'مجدول' : meeting.status === 'rescheduled' ? 'مؤجل' : meeting.status}
+                    </div>
+                </div>
+            )
+        }
+    }
+
+    // Site Visit Stage
+    if (stage === "رؤية الموقع") {
+        // Parse note
+        const visitLines = lead.notes?.split('\n').filter(line => line.includes('[رؤية الموقع')) || []
+        const visitNote = visitLines[visitLines.length - 1] // Get last visit note
+        
+        if (visitNote) {
+             const noteContent = visitNote.replace(/\[.*?\]:\s*/, '')
+             return (
+                <div className="text-xs text-base-500 mt-1 animate-fadeIn p-2 bg-base-50 rounded-md border border-base-100 max-w-[160px]">
+                    <div className="font-medium text-emerald-600 mb-1">تمت الزيارة</div>
+                    <div className="truncate" title={noteContent}>
+                        {noteContent}
+                    </div>
+                </div>
+            )
+        }
+    }
+
+    // Closing Stage
+    if (stage === "إغلاق الصفقة" && lead.status === 'won') {
+        return (
+             <div className="text-xs text-emerald-600 font-bold mt-1 animate-fadeIn p-2 bg-emerald-50 rounded-md border border-emerald-100">
+                تم بنجاح! 🎉
+            </div>
+        )
+    }
+    
+    return null
+  }
 
   return (
     <div className="w-full" dir={dir}>
@@ -54,14 +123,14 @@ export const LeadProgress = ({ stages, activeIndex = 0, onStageChange, readOnly 
           const isComplete = index < activeIndex
           const isActive = index === activeIndex
           
-          let circleClass = "bg-white border-2 border-base-300 text-base-400"
+          let circleClass = "bg-white border-2 border-base-300 text-base-400 w-12 h-12"
           let textClass = "text-base-500 font-medium"
           
           if (isComplete) {
-            circleClass = "bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-200"
+            circleClass = "bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-200 w-12 h-12"
             textClass = "text-emerald-700 font-bold"
           } else if (isActive) {
-            circleClass = "bg-brand-500 border-brand-500 text-white shadow-lg shadow-brand-200 scale-110 ring-4 ring-brand-100"
+            circleClass = "bg-brand-500 border-brand-500 text-white shadow-lg shadow-brand-200 scale-125 ring-4 ring-brand-100 w-14 h-14"
             textClass = "text-brand-700 font-bold"
           }
 
@@ -116,14 +185,14 @@ export const LeadProgress = ({ stages, activeIndex = 0, onStageChange, readOnly 
           const isComplete = index < activeIndex
           const isActive = index === activeIndex
           
-          let circleClass = "bg-white border-2 border-base-300 text-base-400"
+          let circleClass = "bg-white border-2 border-base-300 text-base-400 w-16 h-16"
           let textClass = "text-base-500 font-medium"
           
           if (isComplete) {
-            circleClass = "bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-200"
+            circleClass = "bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-200 w-16 h-16"
             textClass = "text-emerald-700 font-bold"
           } else if (isActive) {
-            circleClass = "bg-brand-500 border-brand-500 text-white shadow-lg shadow-brand-200 scale-110 ring-4 ring-brand-100"
+            circleClass = "bg-brand-500 border-brand-500 text-white shadow-lg shadow-brand-200 scale-125 ring-4 ring-brand-100 w-20 h-20"
             textClass = "text-brand-700 font-bold"
           }
 

@@ -91,13 +91,14 @@ export const ClosureModal = ({ isOpen, onClose, lead }: ClosureModalProps) => {
 
         <div>
           <label className="block text-sm font-medium text-base-700 mb-1">
-            ملاحظات الإغلاق (اختياري)
+            تفاصيل الاتفاق / ملاحظات <span className="text-rose-500">*</span>
           </label>
           <Textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="أضف أي تفاصيل أخرى حول الصفقة..."
+            placeholder="اكتب تفاصيل الاتفاق وما تم التوصل إليه..."
             className="w-full min-h-[100px]"
+            required
           />
         </div>
 

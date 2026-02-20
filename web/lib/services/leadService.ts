@@ -1,5 +1,5 @@
 import { apiClient } from "../api/client"
-import { Lead } from "../types"
+import { Lead, Meeting } from "../types"
 
 export const leadService = {
   list: (token?: string, params?: { q?: string; page?: number; pageSize?: number }) => {
@@ -24,7 +24,7 @@ export const leadService = {
   addCall: (id: string, payload: { durationSeconds?: number; outcome?: string }, token?: string) => apiClient.post<{ id: string }>(`/leads/${id}/calls`, payload, token),
   listClosures: (token?: string) => apiClient.get<Array<{ id: string; leadId: string; amount: number; note?: string | null; closedAt: string }>>("/leads/closures", token),
   close: (id: string, payload: { amount: number; note?: string; address?: string }, token?: string) => apiClient.post(`/leads/${id}/close`, payload, token),
-  decideClosure: (closureId: string, payload: { status: "approved" | "rejected" }, token?: string) => apiClient.post(`/leads/closures/${closureId}/decide`, payload, token),
+  decideClosure: (closureId: string, payload: { status: "approved" | "rejected"; amount?: number; note?: string }, token?: string) => apiClient.post(`/leads/closures/${closureId}/decide`, payload, token),
   undoStage: (id: string, token?: string) => apiClient.post(`/leads/${id}/stage/undo`, {}, token),
   fail: (id: string, payload: { reason?: string; failureType: "overdue" | "surrender" }, token?: string) => apiClient.post(`/leads/${id}/fail`, payload, token),
   resolveFailure: (failureId: string, payload: { reason: string }, token?: string) => apiClient.post(`/leads/failures/${failureId}/resolve`, payload, token),
@@ -37,5 +37,6 @@ export const leadService = {
       status: payload.status
     }
     return apiClient.post<{ id: string }>("/meetings", body, token)
-  }
+  },
+  updateMeeting: (meetingId: string, payload: Partial<Meeting>, token?: string) => apiClient.patch<{ id: string }>(`/meetings/${meetingId}`, payload, token)
 }

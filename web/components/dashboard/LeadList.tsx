@@ -184,6 +184,11 @@ export const LeadList = () => {
                 >
                   {lead.name}
                 </p>
+                {lead.isWrongNumber && (
+                  <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200 mr-2 text-xs">
+                    رقم خاطئ ⚠️
+                  </Badge>
+                )}
                 <div className="mt-1 flex items-center gap-2">
                   <p className="text-xs text-base-500">مُسند إلى:</p>
                   {lead.assignedUserId ? (

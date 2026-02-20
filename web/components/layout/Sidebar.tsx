@@ -40,6 +40,7 @@ const navByRole = {
     { href: "/analytics/goals", label: "الأهداف" },
     { href: "/meetings", label: "الاجتماعات" },
     { href: "/leads", label: "عملائي" },
+    { href: "/requests", label: "الطلبات" },
     { href: "/connect", label: "التواصل" },
     { href: "/account", label: "إدارة الحساب" }
   ]

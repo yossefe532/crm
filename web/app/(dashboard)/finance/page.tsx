@@ -152,6 +152,14 @@ export default function FinancePage() {
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }))
   }, [filteredEntries])
 
+  const incomeCategoryData = useMemo(() => {
+    const map = new Map<string, number>()
+    filteredEntries.filter(e => e.entryType === "income").forEach(e => {
+      map.set(e.category, (map.get(e.category) || 0) + e.amount)
+    })
+    return Array.from(map.entries()).map(([name, value]) => ({ name, value }))
+  }, [filteredEntries])
+
   const dailyData = useMemo(() => {
     const map = new Map<string, { income: number, expense: number }>()
     // Initialize days of month
@@ -242,6 +250,30 @@ export default function FinancePage() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card title="تحليل الدخل">
+          <div className="h-[300px] w-full" dir="ltr">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={incomeCategoryData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={100}
+                  fill="#10B981"
+                  dataKey="value"
+                >
+                  {incomeCategoryData.map((entry, index) => (
+                    <Cell key={`cell-income-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
         <Card title="تحليل المصروفات">
           <div className="h-[300px] w-full" dir="ltr">
             <ResponsiveContainer width="100%" height="100%">
@@ -253,11 +285,11 @@ export default function FinancePage() {
                   labelLine={false}
                   label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                   outerRadius={100}
-                  fill="#8884d8"
+                  fill="#EF4444"
                   dataKey="value"
                 >
                   {categoryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-expense-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -266,7 +298,7 @@ export default function FinancePage() {
           </div>
         </Card>
 
-        <Card title="التدفق اليومي">
+        <Card title="التدفق اليومي" className="lg:col-span-2">
           <div className="h-[300px] w-full" dir="ltr">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dailyData}>
