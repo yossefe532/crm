@@ -29,7 +29,4 @@ router.post("/:id/assign", requirePermission("leads.assign"), asyncHandler(leadC
 router.post("/:id/unassign", requirePermission("leads.assign"), asyncHandler(leadController.unassignLead))
 router.post("/:id/contacts", requirePermission("leads.update"), asyncHandler(leadController.addLeadContact))
 router.post("/:id/tasks", requirePermission("leads.update"), asyncHandler(leadController.addLeadTask))
-router.get("/tasks", requirePermission("leads.read"), asyncHandler(leadController.listTasks))
 router.post("/:id/calls", requirePermission("leads.update"), asyncHandler(leadController.addCallLog))
-router.post("/sources", requirePermission("lead_sources.create"), asyncHandler(leadController.createLeadSource))
-router.get("/sources", requirePermission("lead_sources.read"), asyncHandler(leadController.listLeadSources))
