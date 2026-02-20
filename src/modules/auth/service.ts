@@ -4,6 +4,7 @@ import { env } from "../../config/env"
 import { Prisma } from "@prisma/client"
 import { hashPassword, verifyPassword } from "./password"
 import { seedRbacForTenant } from "./rbacSeed"
+import { cache } from "../../utils/cache"
 
 type AuthUser = { id: string; tenantId: string; roles: string[]; forceReset?: boolean }
 type AuthResult = { token: string; user: AuthUser }
@@ -39,11 +40,19 @@ const ensureDefaultRoles = async (tenantId: string) => {
 }
 
 const getRolesForUser = async (tenantId: string, userId: string) => {
+  const cacheKey = `auth:roles:${tenantId}:${userId}`
+  const cached = await cache.get(cacheKey)
+  if (cached) return cached
+
   const roleLinks = await prisma.userRole.findMany({
     where: { tenantId, userId, revokedAt: null },
     include: { role: true }
   })
-  return roleLinks.length ? roleLinks.map((link) => link.role.name) : ["sales"]
+  const roles = roleLinks.length ? roleLinks.map((link) => link.role.name) : ["sales"]
+  
+  // Cache for 10 minutes to reduce DB load during login bursts
+  await cache.set(cacheKey, roles, 600)
+  return roles
 }
 
 export const authService = {
@@ -56,12 +65,14 @@ export const authService = {
     const ok = await verifyPassword(input.password, user.passwordHash)
     if (!ok) throw { status: 401, message: "بيانات الدخول غير صحيحة" }
 
-    const roles = await getRolesForUser(user.tenantId, user.id)
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() }
-    })
+    // Run role fetching and last login update in parallel for speed
+    const [roles] = await Promise.all([
+      getRolesForUser(user.tenantId, user.id),
+      prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() }
+      })
+    ])
 
     const authUser: AuthUser = user.mustChangePassword ? { id: user.id, tenantId: user.tenantId, roles, forceReset: true } : { id: user.id, tenantId: user.tenantId, roles }
     return { token: issueToken(authUser), user: authUser }

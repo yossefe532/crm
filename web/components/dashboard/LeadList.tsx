@@ -297,7 +297,7 @@ export const LeadList = () => {
               <div className="mt-3 text-xs text-base-500">
                 المهلة المتبقية: <ClientDate 
                   date={deadlinesByLead.get(lead.id)?.dueAt || ""}
-                  formatter={(d) => {
+                  formatter={(d: Date) => {
                     const diff = Math.max(0, d.getTime() - Date.now())
                     const hours = Math.floor(diff / 3600000)
                     const days = Math.floor(hours / 24)

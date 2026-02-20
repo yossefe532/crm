@@ -238,13 +238,14 @@ export const KanbanBoard = ({ leads }: { leads?: Lead[] }) => {
   })
 
   const notifyMutation = useMutation({
-    mutationFn: (payload: { userId: string; leadName: string }) =>
-      notificationService.broadcast(
+    mutationFn: async (payload: { userId: string; leadName: string }) => {
+      await notificationService.broadcast(
         { type: "user", value: payload.userId },
         `مطلوب إجراء سريع بخصوص العميل ${payload.leadName}`,
         ["in_app", "push"],
         token || undefined
       )
+    }
   })
 
   // Filter leads

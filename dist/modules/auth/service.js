@@ -10,6 +10,7 @@ const env_1 = require("../../config/env");
 const client_2 = require("@prisma/client");
 const password_1 = require("./password");
 const rbacSeed_1 = require("./rbacSeed");
+const cache_1 = require("../../utils/cache");
 const assertJwtConfigured = () => {
     if (!env_1.env.jwtSecret) {
         throw { status: 500, message: "Server misconfigured" };
@@ -37,11 +38,18 @@ const ensureDefaultRoles = async (tenantId) => {
     return results;
 };
 const getRolesForUser = async (tenantId, userId) => {
+    const cacheKey = `auth:roles:${tenantId}:${userId}`;
+    const cached = await cache_1.cache.get(cacheKey);
+    if (cached)
+        return cached;
     const roleLinks = await client_1.prisma.userRole.findMany({
         where: { tenantId, userId, revokedAt: null },
         include: { role: true }
     });
-    return roleLinks.length ? roleLinks.map((link) => link.role.name) : ["sales"];
+    const roles = roleLinks.length ? roleLinks.map((link) => link.role.name) : ["sales"];
+    // Cache for 10 minutes to reduce DB load during login bursts
+    await cache_1.cache.set(cacheKey, roles, 600);
+    return roles;
 };
 exports.authService = {
     login: async (input) => {
@@ -54,11 +62,14 @@ exports.authService = {
         const ok = await (0, password_1.verifyPassword)(input.password, user.passwordHash);
         if (!ok)
             throw { status: 401, message: "بيانات الدخول غير صحيحة" };
-        const roles = await getRolesForUser(user.tenantId, user.id);
-        await client_1.prisma.user.update({
-            where: { id: user.id },
-            data: { lastLoginAt: new Date() }
-        });
+        // Run role fetching and last login update in parallel for speed
+        const [roles] = await Promise.all([
+            getRolesForUser(user.tenantId, user.id),
+            client_1.prisma.user.update({
+                where: { id: user.id },
+                data: { lastLoginAt: new Date() }
+            })
+        ]);
         const authUser = user.mustChangePassword ? { id: user.id, tenantId: user.tenantId, roles, forceReset: true } : { id: user.id, tenantId: user.tenantId, roles };
         return { token: issueToken(authUser), user: authUser };
     },

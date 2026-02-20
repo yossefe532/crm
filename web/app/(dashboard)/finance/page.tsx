@@ -148,7 +148,7 @@ export default function FinancePage() {
   const categoryData = useMemo(() => {
     const map = new Map<string, number>()
     filteredEntries.filter(e => e.entryType === "expense").forEach(e => {
-      const label = CATEGORY_LABELS[e.category] || e.category
+      const label = FINANCE_CATEGORY_LABELS[e.category] || e.category
       map.set(label, (map.get(label) || 0) + e.amount)
     })
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }))
@@ -157,7 +157,7 @@ export default function FinancePage() {
   const incomeCategoryData = useMemo(() => {
     const map = new Map<string, number>()
     filteredEntries.filter(e => e.entryType === "income").forEach(e => {
-      const label = CATEGORY_LABELS[e.category] || e.category
+      const label = FINANCE_CATEGORY_LABELS[e.category] || e.category
       map.set(label, (map.get(label) || 0) + e.amount)
     })
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }))
@@ -268,7 +268,7 @@ export default function FinancePage() {
                   dataKey="value"
                 >
                   {incomeCategoryData.map((entry, index) => (
-                    <Cell key={`cell-income-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell key={`cell-income-${index}`} fill={FINANCE_COLORS[index % FINANCE_COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />

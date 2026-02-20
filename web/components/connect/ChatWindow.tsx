@@ -391,7 +391,7 @@ export const ChatWindow = () => {
       return myTeam.members.map(m => {
          const user = users?.find(u => u.id === m.userId)
          return user
-      }).filter(Boolean)
+      }).filter((u): u is User => !!u)
     }
     return []
   }, [role, myTeam, users])
