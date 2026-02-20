@@ -2,7 +2,7 @@
 
 import { useCountUp } from "../../lib/hooks/useCountUp"
 
-export const Stat = ({ label, value, change }: { label: string; value: string; change?: string }) => {
+export const Stat = ({ label, value, change }: { label: string; value: string; change?: string | number }) => {
   const numeric = Number(value.replace(/[^0-9.-]/g, ""))
   const isNumeric = !Number.isNaN(numeric)
   const hasDecimal = value.includes(".")

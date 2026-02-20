@@ -47,7 +47,7 @@ export const StageControls = ({ currentStage, onStageChange, disabled }: { curre
         title="تأكيد الانتقال للمرحلة التالية"
         description={`هل أنت متأكد من إكمال المرحلة الحالية والانتقال إلى ${nextStageLabel}؟`}
         confirmText="تأكيد الانتقال"
-        variant="primary"
+        variant="info"
       />
     </>
   )

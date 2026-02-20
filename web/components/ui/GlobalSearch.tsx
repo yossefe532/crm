@@ -18,7 +18,7 @@ export const GlobalSearch = () => {
   const router = useRouter()
 
   // Queries
-  const { data: leads, isLoading: leadsLoading } = useLeads(debouncedSearch)
+  const { data: leads, isLoading: leadsLoading } = useLeads({ query: debouncedSearch })
   const { data: users } = useUsers()
 
   // Filter Users (client-side as useUsers usually returns all)
@@ -83,7 +83,7 @@ export const GlobalSearch = () => {
         </kbd>
       </button>
 
-      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="البحث الشامل" className="max-w-2xl">
+      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="البحث الشامل" size="lg">
         <div className="space-y-4 min-h-[300px]">
           <Input 
             autoFocus

@@ -169,7 +169,7 @@ export type NotificationEvent = {
 export type PerformanceMetric = {
   label: string
   value: string
-  change?: string
+  change?: string | number
 }
 
 export type FinanceEntry = {

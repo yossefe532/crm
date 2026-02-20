@@ -31,7 +31,7 @@ export default function UsersSettingsPage() {
   const [teamSetup, setTeamSetup] = useState<{ leaderId: string } | null>(null)
   const [teamSetupName, setTeamSetupName] = useState("")
   const [teamSetupMembers, setTeamSetupMembers] = useState<string[]>([])
-  const [editValues, setEditValues] = useState<Record<string, { email?: string; phone?: string; status?: string }>>({})
+  const [editValues, setEditValues] = useState<Record<string, { name?: string; email?: string; phone?: string; status?: string }>>({})
   const [auditUserId, setAuditUserId] = useState<string | null>(null)
   const [deleteUserConfirmationId, setDeleteUserConfirmationId] = useState<string | null>(null)
   const [deleteTeamConfirmationId, setDeleteTeamConfirmationId] = useState<string | null>(null)

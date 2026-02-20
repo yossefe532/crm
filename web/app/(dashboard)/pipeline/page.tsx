@@ -10,7 +10,7 @@ import { useLeads } from "../../../lib/hooks/useLeads"
 export default function PipelinePage() {
   const [query, setQuery] = useState("")
   const [view, setView] = useState<"team" | "kanban">("team")
-  const { data: leads } = useLeads(query)
+  const { data: leads } = useLeads({ query })
   return (
     <div className="space-y-6">
       <PipelineFilters query={query} onChange={setQuery} />
