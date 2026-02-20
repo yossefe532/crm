@@ -256,9 +256,10 @@ export const ChatWindow = () => {
               ["push"],
               token || undefined
             )
-          } catch {}
+          }
         }
-      } catch (err) {
+      } catch {}
+    } catch (err) {
         // Error sending message
         setError("فشل إرسال الرسالة")
       

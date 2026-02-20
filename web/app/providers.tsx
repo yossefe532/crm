@@ -7,6 +7,7 @@ import { ThemeProvider } from "../lib/theme/ThemeProvider"
 import { LocaleProvider } from "../lib/i18n/LocaleContext"
 import { ToastProvider } from "../components/ui/ToastProvider"
 import { NotificationListener } from "../components/ui/NotificationListener"
+import { ErrorBoundary } from "../components/ui/ErrorBoundary"
 import dynamic from "next/dynamic"
 
 // const CustomCursor = dynamic(() => import("../components/ui/CustomCursor").then(mod => mod.CustomCursor), {

@@ -1,6 +1,14 @@
 {
     "configurations": [
         {
+            "type": "node",
+            "request": "launch",
+            "name": "Run browserslist",
+            "runtimeExecutable": "browserslist",
+            "cwd": "${workspaceFolder}/web",
+            "args": []
+        },
+        {
             "type": "msedge",
             "name": "http://localhost:3000/",
             "request": "launch",
