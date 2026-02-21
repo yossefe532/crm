@@ -8,11 +8,19 @@ try {
   redisClient = createClient({ url: env.redisUrl })
   
   redisClient.on("error", (err) => {
+    // Suppress connection refused errors - common in local dev without Redis
+    if (err?.code === 'ECONNREFUSED' || err?.message?.includes('ECONNREFUSED')) {
+       // Silent failure for local dev
+       return
+    }
     console.error("Redis Client Error:", err)
   })
 
   // Connect to Redis (non-blocking)
-  redisClient.connect().catch(console.error)
+  redisClient.connect().catch(() => {
+    // Silent catch for connection failure
+    redisClient = null
+  })
 } catch (error) {
   console.warn("Redis disabled - using fallback cache")
   redisClient = null

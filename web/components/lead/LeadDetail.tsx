@@ -26,7 +26,7 @@ import { FailureModal } from "./FailureModal"
 import { Modal } from "../ui/Modal"
 
 export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; showProgress?: boolean }) => {
-  const { token, role } = useAuth()
+  const { token, role, userId } = useAuth()
   const router = useRouter()
   const queryClient = useQueryClient()
   const [isCallDialogOpen, setIsCallDialogOpen] = useState(false)
@@ -661,6 +661,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
                 stages={STAGE_LABELS}
                 activeIndex={STAGES.indexOf(lead.status)}
                 onStageChange={handleStageChange}
+                readOnly={(role === 'owner' || role === 'team_leader') && !!lead.assignedUserId && lead.assignedUserId !== userId}
               />
             </Card>
           )}

@@ -48,7 +48,8 @@ export const Providers = ({ children }: { children: ReactNode }) => {
         if (!res.ok) throw new Error(String(res.status))
       } catch {
         if (mounted) {
-          toast.error("الخادم غير متاح الآن")
+          // toast.error("الخادم غير متاح الآن")
+          console.error("الخادم غير متاح الآن")
         }
       }
     }

@@ -68,7 +68,8 @@ export const request = async <T>(
     const msg = isAbort ? "انتهت مهلة الاتصال بالخادم" : (err as { message?: string })?.message
     logger.error("api.network_error", { url, method, message: (err as { message?: string })?.message })
     if (typeof window !== "undefined") {
-      toast.error(isAbort ? "انتهت مهلة الاتصال بالخادم" : "تعذر الاتصال بالخادم")
+      // toast.error(isAbort ? "انتهت مهلة الاتصال بالخادم" : "تعذر الاتصال بالخادم")
+      console.error(isAbort ? "انتهت مهلة الاتصال بالخادم" : "تعذر الاتصال بالخادم")
     }
     throw { status: 0, message: msg || "تعذر الاتصال بالخادم" } satisfies ApiError
   }
@@ -103,8 +104,11 @@ export const request = async <T>(
       console.error("Vercel/Railway Error Page Detected:", payload.rawText)
     }
     
-    if (typeof window !== "undefined" && response.status !== 401 && response.status !== 404) {
-      toast.error(message)
+    if (typeof window !== "undefined" && response.status !== 401 && response.status !== 404 && response.status !== 403) {
+      // Suppress annoying toasts for connection issues or forbidden access
+      if (!message.includes("Application failed") && !message.includes("الخادم غير متاح")) {
+         toast.error(message)
+      }
     }
 
     throw { status: response.status, message, details: payload.details, ...payload } satisfies ApiError
