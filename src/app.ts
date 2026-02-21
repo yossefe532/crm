@@ -23,6 +23,10 @@ import { router as conversationRouter } from "./modules/conversations/routes"
 
 export const createApp = () => {
   const app = express()
+  // إضافة endpoint للصحة في البداية تماماً للتأكد من استجابة الخادم
+  app.get("/", (_req, res) => res.send("Server is running"))
+  app.get("/health", (_req, res) => res.json({ ok: true }))
+
   app.use((req, res, next) => {
     const origin = req.headers.origin as string | undefined
     const allowedOrigins = new Set([
@@ -47,6 +51,8 @@ export const createApp = () => {
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-user-id, x-tenant-id, x-roles")
     if (req.method === "OPTIONS") {
       return res.status(204).end()
+  
+  // نقاط فحص الصحة
     }
     next()
   })
