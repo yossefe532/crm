@@ -1,4 +1,5 @@
 import express from "express"
+import cors from "cors"
 import { authMiddleware } from "./middleware/auth"
 import { forceResetMiddleware } from "./middleware/forceReset"
 import { errorHandler } from "./middleware/error"
@@ -24,32 +25,32 @@ import { router as conversationRouter } from "./modules/conversations/routes"
 export const createApp = () => {
   const app = express()
 
-  // CORS Middleware - MUST be first
-  app.use((req, res, next) => {
-    const origin = req.headers.origin
-    
-    // Allow any origin that connects (Reflection)
-    if (origin) {
-      res.setHeader("Access-Control-Allow-Origin", origin)
-    } else {
-      res.setHeader("Access-Control-Allow-Origin", "*")
-    }
+  // CORS Configuration
+  app.use(cors({
+    origin: true, // Allow any origin
+    credentials: true,
+    methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-user-id", "x-tenant-id", "x-roles"],
+    exposedHeaders: ["Content-Length", "X-Total-Count"]
+  }))
 
-    res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS, POST, PUT, DELETE, PATCH")
-    res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-user-id, x-tenant-id, x-roles")
-    res.setHeader("Access-Control-Allow-Credentials", "true")
-
-    if (req.method === "OPTIONS") {
-      return res.status(200).end()
-    }
-    next()
-  })
+  // Handle preflight requests
+  app.options("*", cors())
 
   // Health checks
   app.get("/", (_req, res) => res.send("Server is running"))
   app.get("/health", (_req, res) => res.json({ ok: true }))
   
-  app.use(express.json({ limit: "2mb" }))
+  app.use(express.json({ limit: "50mb" }))
+  app.use(express.urlencoded({ extended: true, limit: "50mb" }))
+
+  // Base API route to prevent 404s
+  app.get("/api", (_req, res) => res.json({ 
+    status: "online", 
+    message: "CRM API is running",
+    timestamp: new Date().toISOString()
+  }))
+
   app.get("/api/health", (_req, res) => res.json({ ok: true }))
   app.get("/api/debug-env", (_req, res) => {
     const dbUrl = process.env.DATABASE_URL || "NOT_SET"

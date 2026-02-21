@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createApp = void 0;
 const express_1 = __importDefault(require("express"));
+const cors_1 = __importDefault(require("cors"));
 const auth_1 = require("./middleware/auth");
 const forceReset_1 = require("./middleware/forceReset");
 const error_1 = require("./middleware/error");
@@ -28,30 +29,27 @@ const routes_16 = require("./modules/goals/routes");
 const routes_17 = require("./modules/conversations/routes");
 const createApp = () => {
     const app = (0, express_1.default)();
-    app.use((req, res, next) => {
-        const origin = req.headers.origin;
-        const allowedOrigins = new Set([
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-            process.env.FRONTEND_URL, // السماح لرابط الفرونت إند من المتغيرات البيئية
-            process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined // السماح لرابط فيرسيل التلقائي
-        ].filter(Boolean));
-        // إذا لم يكن هناك origin (مثل Postman) أو كان الـ origin مسموحاً به
-        if (!origin || allowedOrigins.has(origin)) {
-            res.setHeader("Access-Control-Allow-Origin", origin || "*");
-        }
-        // للتسهيل في مرحلة التطوير، إذا أردت السماح للجميع (غير مستحسن للإنتاج الدقيق لكن مفيد للتجربة الأولية)
-        // يمكن تفعيل السطر التالي وإلغاء الشرط السابق
-        // res.setHeader("Access-Control-Allow-Origin", origin || "*")
-        res.setHeader("Vary", "Origin");
-        res.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
-        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-user-id, x-tenant-id, x-roles");
-        if (req.method === "OPTIONS") {
-            return res.status(204).end();
-        }
-        next();
-    });
-    app.use(express_1.default.json({ limit: "2mb" }));
+    // CORS Configuration
+    app.use((0, cors_1.default)({
+        origin: true, // Allow any origin
+        credentials: true,
+        methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization", "x-user-id", "x-tenant-id", "x-roles"],
+        exposedHeaders: ["Content-Length", "X-Total-Count"]
+    }));
+    // Handle preflight requests
+    app.options("*", (0, cors_1.default)());
+    // Health checks
+    app.get("/", (_req, res) => res.send("Server is running"));
+    app.get("/health", (_req, res) => res.json({ ok: true }));
+    app.use(express_1.default.json({ limit: "50mb" }));
+    app.use(express_1.default.urlencoded({ extended: true, limit: "50mb" }));
+    // Base API route to prevent 404s
+    app.get("/api", (_req, res) => res.json({
+        status: "online",
+        message: "CRM API is running",
+        timestamp: new Date().toISOString()
+    }));
     app.get("/api/health", (_req, res) => res.json({ ok: true }));
     app.get("/api/debug-env", (_req, res) => {
         const dbUrl = process.env.DATABASE_URL || "NOT_SET";

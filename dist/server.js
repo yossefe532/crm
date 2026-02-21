@@ -6,6 +6,12 @@ const jobs_1 = require("./jobs");
 const http_1 = require("http");
 const socket_1 = require("./socket");
 const env_1 = require("./config/env");
+process.on("unhandledRejection", (reason) => {
+    console.error("Unhandled Promise Rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+    console.error("Uncaught Exception:", err);
+});
 try {
     const app = (0, app_1.createApp)();
     const httpServer = (0, http_1.createServer)(app);
@@ -13,8 +19,8 @@ try {
     (0, socket_1.initSocket)(httpServer);
     // شغّل السيرفر على بورت 4000 أو المتغير البيئي
     const PORT = process.env.PORT || 4000;
-    httpServer.listen(PORT, () => {
-        console.log(`Server running on http://localhost:${PORT}`);
+    httpServer.listen(Number(PORT), "0.0.0.0", () => {
+        console.log(`Server running on http://0.0.0.0:${PORT}`);
         // شغّل أي jobs بعد ما السيرفر يبدأ (مع حراسة للبيئة)
         try {
             if (!env_1.env.databaseUrl) {
@@ -32,9 +38,3 @@ try {
 catch (error) {
     console.error("Failed to start server:", error);
 }
-process.on("unhandledRejection", (reason) => {
-    console.error("Unhandled Promise Rejection:", reason);
-});
-process.on("uncaughtException", (err) => {
-    console.error("Uncaught Exception:", err);
-});
