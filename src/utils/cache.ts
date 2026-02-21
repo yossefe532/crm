@@ -43,10 +43,11 @@ const withTimeout = async <T>(promise: Promise<T>, fallback: T): Promise<T> => {
 export const cache = {
   // Get cached value
   get: async (key: string): Promise<any> => {
-    if (!redisClient.isOpen) return null
+    if (!redisClient || !redisClient.isOpen) return null
     return withTimeout(
       (async () => {
         try {
+          if (!redisClient) return null
           const value = await redisClient.get(key)
           return value ? JSON.parse(value) : null
         } catch (error) {
@@ -60,9 +61,10 @@ export const cache = {
 
   // Set value in cache with expiration
   set: async (key: string, value: any, ttlSeconds?: number): Promise<void> => {
-    if (!redisClient.isOpen) return
+    if (!redisClient || !redisClient.isOpen) return
     const operation = async () => {
       try {
+        if (!redisClient) return
         const serializedValue = JSON.stringify(value)
         if (ttlSeconds) {
           await redisClient.setEx(key, ttlSeconds, serializedValue)
@@ -81,10 +83,11 @@ export const cache = {
 
   // Delete cached value
   del: async (key: string): Promise<void> => {
-    if (!redisClient.isOpen) return
+    if (!redisClient || !redisClient.isOpen) return
     await withTimeout(
       (async () => {
         try {
+          if (!redisClient) return
           await redisClient.del(key)
         } catch (error) {
           console.error("Cache DEL error:", error)
@@ -96,10 +99,11 @@ export const cache = {
 
   // Clear all cache (use with caution)
   flush: async (): Promise<void> => {
-    if (!redisClient.isOpen) return
+    if (!redisClient || !redisClient.isOpen) return
     await withTimeout(
       (async () => {
         try {
+          if (!redisClient) return
           await redisClient.flushAll()
         } catch (error) {
           console.error("Cache FLUSH error:", error)
