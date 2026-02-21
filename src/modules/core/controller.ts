@@ -639,52 +639,62 @@ export const coreController = {
         resultData = { createdUser: { id: user.id, email: user.email, phone: user.phone, mustChangePassword: user.mustChangePassword, temporaryPassword: password } }
       } else if (request.requestType === "create_lead") {
         const payload = request.payload as any
+        const phone = payload.phone ? String(payload.phone).trim() : ""
         if (!payload.leadCode) {
           payload.leadCode = `L-${Date.now()}`
         }
+        
         let lead
-          try {
-            lead = await leadService.createLead(tenantId, payload)
-          } catch (error: any) {
-            // Handle unique constraint violation (duplicate phone)
-            if (error.code === 'P2002' || (error.message && error.message.includes('Unique constraint'))) {
-              const existingLead = await prisma.lead.findFirst({
-                where: { 
-                  tenantId, 
-                  phone: payload.phone 
+        try {
+          lead = await leadService.createLead(tenantId, { ...payload, phone })
+        } catch (error: any) {
+          // Handle unique constraint violation (duplicate phone)
+          if (error.code === 'P2002' || (error.message && error.message.includes('Unique constraint'))) {
+            const existingLead = await prisma.lead.findFirst({
+              where: { 
+                tenantId, 
+                phone: phone
+              }
+            })
+            
+            if (existingLead) {
+              // If lead exists (even if deleted), restore/update it
+              const stages = await lifecycleService.ensureDefaultStages(tenantId)
+              const callStage = stages.find((stage) => stage.code === "call")
+              const defaultStatus = callStage?.code || "call"
+              
+              lead = await prisma.lead.update({
+                where: { id: existingLead.id },
+                data: {
+                  deletedAt: null, // Restore if deleted
+                  name: payload.name,
+                  email: payload.email || existingLead.email,
+                  status: defaultStatus, // Reset status to default so it appears in pipeline
+                  assignedUserId: payload.assignedUserId || existingLead.assignedUserId,
+                  teamId: payload.teamId || existingLead.teamId
                 }
               })
-              
-              if (existingLead) {
-                // If lead exists (even if deleted), restore/update it
-                const stages = await lifecycleService.ensureDefaultStages(tenantId)
-                const callStage = stages.find((stage) => stage.code === "call")
-                const defaultStatus = callStage?.code || "call"
-                
-                lead = await prisma.lead.update({
-                  where: { id: existingLead.id },
-                  data: {
-                    deletedAt: null, // Restore if deleted
-                    name: payload.name,
-                    email: payload.email || existingLead.email,
-                    status: defaultStatus, // Reset status to default so it appears in pipeline
-                  }
-                })
-              } else {
-                throw error 
-              }
             } else {
-              throw error
+              // If we can't find the duplicate but create failed due to duplicate, something is wrong.
+              // We should probably log this and throw, but maybe we can try to find by phone only?
+              // No, tenant isolation is critical.
+              throw error 
             }
+          } else {
+            throw error
           }
+        }
 
-          if (payload.assignedUserId && lead) {
-            await leadService.assignLead(tenantId, lead.id, payload.assignedUserId, userId, "Approved Request", payload.teamId)
+        if (payload.assignedUserId && lead) {
+          // Ensure assignment is recorded/updated
+          if (lead.assignedUserId !== payload.assignedUserId) {
+             await leadService.assignLead(tenantId, lead.id, payload.assignedUserId, userId, "Approved Request", payload.teamId)
           }
-          if (lead) {
+        }
+        if (lead) {
             await logActivity({ tenantId, actorUserId: userId, action: "lead.created", entityType: "lead", entityId: lead.id, metadata: { approvedRequestId: request.id, isDuplicateResolved: true } })
             resultData = { createdLead: lead }
-          }
+        }
       }
     }
 
