@@ -47,6 +47,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
   const [newPhone, setNewPhone] = useState("")
 
   const { data: lead, isLoading } = useLead(leadId)
+  const isOwnerAssignedToOther = !isLoading && lead && (role === 'owner' || role === 'team_leader') && !!lead.assignedUserId && lead.assignedUserId !== userId
   const { data: users } = useUsers()
   const { data: teams } = useTeams()
   
@@ -108,6 +109,12 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
     const targetStage = STAGES[index]
     
     if (index === currentStageIndex) return
+    
+    // Prevent skipping stages
+    if (index > currentStageIndex + 1) {
+        alert("يجب إكمال المراحل بالترتيب")
+        return
+    }
 
     // Allow moving back
     if (index < currentStageIndex) {
@@ -119,7 +126,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
     setPendingStage(targetStage)
 
     if (lead.status === 'new') {
-        updateStatusMutation.mutate(targetStage)
+        setIsCallDialogOpen(true)
         return
     }
 
@@ -297,7 +304,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
           </div>
           
           <div className="flex flex-wrap gap-2 w-full md:w-auto mt-2 md:mt-0">
-            {lead.phone && (
+            {lead.phone && !isOwnerAssignedToOther && (
               <>
                 <Button
                   className="flex-1 md:flex-none bg-[#25D366] hover:bg-[#128C7E] text-white border-transparent gap-2 shadow-sm"
@@ -319,7 +326,8 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
                 </Button>
               </>
             )}
-            <Button
+            {!isOwnerAssignedToOther && (
+                <Button
                   className="flex-1 md:flex-none bg-brand-600 hover:bg-brand-700 text-white border-transparent gap-2 shadow-sm"
                   onClick={() => {
                     setMeetingTitle("اجتماع جديد")
@@ -329,6 +337,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                   جدولة
                 </Button>
+            )}
                 {role === "owner" && (
                   <Button
                     variant="outline"

@@ -84,6 +84,25 @@ export const CallLogDialog = ({ isOpen, onClose, leadId, phone, onSuccess }: Cal
   })
 
   const handleSave = () => {
+    // Validation
+    if (outcome === "answered") {
+        if (!notes.trim()) {
+            alert("يرجى كتابة ملاحظات المكالمة")
+            return
+        }
+        if (!duration || parseInt(duration) <= 0) {
+            alert("يرجى تحديد مدة المكالمة")
+            return
+        }
+    }
+    
+    if (outcome === "no_answer") {
+        if (!followUpDate) {
+            alert("يرجى تحديد وقت المتابعة القادمة")
+            return
+        }
+    }
+
     if (outcome === "wrong_number" || outcome === "refused") {
       setStage("confirm_surrender")
     } else {

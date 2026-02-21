@@ -56,6 +56,18 @@ export const SiteVisitDialog = ({ isOpen, onClose, leadId, onSuccess }: SiteVisi
     }
   })
 
+  const handleSave = () => {
+    if (!visitDate) {
+        alert("يرجى تحديد تاريخ الزيارة")
+        return
+    }
+    if (status === 'completed' && !notes.trim()) {
+        alert("يرجى كتابة ملاحظات الزيارة")
+        return
+    }
+    visitMutation.mutate()
+  }
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="تسجيل رؤية الموقع">
       <div className="space-y-4">
@@ -89,12 +101,13 @@ export const SiteVisitDialog = ({ isOpen, onClose, leadId, onSuccess }: SiteVisi
             onChange={(e) => setNotes(e.target.value)}
             placeholder="اكتب انطباع العميل عن الموقع أو تفاصيل الزيارة..."
             className="min-h-[100px]"
+            required={status === 'completed'}
           />
         </div>
 
         <div className="flex justify-end gap-2 pt-4">
           <Button variant="ghost" onClick={onClose}>إلغاء</Button>
-          <Button onClick={() => visitMutation.mutate()} disabled={visitMutation.isPending}>
+          <Button onClick={handleSave} disabled={visitMutation.isPending}>
             {visitMutation.isPending ? "جاري الحفظ..." : "تأكيد الزيارة"}
           </Button>
         </div>

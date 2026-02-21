@@ -75,6 +75,18 @@ export const MeetingOutcomeDialog = ({ isOpen, onClose, leadId, meeting, onSucce
     }
   })
 
+  const handleSave = () => {
+    if (outcome === "rescheduled" && !rescheduleDate) {
+        alert("يرجى تحديد موعد جديد")
+        return
+    }
+    if (outcome === "completed" && !notes.trim()) {
+        alert("يرجى كتابة تفاصيل الاجتماع")
+        return
+    }
+    updateMutation.mutate()
+  }
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="تسجيل نتيجة الاجتماع">
       <div className="space-y-4">
@@ -109,12 +121,13 @@ export const MeetingOutcomeDialog = ({ isOpen, onClose, leadId, meeting, onSucce
             onChange={(e) => setNotes(e.target.value)}
             placeholder="اكتب تفاصيل الاجتماع هنا..."
             className="min-h-[100px]"
+            required={outcome === "completed"}
           />
         </div>
 
         <div className="flex justify-end gap-2 pt-4">
           <Button variant="ghost" onClick={onClose}>إلغاء</Button>
-          <Button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending}>
+          <Button onClick={handleSave} disabled={updateMutation.isPending}>
             {updateMutation.isPending ? "جاري الحفظ..." : "حفظ النتيجة"}
           </Button>
         </div>
