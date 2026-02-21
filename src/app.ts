@@ -23,39 +23,32 @@ import { router as conversationRouter } from "./modules/conversations/routes"
 
 export const createApp = () => {
   const app = express()
-  // إضافة endpoint للصحة في البداية تماماً للتأكد من استجابة الخادم
-  app.get("/", (_req, res) => res.send("Server is running"))
-  app.get("/health", (_req, res) => res.json({ ok: true }))
 
+  // CORS Middleware - MUST be first
   app.use((req, res, next) => {
-    const origin = req.headers.origin as string | undefined
-    const allowedOrigins = new Set([
-      "http://localhost:3000", 
-      "http://127.0.0.1:3000",
-      process.env.FRONTEND_URL, // السماح لرابط الفرونت إند من المتغيرات البيئية
-      process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined // السماح لرابط فيرسيل التلقائي
-    ].filter(Boolean))
+    const origin = req.headers.origin
     
-    // السماح لجميع الطلبات مؤقتاً لحل مشكلة الاتصال
-    res.setHeader("Access-Control-Allow-Origin", origin || "*")
-    // if (!origin || allowedOrigins.has(origin)) {
-    //   res.setHeader("Access-Control-Allow-Origin", origin || "*")
-    // }
-    
-    // للتسهيل في مرحلة التطوير، إذا أردت السماح للجميع (غير مستحسن للإنتاج الدقيق لكن مفيد للتجربة الأولية)
-    // يمكن تفعيل السطر التالي وإلغاء الشرط السابق
-    // res.setHeader("Access-Control-Allow-Origin", origin || "*")
+    // Allow any origin that connects (Reflection)
+    if (origin) {
+      res.setHeader("Access-Control-Allow-Origin", origin)
+    } else {
+      res.setHeader("Access-Control-Allow-Origin", "*")
+    }
 
-    res.setHeader("Vary", "Origin")
-    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS")
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-user-id, x-tenant-id, x-roles")
+    res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS, POST, PUT, DELETE, PATCH")
+    res.setHeader("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-user-id, x-tenant-id, x-roles")
+    res.setHeader("Access-Control-Allow-Credentials", "true")
+
     if (req.method === "OPTIONS") {
-      return res.status(204).end()
-  
-  // نقاط فحص الصحة
+      return res.status(200).end()
     }
     next()
   })
+
+  // Health checks
+  app.get("/", (_req, res) => res.send("Server is running"))
+  app.get("/health", (_req, res) => res.json({ ok: true }))
+  
   app.use(express.json({ limit: "2mb" }))
   app.get("/api/health", (_req, res) => res.json({ ok: true }))
   app.get("/api/debug-env", (_req, res) => {
