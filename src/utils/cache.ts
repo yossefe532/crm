@@ -1,15 +1,22 @@
-import redis from "redis"
+import { createClient } from "redis"
 import { env } from "../config/env"
 
-// Redis client initialization
-const redisClient = redis.createClient({ url: env.redisUrl })
+// Redis client initialization - disabled for local testing
+let redisClient: ReturnType<typeof createClient> | null = null
 
-redisClient.on("error", (err) => {
-  console.error("Redis Client Error:", err)
-})
+try {
+  redisClient = createClient({ url: env.redisUrl })
+  
+  redisClient.on("error", (err) => {
+    console.error("Redis Client Error:", err)
+  })
 
-// Connect to Redis (non-blocking)
-redisClient.connect().catch(console.error)
+  // Connect to Redis (non-blocking)
+  redisClient.connect().catch(console.error)
+} catch (error) {
+  console.warn("Redis disabled - using fallback cache")
+  redisClient = null
+}
 
 // Cache wrapper for async functions
 const TIMEOUT_MS = 1000 // 1 second timeout for cache operations

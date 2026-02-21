@@ -32,6 +32,14 @@ export default function FinancePage() {
   const { role, token } = useAuth()
   const { data: entries, isLoading } = useFinanceEntries()
   const queryClient = useQueryClient()
+  type FinanceEntry = {
+    id: string
+    entryType: "income" | "expense"
+    category: string
+    amount: number
+    note?: string | null
+    occurredAt: string
+  }
 
   // Filters
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString())
@@ -61,14 +69,13 @@ export default function FinancePage() {
   }
 
   // Edit Handler
-  const handleEdit = (entry: any) => {
-    const e = entry as any
-    setEditingId(e.id)
-    setEntryType(e.entryType)
-    setCategory(e.category)
-    setAmount(e.amount.toString())
-    setNote(e.note || "")
-    setOccurredAt(e.occurredAt.split('T')[0])
+  const handleEdit = (entry: FinanceEntry) => {
+    setEditingId(entry.id)
+    setEntryType(entry.entryType)
+    setCategory(entry.category)
+    setAmount(entry.amount.toString())
+    setNote(entry.note || "")
+    setOccurredAt(entry.occurredAt.split('T')[0])
     setIsModalOpen(true)
   }
 

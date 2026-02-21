@@ -75,12 +75,14 @@ export const request = async <T>(
   if (timer) clearTimeout(timer as unknown as number)
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => ({}))) as {
-      error?: string
-      message?: string
-      details?: Array<{ path?: string; message?: string }>
+    const contentType = response.headers.get("content-type") || ""
+    let payload: { error?: string; message?: string; details?: Array<{ path?: string; message?: string }>; rawText?: string } = {}
+    if (contentType.includes("application/json")) {
+      payload = (await response.json().catch(() => ({}))) as typeof payload
+    } else {
+      payload.rawText = await response.text().catch(() => "")
     }
-    logger.error("api.error", { status: response.status, url, payload })
+    logger.error("api.error", { status: response.status, url, payload, contentType })
 
     if (response.status === 401 && !url.includes("/auth/login")) {
       logout()
@@ -89,12 +91,17 @@ export const request = async <T>(
       }
     }
 
-    const message = (() => {
-      if (response.status === 503 && (!payload.message || payload.message.toLowerCase().includes("failed to respond"))) {
-        return "الخادم غير متاح الآن"
-      }
-      return payload.message || payload.error || "فشل تنفيذ الطلب"
-    })()
+    const rawText = payload.rawText ? payload.rawText.toLowerCase() : ""
+    const vercelFail = rawText.includes("application failed to respond") || rawText.includes("application error")
+    const isServerUnavailable = [502, 503, 504].includes(response.status) || vercelFail
+    const message = isServerUnavailable
+      ? "الخادم غير متاح الآن (Backend Unavailable)"
+      : payload.message || payload.error || (payload.rawText ? `خطأ غير معروف: ${payload.rawText.substring(0, 50)}...` : "فشل تنفيذ الطلب")
+    
+    // Log full error for debugging
+    if (vercelFail) {
+      console.error("Vercel/Railway Error Page Detected:", payload.rawText)
+    }
     
     if (typeof window !== "undefined" && response.status !== 401 && response.status !== 404) {
       toast.error(message)

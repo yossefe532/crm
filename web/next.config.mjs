@@ -15,7 +15,7 @@ const nextConfig = {
     ]
   },
   async rewrites() {
-    const backendOrigin = process.env.BACKEND_ORIGIN || "https://observant-achievement-production-bb94.up.railway.app"
+    const backendOrigin = process.env.BACKEND_ORIGIN || process.env.NEXT_PUBLIC_API_DIRECT_URL || "https://observant-achievement-production-bb94.up.railway.app"
     return [
       {
         source: "/api/:path*",

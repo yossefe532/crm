@@ -14,10 +14,21 @@ const entryIcons = [
   { id: "mobile", label: "تطبيق الجوال", url: "https://i.postimg.cc/DWFzptmr/mobile.gif", hint: "تنبيهات فورية" }
 ]
 
+import { apiBaseUrl } from "../../lib/api/client"
+
 export default function LoginPage() {
   const router = useRouter()
   const { signIn } = useAuth()
   const { t, dir } = useLocale()
+  
+  useEffect(() => {
+    console.log("Login Page Mounted. API URL:", apiBaseUrl)
+    // Check if API is reachable
+    fetch(`${apiBaseUrl}/health`)
+      .then(res => res.json())
+      .then(data => console.log("API Health Check:", data))
+      .catch(err => console.error("API Health Check Failed:", err))
+  }, [])
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -68,7 +79,10 @@ export default function LoginPage() {
         setMessage({ tone: "error", text: t("network_error") })
       } else {
         const detailsMessage = apiErr?.details?.find((item) => item?.message)?.message
-        setMessage({ tone: "error", text: detailsMessage || apiErr?.message || t("unexpected_error") })
+        // عرض تفاصيل أكثر للخطأ للمساعدة في التشخيص
+        const debugInfo = process.env.NODE_ENV === 'development' ? ` (${apiErr?.status || 'No Status'})` : ''
+        setMessage({ tone: "error", text: (detailsMessage || apiErr?.message || t("unexpected_error")) + debugInfo })
+        console.error("Login Error Details:", { status: apiErr?.status, message: apiErr?.message, details: apiErr?.details, raw: err })
       }
     } finally {
       setLoading(false)

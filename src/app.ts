@@ -32,10 +32,11 @@ export const createApp = () => {
       process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined // السماح لرابط فيرسيل التلقائي
     ].filter(Boolean))
     
-    // إذا لم يكن هناك origin (مثل Postman) أو كان الـ origin مسموحاً به
-    if (!origin || allowedOrigins.has(origin)) {
-      res.setHeader("Access-Control-Allow-Origin", origin || "*")
-    }
+    // السماح لجميع الطلبات مؤقتاً لحل مشكلة الاتصال
+    res.setHeader("Access-Control-Allow-Origin", origin || "*")
+    // if (!origin || allowedOrigins.has(origin)) {
+    //   res.setHeader("Access-Control-Allow-Origin", origin || "*")
+    // }
     
     // للتسهيل في مرحلة التطوير، إذا أردت السماح للجميع (غير مستحسن للإنتاج الدقيق لكن مفيد للتجربة الأولية)
     // يمكن تفعيل السطر التالي وإلغاء الشرط السابق

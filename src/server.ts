@@ -5,6 +5,13 @@ import { createServer } from "http";
 import { initSocket } from "./socket";
 import { env } from "./config/env";
 
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled Promise Rejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+});
+
 try {
   const app = createApp();
   const httpServer = createServer(app);
@@ -33,9 +40,3 @@ try {
   console.error("Failed to start server:", error);
 }
 
-process.on("unhandledRejection", (reason) => {
-  console.error("Unhandled Promise Rejection:", reason);
-});
-process.on("uncaughtException", (err) => {
-  console.error("Uncaught Exception:", err);
-});
