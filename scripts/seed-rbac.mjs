@@ -18,6 +18,7 @@ const permissions = [
   { code: "leads.read", description: "Read leads", moduleKey: "leads" },
   { code: "leads.create", description: "Create leads", moduleKey: "leads" },
   { code: "leads.update", description: "Update leads", moduleKey: "leads" },
+  { code: "leads.delete", description: "Delete leads", moduleKey: "leads" },
   { code: "leads.assign", description: "Assign leads", moduleKey: "leads" },
   { code: "meetings.read", description: "Read meetings", moduleKey: "meetings" },
   { code: "meetings.create", description: "Create meetings", moduleKey: "meetings" },

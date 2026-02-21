@@ -1,7 +1,7 @@
 "use client"
 
 import { ReactNode, useMemo } from "react"
-import { DndContext, DragEndEvent, useDraggable, useDroppable } from "@dnd-kit/core"
+import { DndContext, DragEndEvent, useDraggable, useDroppable, useSensor, useSensors, PointerSensor, TouchSensor } from "@dnd-kit/core"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { Card } from "../ui/Card"
 import { Badge } from "../ui/Badge"
@@ -171,10 +171,24 @@ export const TeamBoard = ({ leads }: { leads?: Lead[] }) => {
     mutation.mutate({ leadId, teamId: targetTeamId })
   }
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
+      },
+    })
+  )
+
   return (
     <Card title="لوحة العملاء حسب الفريق">
       <div className="overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide">
-        <DndContext onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
           <div className="flex gap-4 w-max px-4">
             {lanes.map((lane) => (
               <Lane key={lane.id} id={lane.id} title={lane.title} count={lane.leads.length} isDisabled={role === "team_leader" && userTeamId !== lane.id && lane.id !== "unassigned"}>
