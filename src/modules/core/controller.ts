@@ -1,6 +1,7 @@
 import { Request, Response } from "express"
 import { coreService } from "./service"
 import { leadService } from "../lead/service"
+import { lifecycleService } from "../lifecycle/service"
 import { conversationService } from "../conversations/service"
 import { prisma } from "../../prisma/client"
 import { logActivity } from "../../utils/activity"
@@ -618,11 +619,11 @@ export const coreController = {
 
     if (!allowed) throw { status: 403, message: "غير مصرح لك باتخاذ قرار بشأن هذا الطلب" }
 
-    const updatedRequest = await coreService.decideUserRequest(tenantId, req.params.requestId, { status, decidedBy: userId })
-    
+    let resultData: any = {}
+
     if (status === "approved") {
-      if (updatedRequest.requestType === "create_sales") {
-        const payload = updatedRequest.payload as { name: string; email: string; phone?: string; teamId?: string }
+      if (request.requestType === "create_sales") {
+        const payload = request.payload as { name: string; email: string; phone?: string; teamId?: string }
         const password = generateStrongPassword()
         const passwordHash = await hashPassword(password)
         const [firstName, ...lastNameParts] = payload.name ? payload.name.split(" ") : [undefined, []]
@@ -635,24 +636,60 @@ export const coreController = {
           await conversationService.ensureTeamGroup(tenantId, payload.teamId)
         }
         await logActivity({ tenantId, actorUserId: userId, action: "user.created", entityType: "user", entityId: user.id })
-        res.json({ request: updatedRequest, createdUser: { id: user.id, email: user.email, phone: user.phone, mustChangePassword: user.mustChangePassword, temporaryPassword: password } })
-        return
-      } else if (updatedRequest.requestType === "create_lead") {
-        const payload = updatedRequest.payload as any
+        resultData = { createdUser: { id: user.id, email: user.email, phone: user.phone, mustChangePassword: user.mustChangePassword, temporaryPassword: password } }
+      } else if (request.requestType === "create_lead") {
+        const payload = request.payload as any
         if (!payload.leadCode) {
           payload.leadCode = `L-${Date.now()}`
         }
-        const lead = await leadService.createLead(tenantId, payload)
-        if (payload.assignedUserId) {
-          // If approved by team leader, make sure assignedUserId is in their team (validation) - implicitly true if requester is in team
-          await leadService.assignLead(tenantId, lead.id, payload.assignedUserId, userId, "Approved Request", payload.teamId)
-        }
-        await logActivity({ tenantId, actorUserId: userId, action: "lead.created", entityType: "lead", entityId: lead.id, metadata: { approvedRequestId: updatedRequest.id } })
-        res.json({ request: updatedRequest, createdLead: lead })
-        return
+        let lead
+          try {
+            lead = await leadService.createLead(tenantId, payload)
+          } catch (error: any) {
+            // Handle unique constraint violation (duplicate phone)
+            if (error.code === 'P2002' || (error.message && error.message.includes('Unique constraint'))) {
+              const existingLead = await prisma.lead.findFirst({
+                where: { 
+                  tenantId, 
+                  phone: payload.phone 
+                }
+              })
+              
+              if (existingLead) {
+                // If lead exists (even if deleted), restore/update it
+                const stages = await lifecycleService.ensureDefaultStages(tenantId)
+                const callStage = stages.find((stage) => stage.code === "call")
+                const defaultStatus = callStage?.code || "call"
+                
+                lead = await prisma.lead.update({
+                  where: { id: existingLead.id },
+                  data: {
+                    deletedAt: null, // Restore if deleted
+                    name: payload.name,
+                    email: payload.email || existingLead.email,
+                    status: defaultStatus, // Reset status to default so it appears in pipeline
+                  }
+                })
+              } else {
+                throw error 
+              }
+            } else {
+              throw error
+            }
+          }
+
+          if (payload.assignedUserId && lead) {
+            await leadService.assignLead(tenantId, lead.id, payload.assignedUserId, userId, "Approved Request", payload.teamId)
+          }
+          if (lead) {
+            await logActivity({ tenantId, actorUserId: userId, action: "lead.created", entityType: "lead", entityId: lead.id, metadata: { approvedRequestId: request.id, isDuplicateResolved: true } })
+            resultData = { createdLead: lead }
+          }
       }
     }
-    res.json({ request: updatedRequest })
+
+    const updatedRequest = await coreService.decideUserRequest(tenantId, req.params.requestId, { status, decidedBy: userId })
+    res.json({ request: updatedRequest, ...resultData })
   },
   createFinanceEntry: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""

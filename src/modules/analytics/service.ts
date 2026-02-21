@@ -189,7 +189,7 @@ export const analyticsService = {
     const won = await prisma.lead.count({ where: { ...whereClause, status: "won" } })
     const result = { total, won, rate: total > 0 ? (won / total) * 100 : 0 }
 
-    await cache.set(cacheKey, result, 300)
+    await cache.set(cacheKey, result, 60)
     return result
   },
 
@@ -255,6 +255,9 @@ export const analyticsService = {
         conversionRate: totalStats?._count.id ? Math.round(((wonStats?._count.id || 0) / totalStats._count.id) * 100) : 0
       }
     }).sort((a, b) => b.deals - a.deals)
+
+    await cache.set(cacheKey, result, 60)
+    return result
   },
 
   getTeamPerformance: async (tenantId: string, userId?: string, role?: string) => {
@@ -326,7 +329,7 @@ export const analyticsService = {
       }
     }).sort((a, b) => b.deals - a.deals)
 
-    await cache.set(cacheKey, result, 300)
+    await cache.set(cacheKey, result, 60)
     return result
   },
 
@@ -548,7 +551,7 @@ export const analyticsService = {
     });
 
     const result = Object.entries(revenueByMonth).map(([name, value]) => ({ name, value }));
-    await cache.set(cacheKey, result, 300)
+    await cache.set(cacheKey, result, 60)
     return result
   },
 
@@ -581,10 +584,13 @@ export const analyticsService = {
       _count: { id: true }
     });
     
-    return sources.map(s => ({
+    const result = sources.map(s => ({
       name: s.sourceLabel || "غير محدد",
       value: s._count.id
     })).sort((a, b) => b.value - a.value);
+
+    await cache.set(cacheKey, result, 60)
+    return result
   },
 
   getKeyMetrics: async (tenantId: string, userId?: string, role?: string) => {
@@ -610,21 +616,38 @@ export const analyticsService = {
       ]
     }
 
-    const [totalLeads, newLeads, activeLeads, wonLeads] = await Promise.all([
+    const now = new Date()
+    const firstDayCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+    const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const lastDayLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
+
+    const [totalLeads, newLeads, activeLeads, wonLeads, 
+           prevTotalLeads, prevNewLeads, prevActiveLeads, prevWonLeads] = await Promise.all([
       prisma.lead.count({ where }),
-      prisma.lead.count({ where: { ...where, status: "new" } }),
+      prisma.lead.count({ where: { ...where, createdAt: { gte: firstDayCurrentMonth } } }), // New leads this month
       prisma.lead.count({ where: { ...where, status: { notIn: ["won", "lost", "archived"] } } }),
-      prisma.lead.count({ where: { ...where, status: "won" } })
+      prisma.lead.count({ where: { ...where, status: "won", updatedAt: { gte: firstDayCurrentMonth } } }), // Won this month
+
+      // Previous month metrics for comparison
+      prisma.lead.count({ where: { ...where, createdAt: { lt: firstDayCurrentMonth } } }),
+      prisma.lead.count({ where: { ...where, createdAt: { gte: firstDayLastMonth, lte: lastDayLastMonth } } }),
+      prisma.lead.count({ where: { ...where, status: { notIn: ["won", "lost", "archived"] }, createdAt: { lt: firstDayCurrentMonth } } }), // Approximation
+      prisma.lead.count({ where: { ...where, status: "won", updatedAt: { gte: firstDayLastMonth, lte: lastDayLastMonth } } })
     ]);
 
+    const calculateChange = (current: number, previous: number) => {
+      if (previous === 0) return current > 0 ? 100 : 0
+      return Math.round(((current - previous) / previous) * 100)
+    }
+
     const result = [
-      { label: "إجمالي العملاء", value: totalLeads, change: 0 },
-      { label: "عملاء جدد", value: newLeads, change: 0 },
-      { label: "عملاء نشطين", value: activeLeads, change: 0 },
-      { label: "صفقات ناجحة", value: wonLeads, change: 0 }
+      { label: "إجمالي العملاء", value: totalLeads, change: calculateChange(totalLeads, prevTotalLeads) },
+      { label: "عملاء جدد (شهري)", value: newLeads, change: calculateChange(newLeads, prevNewLeads) },
+      { label: "عملاء نشطين", value: activeLeads, change: calculateChange(activeLeads, prevActiveLeads) }, // Change logic for active is tricky, using approximation
+      { label: "صفقات ناجحة (شهري)", value: wonLeads, change: calculateChange(wonLeads, prevWonLeads) }
     ];
 
-    await cache.set(cacheKey, result, 300)
+    await cache.set(cacheKey, result, 60) // Reduced cache to 60s
     return result
   }
 }
