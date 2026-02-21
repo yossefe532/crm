@@ -11,7 +11,7 @@ import { useAuth } from "../../lib/auth/AuthContext"
 import { leadService } from "../../lib/services/leadService"
 import { Lead } from "../../lib/types"
 import { useLeads } from "../../lib/hooks/useLeads"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 const Lane = ({ id, title, count, children, isDisabled }: { id: string; title: string; count: number; children: ReactNode; isDisabled?: boolean }) => {
   const { setNodeRef, isOver } = useDroppable({ id, disabled: isDisabled })
@@ -26,9 +26,11 @@ const Lane = ({ id, title, count, children, isDisabled }: { id: string; title: s
   )
 }
 
-const LeadCard = ({ id, name, code, owner }: { id: string; name: string; code?: string | null; owner?: string | null }) => {
+const LeadCard = ({ id, name, code, owner, role, onDelete }: { id: string; name: string; code?: string | null; owner?: string | null; role?: string; onDelete?: (id: string) => void }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id })
+  const router = useRouter()
   const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined
+  
   return (
     <div
       ref={setNodeRef}
@@ -42,10 +44,32 @@ const LeadCard = ({ id, name, code, owner }: { id: string; name: string; code?: 
         <p className="text-xs text-base-500">{code}</p>
       </div>
       {owner && <p className="text-[11px] text-base-500 mt-1 truncate">مسند إلى: {owner}</p>}
-      <div className="mt-3 flex justify-end">
-        <Link
-          href={`/leads/${id}`}
-          onPointerDown={(e) => { e.stopPropagation() }}
+      <div className="mt-3 flex justify-end gap-2">
+        {role === "owner" && onDelete && (
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (confirm("هل أنت متأكد من نقل هذا العميل إلى سلة المهملات؟")) {
+                onDelete(id)
+              }
+            }}
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+            title="نقل للمهملات"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18" />
+              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+            </svg>
+          </button>
+        )}
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            router.push(`/leads/${id}`)
+          }}
           className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors"
           title="تفاصيل العميل"
         >
@@ -53,7 +77,7 @@ const LeadCard = ({ id, name, code, owner }: { id: string; name: string; code?: 
             <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
             <circle cx="12" cy="12" r="3" />
           </svg>
-        </Link>
+        </button>
       </div>
     </div>
   )
@@ -67,6 +91,13 @@ export const TeamBoard = ({ leads }: { leads?: Lead[] }) => {
   const queryClient = useQueryClient()
   const resolvedLeads = useMemo(() => leads || data || [], [leads, data])
   const usersById = useMemo(() => new Map((users || []).map((user) => [user.id, user])), [users])
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => leadService.delete(id, token || undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] })
+    }
+  })
 
   const userTeamId = useMemo(() => {
     if (role !== "team_leader") return null
@@ -154,6 +185,8 @@ export const TeamBoard = ({ leads }: { leads?: Lead[] }) => {
                     name={lead.name}
                     code={lead.leadCode}
                     owner={lead.assignedUserId ? usersById.get(lead.assignedUserId)?.name || usersById.get(lead.assignedUserId)?.email : "غير مُسند"}
+                    role={role || undefined}
+                    onDelete={(id) => deleteMutation.mutate(id)}
                   />
                 ))}
               </Lane>

@@ -735,6 +735,15 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
         onClose={() => setIsCallDialogOpen(false)}
         leadId={leadId}
         phone={lead.phone || ""}
+        onSuccess={() => {
+            if (pendingStage === 'call') {
+                updateStatusMutation.mutate('call')
+                setPendingStage(null)
+            } else if (pendingStage === 'meeting') {
+                setIsMeetingDialogOpen(true)
+                setPendingStage(null)
+            }
+        }}
       />
 
       <MeetingDialog

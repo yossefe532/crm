@@ -26,7 +26,7 @@ import { useAuth } from "../../lib/auth/AuthContext"
 import { notificationService } from "../../lib/services/notificationService"
 import { leadService } from "../../lib/services/leadService"
 import { useMutation, useQueryClient, UseMutationResult } from "@tanstack/react-query"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 
 const stageLabels: Record<string, string> = {
   new: "جديد",
@@ -68,17 +68,19 @@ const KanbanLane = ({ id, title, count, children }: { id: string; title: string;
   )
 }
 
-const KanbanCard = ({ lead, usersById, teamsById, role, notifyMutation }: { 
+const KanbanCard = ({ lead, usersById, teamsById, role, notifyMutation, onDelete }: { 
   lead: Lead & { pipelineStage: string }; 
   usersById: Map<string, User>; 
   teamsById: Map<string, string>;
   role: string;
   notifyMutation: UseMutationResult<void, Error, { userId: string; leadName: string }, unknown>;
+  onDelete: (id: string) => void;
 }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: lead.id,
     data: { lead }
   })
+  const router = useRouter()
   
   const style = transform ? {
     transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
@@ -126,14 +128,36 @@ const KanbanCard = ({ lead, usersById, teamsById, role, notifyMutation }: {
       </div>
 
       <div className="flex items-center justify-end gap-2 pt-2 border-t border-base-50">
-        <Link 
-          href={`/leads/${lead.id}`} 
-          onPointerDown={(e) => { e.stopPropagation() }}
+        {role === "owner" && (
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation()
+              if (confirm("هل أنت متأكد من نقل هذا العميل إلى سلة المهملات؟")) {
+                onDelete(lead.id)
+              }
+            }}
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+            title="نقل للمهملات"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18" />
+              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+            </svg>
+          </button>
+        )}
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation()
+            router.push(`/leads/${lead.id}`)
+          }}
           className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors"
           title="تفاصيل العميل"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-        </Link>
+        </button>
         
         {lead.phone && (
            <a 
@@ -343,6 +367,7 @@ export const KanbanBoard = ({ leads }: { leads?: Lead[] }) => {
                     teamsById={teamsById} 
                     role={role || ""}
                     notifyMutation={notifyMutation}
+                    onDelete={(id) => deleteMutation.mutate(id)}
                   />
                 ))}
               </KanbanLane>

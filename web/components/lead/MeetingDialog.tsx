@@ -65,6 +65,11 @@ export const MeetingDialog = ({ isOpen, onClose, leadId, initialTitle }: Meeting
 
       const start = startsAt ? new Date(startsAt) : new Date()
       const durationMinutes = parseInt(duration) || 60
+      // 2. Update Lead Stage to "meeting" if needed
+      if (lead && (lead.status === 'new' || lead.status === 'call')) {
+          await leadService.update(leadId, { status: 'meeting' }, token || undefined)
+      }
+
       return leadService.createMeeting(leadId, {
         title,
         startsAt: start,
