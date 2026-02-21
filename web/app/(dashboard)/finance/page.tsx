@@ -62,7 +62,6 @@ export default function FinancePage() {
 
   // Edit Handler
   const handleEdit = (entry: any) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const e = entry as any
     setEditingId(e.id)
     setEntryType(e.entryType)

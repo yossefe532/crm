@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation"
 import { Modal } from "../ui/Modal"
 import { LeadDetail } from "../lead/LeadDetail"
 import { STAGE_LABELS } from "../../lib/constants"
+import { ClientDate } from "../ui/ClientDate"
 
 import { ExportButton } from "../ui/ExportButton"
 
@@ -237,7 +238,7 @@ export const LeadList = () => {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <Badge>{STAGE_LABEL_MAP[lead.status] || lead.status}</Badge>
+                <Badge>{STAGE_LABELS[lead.status] || lead.status}</Badge>
               </div>
             </div>
             {(role === "owner" || role === "team_leader") && (

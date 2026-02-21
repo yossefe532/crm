@@ -9,6 +9,8 @@ import { ToastProvider } from "../components/ui/ToastProvider"
 import { NotificationListener } from "../components/ui/NotificationListener"
 import { ErrorBoundary } from "../components/ui/ErrorBoundary"
 import dynamic from "next/dynamic"
+import { apiBaseUrl } from "../lib/api/client"
+import { toast } from "react-hot-toast"
 
 // const CustomCursor = dynamic(() => import("../components/ui/CustomCursor").then(mod => mod.CustomCursor), {
 //   ssr: false,
@@ -36,6 +38,26 @@ export const Providers = ({ children }: { children: ReactNode }) => {
     navigator.serviceWorker
       .register("/sw.js", { scope: "/" })
       .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+    const ping = async () => {
+      try {
+        const res = await fetch(`${apiBaseUrl}/health`, { method: "GET" })
+        if (!res.ok) throw new Error(String(res.status))
+      } catch {
+        if (mounted) {
+          toast.error("الخادم غير متاح الآن")
+        }
+      }
+    }
+    ping()
+    const id = setInterval(ping, 60000)
+    return () => {
+      mounted = false
+      clearInterval(id)
+    }
   }, [])
 
   return (

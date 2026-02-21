@@ -40,6 +40,9 @@ export const request = async <T>(
   body?: unknown,
   token?: string
 ): Promise<T> => {
+  const timeoutMs = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS || "20000")
+  const controller = typeof AbortController !== "undefined" ? new AbortController() : null
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null
   const effectiveToken = token || getCookie("auth_token") || getStorage("auth_token") || undefined
   const effectiveRole = getCookie("auth_role") || getStorage("auth_role") || undefined
   const effectiveUserId = getCookie("auth_user_id") || getStorage("auth_user_id") || undefined
@@ -57,14 +60,19 @@ export const request = async <T>(
         ...(effectiveRole ? { "x-roles": effectiveRole } : {})
       },
       body: body ? JSON.stringify(body) : undefined
+      , ...(controller ? { signal: controller.signal } : {})
     })
   } catch (err) {
+    if (timer) clearTimeout(timer as unknown as number)
+    const isAbort = (err as any)?.name === "AbortError"
+    const msg = isAbort ? "انتهت مهلة الاتصال بالخادم" : (err as { message?: string })?.message
     logger.error("api.network_error", { url, method, message: (err as { message?: string })?.message })
     if (typeof window !== "undefined") {
-      toast.error("تعذر الاتصال بالخادم")
+      toast.error(isAbort ? "انتهت مهلة الاتصال بالخادم" : "تعذر الاتصال بالخادم")
     }
-    throw { status: 0, message: "تعذر الاتصال بالخادم" } satisfies ApiError
+    throw { status: 0, message: msg || "تعذر الاتصال بالخادم" } satisfies ApiError
   }
+  if (timer) clearTimeout(timer as unknown as number)
 
   if (!response.ok) {
     const payload = (await response.json().catch(() => ({}))) as {
@@ -81,7 +89,12 @@ export const request = async <T>(
       }
     }
 
-    const message = payload.message || payload.error || "فشل تنفيذ الطلب"
+    const message = (() => {
+      if (response.status === 503 && (!payload.message || payload.message.toLowerCase().includes("failed to respond"))) {
+        return "الخادم غير متاح الآن"
+      }
+      return payload.message || payload.error || "فشل تنفيذ الطلب"
+    })()
     
     if (typeof window !== "undefined" && response.status !== 401 && response.status !== 404) {
       toast.error(message)
