@@ -640,49 +640,43 @@ export const coreController = {
       } else if (request.requestType === "create_lead") {
         const payload = request.payload as any
         const phone = payload.phone ? String(payload.phone).trim() : ""
-        if (!payload.leadCode) {
-          payload.leadCode = `L-${Date.now()}`
-        }
         
-        let lead
-        try {
-          lead = await leadService.createLead(tenantId, { ...payload, phone })
-        } catch (error: any) {
-          // Handle unique constraint violation (duplicate phone)
-          if (error.code === 'P2002' || (error.message && error.message.includes('Unique constraint'))) {
-            const existingLead = await prisma.lead.findFirst({
-              where: { 
-                tenantId, 
-                phone: phone
-              }
-            })
-            
-            if (existingLead) {
-              // If lead exists (even if deleted), restore/update it
-              const stages = await lifecycleService.ensureDefaultStages(tenantId)
-              const callStage = stages.find((stage) => stage.code === "call")
-              const defaultStatus = callStage?.code || "call"
-              
-              lead = await prisma.lead.update({
-                where: { id: existingLead.id },
-                data: {
-                  deletedAt: null, // Restore if deleted
-                  name: payload.name,
-                  email: payload.email || existingLead.email,
-                  status: defaultStatus, // Reset status to default so it appears in pipeline
-                  assignedUserId: payload.assignedUserId || existingLead.assignedUserId,
-                  teamId: payload.teamId || existingLead.teamId
-                }
-              })
-            } else {
-              // If we can't find the duplicate but create failed due to duplicate, something is wrong.
-              // We should probably log this and throw, but maybe we can try to find by phone only?
-              // No, tenant isolation is critical.
-              throw error 
+        // Check for existing lead first to avoid Unique Constraint errors
+        let lead = await prisma.lead.findFirst({
+            where: { tenantId, phone }
+        })
+
+        if (lead) {
+             // Restore and Update
+             const stages = await lifecycleService.ensureDefaultStages(tenantId)
+             const callStage = stages.find((stage) => stage.code === "call")
+             const defaultStatus = callStage?.code || "call"
+             
+             lead = await prisma.lead.update({
+                 where: { id: lead.id },
+                 data: {
+                     deletedAt: null,
+                     name: payload.name,
+                     email: payload.email || lead.email,
+                     status: defaultStatus,
+                     assignedUserId: payload.assignedUserId || lead.assignedUserId,
+                     teamId: payload.teamId || lead.teamId
+                 }
+             })
+             
+             // Add history entry for the reactivation/status reset
+             const state = await lifecycleService.getStateByCode(tenantId, defaultStatus)
+             if (state) {
+                 await prisma.leadStateHistory.create({
+                     data: { tenantId, leadId: lead.id, toStateId: state.id, changedBy: userId }
+                 })
+             }
+        } else {
+            // Create New
+            if (!payload.leadCode) {
+               payload.leadCode = `L-${Date.now()}`
             }
-          } else {
-            throw error
-          }
+            lead = await leadService.createLead(tenantId, { ...payload, phone })
         }
 
         if (payload.assignedUserId && lead) {
