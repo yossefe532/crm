@@ -10,6 +10,7 @@ router.post("/subscribe", asyncHandler(notificationController.subscribe))
 router.post("/broadcast", asyncHandler(notificationController.broadcast))
 
 router.get("/events", requirePermission("notifications.read"), asyncHandler(notificationController.listEvents))
+router.delete("/events", requirePermission("notifications.read"), asyncHandler(notificationController.clearEvents))
 router.get("/policies", requirePermission("notifications.read"), asyncHandler(notificationController.getPolicy))
 router.put("/policies", requirePermission("notifications.create"), asyncHandler(notificationController.updatePolicy))
 router.post("/events", requirePermission("notifications.create"), asyncHandler(notificationController.publishEvent))

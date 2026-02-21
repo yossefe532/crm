@@ -55,8 +55,13 @@ export const notificationController = {
     const tenantId = req.user?.tenantId || ""
     const userId = req.user?.id || ""
     const roles = req.user?.roles || []
+    
+    // Fetch user to get last clear time
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { lastNotificationClearTime: true } })
+    const afterDate = user?.lastNotificationClearTime || undefined
+
     const limit = req.query.limit ? Number(req.query.limit) : 20
-    const events = await notificationService.listEvents(tenantId, Math.max(limit * 5, 50))
+    const events = await notificationService.listEvents(tenantId, Math.max(limit * 5, 50), afterDate)
     const filtered = roles.includes("owner")
       ? events
       : events.filter((event) => {
@@ -72,6 +77,15 @@ export const notificationController = {
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "notification.event.listed", entityType: "notification_event" })
     res.json(filtered.slice(0, limit))
   },
+  
+  clearEvents: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const userId = req.user?.id || ""
+    await notificationService.clearEvents(userId)
+    await logActivity({ tenantId, actorUserId: userId, action: "notification.events.cleared", entityType: "notification_event" })
+    res.json({ status: "ok" })
+  },
+
   getPolicy: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
     const module = await prisma.module.findFirst({ where: { key: "notifications" } })

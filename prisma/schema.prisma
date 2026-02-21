@@ -112,6 +112,7 @@ model User {
   mustChangePassword Boolean @default(true) @map("must_change_password")
   status       String   @default("active")
   lastLoginAt  DateTime? @map("last_login_at")
+  lastNotificationClearTime DateTime? @map("last_notification_clear_time")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
   deletedAt    DateTime? @map("deleted_at")

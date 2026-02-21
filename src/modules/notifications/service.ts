@@ -5,8 +5,22 @@ import { smsService } from "./smsService"
 import { getIO } from "../../socket"
 
 export const notificationService = {
-  listEvents: (tenantId: string, limit = 20) =>
-    prisma.notificationEvent.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" }, take: limit }),
+  listEvents: (tenantId: string, limit = 20, afterDate?: Date) =>
+    prisma.notificationEvent.findMany({ 
+      where: { 
+        tenantId,
+        ...(afterDate ? { createdAt: { gt: afterDate } } : {})
+      }, 
+      orderBy: { createdAt: "desc" }, 
+      take: limit 
+    }),
+  
+  clearEvents: (userId: string) =>
+    prisma.user.update({
+      where: { id: userId },
+      data: { lastNotificationClearTime: new Date() }
+    }),
+
   publishEvent: (tenantId: string, eventKey: string, payload: Record<string, unknown>) =>
     prisma.notificationEvent.create({ data: { tenantId, eventKey, payload: payload as Prisma.InputJsonValue } }),
 
