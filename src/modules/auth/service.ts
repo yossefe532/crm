@@ -162,7 +162,7 @@ export const authService = {
              token: "", 
              user: { id: user.id, tenantId: tenant.id, roles: [requestedRole] }, 
              isPending: true,
-             ownerPhone: setupStatus.ownerPhone 
+             ownerPhone: setupStatus.ownerPhone || undefined
          }
       }
 
