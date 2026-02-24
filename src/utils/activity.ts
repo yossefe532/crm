@@ -14,7 +14,7 @@ export const logActivity = async (input: {
       tenantId: input.tenantId,
       userId: input.actorUserId,
       action: input.action,
-      entity: input.entityType,
+      entityType: input.entityType,
       entityId: input.entityId,
       details: input.metadata ? (input.metadata as Prisma.InputJsonValue) : undefined
     }
