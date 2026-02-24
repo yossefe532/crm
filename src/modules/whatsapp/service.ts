@@ -21,7 +21,7 @@ export const whatsappService = {
       data: { 
         tenantId, 
         action: "whatsapp_webhook", 
-        entity: "whatsapp", 
+        entityType: "whatsapp", 
         details: { provider: data.provider, eventType: data.eventType, payload: data.payload } 
       } 
     })

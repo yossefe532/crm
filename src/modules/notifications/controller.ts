@@ -97,22 +97,7 @@ export const notificationController = {
       ? await prisma.user.findUnique({ where: { id: req.user?.id }, include: { profile: true } })
       : null
       
-    const senderName = sender?.profile?.firstName
-    await pushService.broadcast(tenantId, req.body.target, message)
-    res.json({ status: "ok" })
-  },
-
-  testPush: async (req: Request, res: Response) => {
-    const tenantId = req.user?.tenantId || ""
-    const userId = req.user?.id || ""
-    await pushService.send(tenantId, userId, {
-      title: "تجربة الإشعارات",
-      body: "هذا إشعار تجريبي للتأكد من عمل النظام بشكل صحيح ✅",
-      url: "/notifications"
-    })
-    res.json({ status: "ok", message: "Notification sent" })
-  }
-}
+    const senderName = sender?.profile
       ? `${sender.profile.firstName}${sender.profile.lastName ? ` ${sender.profile.lastName}` : ""}`
       : sender?.email || "المشرف"
       
@@ -128,6 +113,18 @@ export const notificationController = {
     )
     res.json({ status: "ok" })
   },
+
+  testPush: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const userId = req.user?.id || ""
+    await pushService.send(tenantId, userId, {
+      title: "تجربة الإشعارات",
+      body: "هذا إشعار تجريبي للتأكد من عمل النظام بشكل صحيح ✅",
+      url: "/notifications"
+    })
+    res.json({ status: "ok", message: "Notification sent" })
+  }
+}
 
   listEvents: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
