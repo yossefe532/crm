@@ -56,6 +56,26 @@ const getRolesForUser = async (tenantId: string, userId: string) => {
 }
 
 export const authService = {
+  getSetupStatus: async () => {
+    const tenant = await prisma.tenant.findFirst({ where: { deletedAt: null } })
+    if (!tenant) return { hasOwner: false }
+    
+    // Find owner
+    const ownerRole = await prisma.role.findFirst({ where: { tenantId: tenant.id, name: "owner" } })
+    if (!ownerRole) return { hasOwner: false }
+    
+    const ownerLink = await prisma.userRole.findFirst({ where: { tenantId: tenant.id, roleId: ownerRole.id } })
+    if (!ownerLink) return { hasOwner: false }
+    
+    const owner = await prisma.user.findUnique({ where: { id: ownerLink.userId } })
+    return { 
+      hasOwner: true, 
+      ownerName: "المالك", // We could fetch profile name if needed
+      ownerPhone: owner?.phone,
+      tenantName: tenant.name
+    }
+  },
+
   login: async (input: { email: string; password: string }): Promise<AuthResult> => {
     const email = normalizeEmail(input.email)
     const user = await prisma.user.findFirst({
@@ -78,12 +98,75 @@ export const authService = {
     return { token: issueToken(authUser), user: authUser }
   },
 
-  register: async (input: { tenantName: string; timezone?: string; email: string; password: string; phone?: string }): Promise<AuthResult> => {
+  register: async (input: { tenantName: string; timezone?: string; email: string; password: string; phone?: string; role?: string; teamName?: string }): Promise<AuthResult & { isPending?: boolean; ownerPhone?: string }> => {
     const email = normalizeEmail(input.email)
     try {
       const existing = await prisma.user.findFirst({ where: { email, deletedAt: null } })
       if (existing) throw { status: 409, message: "البريد الإلكتروني مستخدم بالفعل" }
 
+      // Check if system is already initialized (has an owner)
+      const setupStatus = await authService.getSetupStatus()
+      
+      if (setupStatus.hasOwner) {
+         // Join Request Mode
+         const tenant = await prisma.tenant.findFirst({ where: { name: setupStatus.tenantName } })
+         if (!tenant) throw { status: 500, message: "System Error: Tenant not found" }
+
+         const passwordHash = await hashPassword(input.password)
+         
+         // Create INACTIVE user
+         const user = await prisma.user.create({
+           data: {
+             tenantId: tenant.id,
+             email,
+             phone: input.phone,
+             passwordHash,
+             mustChangePassword: false, // Will set to true on approval if needed
+             status: "inactive",
+             lastLoginAt: null
+           }
+         })
+
+         // Assign Requested Role (but user is inactive so effectively no access)
+         const requestedRole = input.role === "team_leader" ? "team_leader" : "sales"
+         const roles = await ensureDefaultRoles(tenant.id)
+         const roleObj = roles.find(r => r.name === requestedRole)
+         
+         if (roleObj) {
+           await prisma.userRole.create({ data: { tenantId: tenant.id, userId: user.id, roleId: roleObj.id } })
+         }
+
+         // Create Profile
+         await prisma.userProfile.create({
+            data: {
+                tenantId: tenant.id,
+                userId: user.id,
+                firstName: input.email.split("@")[0], // Default name
+            }
+         })
+
+         // If Team Leader and Team Name provided, store it temporarily?
+         // We can use `UserRequest` logic later, or just put it in a Note for the owner.
+         if (input.teamName && requestedRole === "team_leader") {
+            await prisma.note.create({
+                data: {
+                    tenantId: tenant.id,
+                    content: `Requested Team Name: ${input.teamName}`,
+                    relatedTo: "user_request",
+                    relatedId: user.id
+                }
+            })
+         }
+
+         return { 
+             token: "", 
+             user: { id: user.id, tenantId: tenant.id, roles: [requestedRole] }, 
+             isPending: true,
+             ownerPhone: setupStatus.ownerPhone 
+         }
+      }
+
+      // First Time Setup (Owner Mode)
       const tenant = await prisma.tenant.create({
         data: {
           name: input.tenantName.trim(),
@@ -115,6 +198,10 @@ export const authService = {
       const authUser: AuthUser = { id: user.id, tenantId: user.tenantId, roles: ["owner"] }
       return { token: issueToken(authUser), user: authUser }
     } catch (err) {
+      const fs = require('fs');
+      fs.writeFileSync('register_error.log', JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
+      console.error("Registration error:", err);
+
       if (err && typeof err === "object" && "code" in err && (err as { code?: string }).code === "P2002") {
         throw { status: 409, message: "البريد الإلكتروني مستخدم بالفعل" }
       }

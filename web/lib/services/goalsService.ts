@@ -7,6 +7,7 @@ export type GoalPlan = {
   startsAt: string
   endsAt: string
   status: string
+  isPinned: boolean
 }
 
 export type GoalTarget = {
@@ -31,7 +32,7 @@ export type GoalReportRow = {
 }
 
 export const goalsService = {
-  createPlan: (payload: { name: string; period: "weekly" | "monthly"; startsAt?: string; endsAt?: string }, token?: string) =>
+  createPlan: (payload: { name: string; period: "weekly" | "monthly"; startsAt?: string; endsAt?: string; isPinned?: boolean }, token?: string) =>
     apiClient.post<GoalPlan>("/goals/plans", payload, token),
   listPlans: (token?: string) => apiClient.get<GoalPlan[]>("/goals/plans", token),
   deletePlan: (planId: string, token?: string) => apiClient.delete(`/goals/plans/${planId}`, token),

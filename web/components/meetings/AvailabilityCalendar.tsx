@@ -15,21 +15,35 @@ const localizer = dateFnsLocalizer({
   locales: { ar }
 })
 
-export const AvailabilityCalendar = () => {
+export const AvailabilityCalendar = ({ date, onDateChange }: { date?: Date, onDateChange?: (date: Date) => void }) => {
   const { data } = useMeetings()
   const events = (data || []).map((meeting) => ({
     id: meeting.id,
     title: meeting.title,
     start: new Date(meeting.startsAt),
-    end: new Date(meeting.endsAt)
+    end: new Date(meeting.endsAt),
+    lead: meeting.lead,
+    organizer: meeting.organizer
   }))
 
   const defaultView = typeof window !== "undefined" && window.innerWidth < 768 ? "agenda" : "month"
+  
+  const handleNavigate = (newDate: Date) => {
+    if (onDateChange) onDateChange(newDate)
+  }
+
+  const CustomEvent = ({ event }: any) => (
+    <div className="text-xs p-0.5 overflow-hidden">
+      <div className="font-bold truncate">{event.title}</div>
+      {event.lead && <div className="truncate text-[10px] opacity-90">👤 {event.lead.name}</div>}
+      {event.organizer && <div className="truncate text-[10px] opacity-75">👔 {event.organizer.name}</div>}
+    </div>
+  )
 
   return (
     <Card title="توفر التقويم">
-      <div className="h-[420px] overflow-x-auto">
-        <div className="h-full">
+      <div className="h-[600px] overflow-x-auto">
+        <div className="h-full min-w-[600px]">
           <Calendar 
             localizer={localizer} 
             events={events} 
@@ -38,6 +52,11 @@ export const AvailabilityCalendar = () => {
             culture="ar"
             defaultView={defaultView}
             views={["month", "week", "day", "agenda"]}
+            date={date}
+            onNavigate={handleNavigate}
+            components={{
+              event: CustomEvent
+            }}
             messages={{
               next: "التالي",
               previous: "السابق",

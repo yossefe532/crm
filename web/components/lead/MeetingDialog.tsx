@@ -8,6 +8,7 @@ import { Modal } from "../ui/Modal"
 import { Button } from "../ui/Button"
 import { Input } from "../ui/Input"
 import { Textarea } from "../ui/Textarea"
+import { Select } from "../ui/Select"
 import { useLead } from "../../lib/hooks/useLead"
 
 interface MeetingDialogProps {
@@ -25,6 +26,7 @@ export const MeetingDialog = ({ isOpen, onClose, leadId, initialTitle }: Meeting
   const [title, setTitle] = useState(initialTitle || "اجتماع جديد")
   const [startsAt, setStartsAt] = useState("")
   const [duration, setDuration] = useState("60")
+  const [location, setLocation] = useState("مقر الشركة")
 
   // Call Log Fields
   const [showCallFields, setShowCallFields] = useState(false)
@@ -67,7 +69,10 @@ export const MeetingDialog = ({ isOpen, onClose, leadId, initialTitle }: Meeting
       const durationMinutes = parseInt(duration) || 60
       // 2. Update Lead Stage to "meeting" if needed
       if (lead && (lead.status === 'new' || lead.status === 'call')) {
-          await leadService.update(leadId, { status: 'meeting' }, token || undefined)
+          await leadService.updateStage(leadId, 'meeting', {
+            date: start.toISOString().split('T')[0],
+            location: location
+          }, token || undefined)
       }
 
       return leadService.createMeeting(leadId, {
@@ -149,6 +154,18 @@ export const MeetingDialog = ({ isOpen, onClose, leadId, initialTitle }: Meeting
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
           />
+        </div>
+
+        <div className="space-y-2">
+          <Select
+            label="مكان الاجتماع"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+          >
+            <option value="مقر الشركة">مقر الشركة</option>
+            <option value="موقع خارجي">موقع خارجي</option>
+            <option value="أونلاين">أونلاين</option>
+          </Select>
         </div>
 
         <div className="flex justify-end gap-2 pt-4">

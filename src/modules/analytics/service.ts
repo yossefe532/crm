@@ -6,7 +6,7 @@ export const analyticsService = {
   listDailyMetrics: async (tenantId: string, from?: string, to?: string, userId?: string, role?: string) => {
     const where: any = {
       tenantId,
-      metricDate: {
+      date: {
         gte: from ? new Date(from) : new Date(Date.now() - 30 * 24 * 3600 * 1000),
         lte: to ? new Date(to) : new Date()
       }
@@ -17,11 +17,6 @@ export const analyticsService = {
     } else if (role === "team_leader" && userId) {
       const myTeams = await prisma.team.findMany({ where: { tenantId, leaderUserId: userId }, select: { id: true } })
       const teamIds = myTeams.map(t => t.id)
-      // Show metrics for the team leader (if any) and their teams
-      // Note: LeadMetricsDaily might have userId set or teamId set.
-      // If we want to show team aggregate, we filter by teamId.
-      // If we want to show individual members, we need to find members.
-      // Let's assume for daily metrics list, we want to see rows relevant to the user's scope.
       where.OR = [
         { userId: userId },
         { teamId: { in: teamIds } }
@@ -30,14 +25,14 @@ export const analyticsService = {
 
     return prisma.leadMetricsDaily.findMany({
       where,
-      orderBy: { metricDate: "asc" }
+      orderBy: { date: "asc" }
     })
   },
 
   listRankingSnapshots: (tenantId: string, type?: string, limit = 20) =>
     prisma.rankingSnapshot.findMany({
-      where: { tenantId, ...(type ? { rankingType: type } : {}) },
-      orderBy: { snapshotDate: "desc" },
+      where: { tenantId, ...(type ? { type: type } : {}) },
+      orderBy: { createdAt: "desc" },
       take: limit
     }),
 
@@ -45,12 +40,12 @@ export const analyticsService = {
     prisma.leadMetricsDaily.create({
       data: {
         tenantId,
-        metricDate: new Date(data.metricDate),
+        date: new Date(data.metricDate),
         teamId: data.teamId,
         userId: data.userId,
-        leadsCreated: data.leadsCreated || 0,
-        leadsClosed: data.leadsClosed || 0,
-        avgCycleHours: data.avgCycleHours
+        newLeadsCount: data.leadsCreated || 0,
+        closingsCount: data.leadsClosed || 0,
+        // avgCycleHours ignored as it's not in schema
       }
     }),
 
@@ -59,21 +54,30 @@ export const analyticsService = {
       data: {
         tenantId,
         userId: data.userId,
-        snapshotDate: new Date(data.snapshotDate),
+        date: new Date(data.snapshotDate),
         score: data.score,
-        factors: data.factors ? (data.factors as Prisma.InputJsonValue) : undefined
+        details: data.factors ? (data.factors as Prisma.InputJsonValue) : {}
       }
     }),
 
-  createRankingSnapshot: (tenantId: string, data: { snapshotDate: string; rankingType: string; payload: Record<string, unknown> }) =>
-    prisma.rankingSnapshot.create({
+  createRankingSnapshot: (tenantId: string, data: { snapshotDate: string; rankingType: string; payload: Record<string, unknown> }) => {
+     // Extract required fields from payload or provide defaults
+     const entityId = String(data.payload.entityId || "");
+     const rank = Number(data.payload.rank || 0);
+     const score = Number(data.payload.score || 0);
+     const period = data.snapshotDate.substring(0, 7); // "YYYY-MM"
+     
+     return prisma.rankingSnapshot.create({
       data: {
         tenantId,
-        snapshotDate: new Date(data.snapshotDate),
-        rankingType: data.rankingType,
-        payload: data.payload as Prisma.InputJsonValue
+        period,
+        type: data.rankingType,
+        entityId,
+        rank,
+        score
       }
-    }),
+    })
+  },
 
   getSalesStageSummary: async (tenantId: string, userId?: string, role?: string) => {
     const cacheKey = `analytics:sales-stage-summary:${tenantId}:${userId || 'all'}:${role || 'all'}`
@@ -222,7 +226,7 @@ export const analyticsService = {
       by: ["assignedUserId"],
       where: wonWhereClause,
       _count: { id: true },
-      _sum: { budget: true }
+      _sum: { budgetMax: true }
     })
     
     // Get total assigned leads per user
@@ -240,7 +244,7 @@ export const analyticsService = {
       select: { id: true, email: true, profile: { select: { firstName: true, lastName: true } } }
     })
 
-    return users.map(user => {
+    const result = users.map(user => {
       const wonStats = wonPerformance.find(p => p.assignedUserId === user.id)
       const totalStats = totalPerformance.find(p => p.assignedUserId === user.id)
       
@@ -250,7 +254,7 @@ export const analyticsService = {
         userId: user.id,
         name: name || "Unknown",
         deals: wonStats?._count.id || 0,
-        value: wonStats?._sum.budget || 0,
+        value: wonStats?._sum.budgetMax || 0,
         total: totalStats?._count.id || 0,
         conversionRate: totalStats?._count.id ? Math.round(((wonStats?._count.id || 0) / totalStats._count.id) * 100) : 0
       }
@@ -287,7 +291,7 @@ export const analyticsService = {
       by: ["teamId"],
       where: wonWhereClause,
       _count: { id: true },
-      _sum: { budget: true }
+      _sum: { budgetMax: true }
     })
 
     // Get total leads
@@ -323,7 +327,7 @@ export const analyticsService = {
         teamName: team.name || "Unknown Team",
         leaderName: leaderName || "No Leader",
         deals: wonStats?._count.id || 0,
-        value: wonStats?._sum.budget || 0,
+        value: wonStats?._sum.budgetMax || 0,
         total: totalStats?._count.id || 0,
         conversionRate: totalStats?._count.id ? Math.round(((wonStats?._count.id || 0) / totalStats._count.id) * 100) : 0
       }
@@ -414,7 +418,7 @@ export const analyticsService = {
         orderBy: { assignedAt: "desc" }
       }),
       prisma.note.findMany({
-        where: { tenantId, entityId: leadId, entityType: "lead" },
+        where: { tenantId, relatedId: leadId, relatedTo: "lead" },
         include: { creator: { include: { profile: true } } },
         orderBy: { createdAt: "desc" }
       }),
@@ -445,7 +449,7 @@ export const analyticsService = {
         type: "note",
         date: n.createdAt,
         actor: n.creator,
-        details: { content: n.body }
+        details: { content: n.content }
       })),
       ...meetings.map(m => ({
         id: m.id,

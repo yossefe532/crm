@@ -39,7 +39,7 @@ export const propertyController = {
     const tenantId = req.user?.tenantId || ""
     const offer = await propertyService.createOffer(tenantId, req.body)
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "offer.created", entityType: "offer", entityId: offer.id })
-    intelligenceService.queueTrigger({ type: "deal_changed", tenantId, dealId: offer.dealId })
+    intelligenceService.queueTrigger({ type: "deal_changed", tenantId, dealId: req.body.dealId })
     res.json(offer)
   }
 }

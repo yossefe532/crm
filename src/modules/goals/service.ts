@@ -1,27 +1,7 @@
-import { Prisma } from "@prisma/client"
+import { Prisma, GoalTarget, GoalPlan } from "@prisma/client"
 import { prisma } from "../../prisma/client"
-
-type GoalPlan = {
-  id: string
-  tenantId: string
-  name: string
-  period: string
-  startsAt: Date
-  endsAt: Date
-  status: string
-}
-
-type GoalTarget = {
-  id: string
-  tenantId: string
-  planId: string
-  subjectType: "user" | "team" | "all"
-  subjectId: string
-  metricKey: string
-  targetValue: { toNumber(): number }
-  weight?: { toNumber(): number } | null
-  achievedAt?: Date | null
-}
+import { notificationService } from "../notifications/service"
+import { commissionService } from "../commission/service"
 
 const clamp = (value: number, min = 0, max = 100) => Math.min(max, Math.max(min, value))
 
@@ -76,7 +56,7 @@ const getActualValue = async (
     return count
   }
   if (target.metricKey === "leads_closed") {
-    const count = await prisma.leadClosure.count({
+    const closureCount = await prisma.leadClosure.count({
       where: {
         tenantId,
         status: "approved",
@@ -88,10 +68,23 @@ const getActualValue = async (
             : {})
       }
     })
-    return count
+    
+    const dealCount = await prisma.deal.count({
+      where: {
+        tenantId,
+        status: "approved",
+        closedAt: { gte: from, lte: to },
+        ...(target.subjectType === "user"
+          ? { lead: { assignedUserId: target.subjectId } }
+          : target.subjectType === "team"
+            ? { lead: { teamId: target.subjectId } }
+            : {})
+      }
+    })
+    return closureCount + dealCount
   }
   if (target.metricKey === "revenue") {
-    const sum = await prisma.leadClosure.aggregate({
+    const closureSum = await prisma.leadClosure.aggregate({
       where: {
         tenantId,
         status: "approved",
@@ -104,7 +97,22 @@ const getActualValue = async (
       },
       _sum: { amount: true }
     })
-    return sum._sum.amount?.toNumber() || 0
+
+    const dealSum = await prisma.deal.aggregate({
+      where: {
+        tenantId,
+        status: "approved",
+        closedAt: { gte: from, lte: to },
+        ...(target.subjectType === "user"
+          ? { lead: { assignedUserId: target.subjectId } }
+          : target.subjectType === "team"
+            ? { lead: { teamId: target.subjectId } }
+            : {})
+      },
+      _sum: { price: true }
+    })
+    
+    return (closureSum._sum.amount?.toNumber() || 0) + (dealSum._sum?.price?.toNumber() || 0)
   }
   if (target.metricKey === "meetings") {
     const count = await prisma.meeting.count({
@@ -137,32 +145,132 @@ const getActualValue = async (
   return 0
 }
 
+const metricNames: Record<string, string> = {
+  leads_created: "إنشاء عملاء",
+  leads_closed: "إغلاق صفقات",
+  revenue: "الإيرادات",
+  meetings: "الاجتماعات",
+  calls: "المكالمات"
+}
+
+const processTargetAchievement = async (
+  tenantId: string, 
+  plan: GoalPlan, 
+  target: GoalTarget, 
+  actualValue: number
+) => {
+    const targetValue = target.targetValue.toNumber()
+    const ratio = targetValue > 0 ? actualValue / targetValue : 0
+    const now = new Date()
+
+    if (ratio >= 1 && !target.achievedAt) {
+        await prisma.goalTarget.update({ where: { id: target.id }, data: { achievedAt: now } })
+        target.achievedAt = now
+
+        // Notify achievement
+        let recipientIds: string[] = []
+        if (target.subjectType === "user") {
+          recipientIds = [target.subjectId]
+        } else if (target.subjectType === "team") {
+          const members = await prisma.teamMember.findMany({
+            where: { tenantId, teamId: target.subjectId, leftAt: null },
+            select: { userId: true }
+          })
+          recipientIds = members.map(m => m.userId)
+        } else if (target.subjectType === "all") {
+           const allUsers = await prisma.user.findMany({ where: { tenantId, status: "active", deletedAt: null }, select: { id: true } })
+           recipientIds = allUsers.map(u => u.id)
+        }
+
+        // Trigger Commission Bonus
+        const bonusAmount = (target as any).bonusAmount
+        if (bonusAmount && bonusAmount.toNumber() > 0 && recipientIds.length > 0) {
+            for (const userId of recipientIds) {
+                await commissionService.createLedgerEntry(tenantId, {
+                    userId,
+                    amount: bonusAmount.toNumber(),
+                    entryType: "goal_bonus",
+                    currency: "EGP"
+                }).catch(err => console.error("Failed to create bonus commission:", err))
+            }
+        }
+
+        if (recipientIds.length > 0) {
+            const metricName = metricNames[target.metricKey] || target.metricKey
+            await notificationService.sendMany(recipientIds, {
+                tenantId,
+                title: "مبروك! تم تحقيق الهدف 🎉",
+                message: `تم تحقيق هدف ${plan.name} (${metricName}) بنسبة ${Math.round(ratio * 100)}%`,
+                type: "success",
+                entityType: "goal_target",
+                entityId: target.id,
+                actionUrl: `/goals`
+            }).catch(console.error)
+        }
+    }
+    
+    if (ratio < 1 && target.achievedAt) {
+        await prisma.goalTarget.update({ where: { id: target.id }, data: { achievedAt: null } })
+        target.achievedAt = null
+    }
+
+    return ratio
+}
+
 export const goalsService = {
-  createPlan: async (tenantId: string, data: { name: string; period: string; startsAt?: string; endsAt?: string }) => {
+  createPlan: async (tenantId: string, data: { name: string; period: string; startsAt?: string; endsAt?: string; isPinned?: boolean }) => {
     const range = resolvePeriodDates(data.period, data.startsAt, data.endsAt)
+    
+    // If this plan is pinned, unpin all others
+    if (data.isPinned) {
+      await prisma.goalPlan.updateMany({
+        where: { tenantId, isPinned: true },
+        data: { isPinned: false }
+      })
+    }
+
     return prisma.goalPlan.create({
       data: {
         tenantId,
         name: data.name,
         period: data.period,
         startsAt: range.startsAt,
-        endsAt: range.endsAt
+        endsAt: range.endsAt,
+        isPinned: data.isPinned || false
       }
     })
   },
   listPlans: (tenantId: string) =>
-    prisma.goalPlan.findMany({ where: { tenantId }, orderBy: { createdAt: "desc" } }),
+    prisma.goalPlan.findMany({ where: { tenantId }, orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }] }),
   getPlan: (tenantId: string, planId: string) =>
     prisma.goalPlan.findFirst({ where: { tenantId, id: planId } }),
   deletePlan: async (tenantId: string, planId: string) => {
+    const plan = await prisma.goalPlan.findFirst({ where: { tenantId, id: planId } })
+    if (!plan) throw { status: 404, message: "الخطة غير موجودة" }
+    
+    const isExpired = plan.endsAt < new Date()
+    const isCompleted = plan.status === "completed"
+    
+    if (!isExpired && !isCompleted) {
+      throw { status: 400, message: "لا يمكن حذف الخطة قبل انتهائها أو اكتمالها" }
+    }
+
     await prisma.goalTarget.deleteMany({ where: { tenantId, planId } })
     return prisma.goalPlan.delete({ where: { tenantId, id: planId } })
   },
   listTargets: (tenantId: string, planId: string) =>
     prisma.goalTarget.findMany({ where: { tenantId, planId } }),
-  setTargets: async (tenantId: string, planId: string, targets: Array<{ subjectType: "user" | "team" | "all"; subjectId: string; metricKey: string; targetValue: number; weight?: number }>) => {
+  setTargets: async (tenantId: string, planId: string, targets: Array<{ subjectType: "user" | "team" | "all"; subjectId: string; metricKey: string; targetValue: number; weight?: number; bonusAmount?: number }>) => {
+    // 1. Get existing plan
+    const plan = await prisma.goalPlan.findUnique({ where: { id: planId } })
+    if (!plan) throw { status: 404, message: "الخطة غير موجودة" }
+
+    // 2. Clear old targets
     await prisma.goalTarget.deleteMany({ where: { tenantId, planId } })
+
     if (!targets.length) return []
+
+    // 3. Create new targets
     const data = targets.map((target) => ({
       tenantId,
       planId,
@@ -170,9 +278,50 @@ export const goalsService = {
       subjectId: target.subjectId,
       metricKey: target.metricKey,
       targetValue: new Prisma.Decimal(target.targetValue),
-      weight: target.weight !== undefined ? new Prisma.Decimal(target.weight) : undefined
+      weight: target.weight !== undefined ? new Prisma.Decimal(target.weight) : undefined,
+      bonusAmount: target.bonusAmount !== undefined ? new Prisma.Decimal(target.bonusAmount) : undefined
     }))
+    
     await prisma.goalTarget.createMany({ data })
+
+    // 4. Notify targets (Optimized)
+    // Group targets by subject to avoid spamming multiple notifications to the same user/team
+    // However, logic below sends one notification per target assignment, which is acceptable if they are distinct goals.
+    
+    for (const target of targets) {
+      let recipientIds: string[] = []
+      
+      if (target.subjectType === "user") {
+        recipientIds = [target.subjectId]
+      } else if (target.subjectType === "team") {
+        const members = await prisma.teamMember.findMany({
+          where: { tenantId, teamId: target.subjectId, leftAt: null, deletedAt: null },
+          select: { userId: true }
+        })
+        recipientIds = members.map(m => m.userId)
+      } else if (target.subjectType === "all") {
+        const allUsers = await prisma.user.findMany({ 
+          where: { tenantId, status: "active", deletedAt: null }, 
+          select: { id: true } 
+        })
+        recipientIds = allUsers.map(u => u.id)
+      }
+
+      if (recipientIds.length > 0) {
+        const metricName = metricNames[target.metricKey] || target.metricKey
+        
+        await notificationService.sendMany(recipientIds, {
+          tenantId,
+          title: "هدف جديد 🎯",
+          message: `تم تحديد هدف جديد لك في خطة "${plan.name}": ${metricName} - المستهدف: ${target.targetValue}`,
+          type: "assignment",
+          entityType: "goal_plan",
+          entityId: planId,
+          actionUrl: `/goals`
+        }).catch(console.error)
+      }
+    }
+
     return prisma.goalTarget.findMany({ where: { tenantId, planId } })
   },
   buildReport: async (tenantId: string, planId: string) => {
@@ -189,16 +338,8 @@ export const goalsService = {
     for (const target of targets) {
       const actualValue = await getActualValue(tenantId, target, range)
       const targetValue = target.targetValue.toNumber()
-      const ratio = targetValue > 0 ? actualValue / targetValue : 0
+      const ratio = await processTargetAchievement(tenantId, plan, target, actualValue)
       const score = clamp(ratio * 100)
-      if (ratio >= 1 && !target.achievedAt) {
-        await prisma.goalTarget.update({ where: { id: target.id }, data: { achievedAt: now } })
-        target.achievedAt = now
-      }
-      if (ratio < 1 && target.achievedAt) {
-        await prisma.goalTarget.update({ where: { id: target.id }, data: { achievedAt: null } })
-        target.achievedAt = null
-      }
       rows.push({
         id: target.id,
         subjectType: target.subjectType,
@@ -230,5 +371,47 @@ export const goalsService = {
     prisma.goalPlan.findFirst({
       where: { tenantId, period, status: "active", startsAt: { lte: new Date() }, endsAt: { gte: new Date() } },
       orderBy: { createdAt: "desc" }
+    }),
+
+  checkAchievement: async (tenantId: string, userId: string) => {
+    // 1. Get user's team
+    const teamMember = await prisma.teamMember.findFirst({ 
+        where: { tenantId, userId, leftAt: null }, 
+        select: { teamId: true } 
     })
+    const teamId = teamMember?.teamId
+
+    // 2. Find active plans
+    const now = new Date()
+    const activePlans = await prisma.goalPlan.findMany({
+        where: { 
+            tenantId, 
+            status: "active",
+            startsAt: { lte: now }, 
+            endsAt: { gte: now } 
+        }
+    })
+
+    // 3. Find relevant targets
+    for (const plan of activePlans) {
+        const targets = await prisma.goalTarget.findMany({
+            where: {
+                tenantId,
+                planId: plan.id,
+                OR: [
+                    { subjectType: "user", subjectId: userId },
+                    { subjectType: "team", subjectId: teamId || "00000000-0000-0000-0000-000000000000" },
+                    { subjectType: "all" }
+                ]
+            }
+        })
+
+        const range = { from: plan.startsAt, to: now < plan.endsAt ? now : plan.endsAt }
+        
+        for (const target of targets) {
+            const actualValue = await getActualValue(tenantId, target, range)
+            await processTargetAchievement(tenantId, plan, target, actualValue)
+        }
+    }
+  }
 }

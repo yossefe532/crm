@@ -48,8 +48,28 @@ export type Lead = {
   notes?: string | null
   isWrongNumber?: boolean
   callCount?: number
+  deletedAt?: string | null
   callLogs?: CallLog[]
   meetings?: Meeting[]
+  createdAt: string
+  updatedAt: string
+  
+  // Lifecycle fields
+  lifecycleStage?: string
+  timerStartDate?: string | null
+  isTimerExtended?: boolean
+  extensions?: LeadExtension[]
+}
+
+export type LeadExtension = {
+  id: string
+  leadId: string
+  stateId: string
+  requestedBy: string
+  approvedBy?: string | null
+  reason?: string | null
+  status: string
+  extensionHours: number
   createdAt: string
   updatedAt: string
 }
@@ -91,6 +111,8 @@ export type Meeting = {
   endsAt: string
   status: string
   timezone: string
+  lead?: Lead
+  organizer?: User
 }
 
 export type User = {
@@ -105,6 +127,8 @@ export type User = {
   createdAt: string
   updatedAt: string
   roles?: string[]
+  isOnline?: boolean
+  lastSeen?: string | null
   teamsLed?: Array<{ id: string; name: string }>
   teamMemberships?: Array<{ teamId: string; teamName?: string | null; role: string }>
 }
@@ -125,6 +149,7 @@ export type Team = {
   name: string
   leaderUserId?: string | null
   status: string
+  createdAt: string
   leader?: User | null
   members?: Array<{ id: string; userId: string; role: string; user?: User }>
   leads?: Array<{ id: string; assignedUserId?: string | null }>
@@ -134,6 +159,7 @@ export type ConversationParticipant = {
   id: string
   userId: string
   role: string
+  lastReadAt?: string | null
   user?: User
 }
 
@@ -146,6 +172,10 @@ export type Message = {
   mediaFileId?: string | null
   createdAt: string
   sender?: User
+  editedAt?: string | null
+  deletedAt?: string | null
+  replyToId?: string | null
+  replyTo?: Message
 }
 
 export type Conversation = {
@@ -158,6 +188,8 @@ export type Conversation = {
   messages?: Message[]
   updatedAt?: string
   lastMessageAt?: string
+  hasUnread?: boolean
+  unreadCount?: number
 }
 
 export type NotificationEvent = {
@@ -165,6 +197,29 @@ export type NotificationEvent = {
   eventKey: string
   payload: Record<string, unknown>
   createdAt: string
+}
+
+export type Notification = {
+  id: string
+  type: string // info, success, warning, error, mention, assignment
+  title: string
+  message: string
+  entityId?: string | null
+  entityType?: string | null
+  actionUrl?: string | null
+  metadata?: any
+  isRead: boolean
+  isArchived: boolean
+  createdAt: string
+  sender?: {
+    id: string
+    email: string
+    profile?: {
+      firstName?: string | null
+      lastName?: string | null
+      avatarFileId?: string | null
+    } | null
+  } | null
 }
 
 export type PerformanceMetric = {

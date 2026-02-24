@@ -1,4 +1,4 @@
-const CACHE_NAME = "crm-doctor-v2-v3"
+const CACHE_NAME = "crm-doctor-v2-v4"
 const PRECACHE_URLS = ["/", "/login", "/manifest.json", "/icons/system-icon.jpg"]
 
 self.addEventListener("install", (event) => {
@@ -26,6 +26,8 @@ self.addEventListener("fetch", (event) => {
 
   if (req.method !== "GET") return
   if (url.pathname.startsWith("/api/")) return
+  // Skip caching for Next.js dev server hot updates
+  if (url.pathname.includes("webpack-hmr") || url.pathname.includes("_next/static/webpack")) return
 
   const accept = req.headers.get("accept") || ""
   const isNavigation = req.mode === "navigate" || accept.includes("text/html")
@@ -34,6 +36,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(req)
         .then((res) => {
+          if (!res || res.status !== 200 || res.type !== 'basic') return res;
           const copy = res.clone()
           caches.open(CACHE_NAME).then((cache) => cache.put(req, copy)).catch(() => {})
           return res
@@ -48,6 +51,7 @@ self.addEventListener("fetch", (event) => {
       if (cached) return cached
       return fetch(req)
         .then((res) => {
+          if (!res || res.status !== 200 || res.type !== 'basic') return res;
           const copy = res.clone()
           caches.open(CACHE_NAME).then((cache) => cache.put(req, copy)).catch(() => {})
           return res

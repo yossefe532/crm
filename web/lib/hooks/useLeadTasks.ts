@@ -12,6 +12,7 @@ export const useLeadTasks = () => {
   return useQuery<LeadTask[]>({
     queryKey: ["lead_tasks"],
     queryFn: async () => leadService.listTasks(token || undefined),
-    staleTime: 60000
+    staleTime: 0,
+    refetchInterval: 1000
   })
 }

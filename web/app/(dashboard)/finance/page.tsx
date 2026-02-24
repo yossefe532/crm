@@ -30,16 +30,8 @@ import { FINANCE_CATEGORY_LABELS, FINANCE_COLORS } from "../../../lib/constants"
 
 export default function FinancePage() {
   const { role, token } = useAuth()
-  const { data: entries, isLoading } = useFinanceEntries()
+  const { data: entries } = useFinanceEntries()
   const queryClient = useQueryClient()
-  type FinanceEntry = {
-    id: string
-    entryType: "income" | "expense"
-    category: string
-    amount: number
-    note?: string | null
-    occurredAt: string
-  }
 
   // Filters
   const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString())
@@ -69,7 +61,7 @@ export default function FinancePage() {
   }
 
   // Edit Handler
-  const handleEdit = (entry: FinanceEntry) => {
+  const handleEdit = (entry: any) => {
     setEditingId(entry.id)
     setEntryType(entry.entryType)
     setCategory(entry.category)
@@ -199,9 +191,9 @@ export default function FinancePage() {
   return (
     <div className="space-y-6 p-6">
       {/* Header & Filters */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-base-900 p-4 rounded-xl shadow-sm border border-base-200">
+      <div className="flex flex-col xl:flex-row justify-between items-center gap-4 bg-white dark:bg-base-900 p-4 rounded-xl shadow-sm border border-base-200">
         <h1 className="text-2xl font-bold text-base-900 dark:text-white">المالية</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 justify-center w-full md:w-auto">
           <Select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-32">
             {[2023, 2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
           </Select>
@@ -217,7 +209,7 @@ export default function FinancePage() {
               const rows = filteredEntries.map(e => [
                 format(new Date(e.occurredAt), 'yyyy-MM-dd', { locale: ar }),
                 e.entryType === 'income' ? 'دخل' : 'صرف',
-                CATEGORY_LABELS[e.category] || e.category,
+                FINANCE_CATEGORY_LABELS[e.category] || e.category,
                 String(e.amount),
                 e.note || ''
               ])
@@ -273,7 +265,7 @@ export default function FinancePage() {
                   fill="#10B981"
                   dataKey="value"
                 >
-                  {incomeCategoryData.map((entry, index) => (
+                  {incomeCategoryData.map((_, index) => (
                     <Cell key={`cell-income-${index}`} fill={FINANCE_COLORS[index % FINANCE_COLORS.length]} />
                   ))}
                 </Pie>
@@ -297,8 +289,8 @@ export default function FinancePage() {
                   fill="#EF4444"
                   dataKey="value"
                 >
-                  {categoryData.map((entry, index) => (
-                    <Cell key={`cell-expense-${index}`} fill={FINANCE_COLORS[index % FINANCE_COLORS.length]} />
+                  {categoryData.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={FINANCE_COLORS[index % FINANCE_COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />

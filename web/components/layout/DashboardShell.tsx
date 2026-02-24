@@ -5,15 +5,20 @@ import Link from "next/link"
 import { Sidebar } from "./Sidebar"
 import { Topbar } from "./Topbar"
 import { useLocale } from "../../lib/i18n/LocaleContext"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "../../lib/auth/AuthContext"
 import { conversationService } from "../../lib/services/conversationService"
 import { NotificationManager } from "../ui/NotificationManager"
+import { useSocket } from "../../lib/hooks/useSocket"
+import { toast } from "react-hot-toast"
+import { Message } from "../../lib/types"
 
 export const DashboardShell = ({ children }: { children: ReactNode }) => {
   const { dir } = useLocale()
   const pathname = usePathname()
-  const { role, token } = useAuth()
+  const router = useRouter()
+  const { role, token, userId } = useAuth()
+  const socket = useSocket()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [unread, setUnread] = useState(0)
@@ -24,6 +29,7 @@ export const DashboardShell = ({ children }: { children: ReactNode }) => {
     setSidebarOpen(false)
   }, [pathname])
 
+  // Click handler for loader
   useEffect(() => {
     if (typeof document === "undefined") return
     const handleClick = (event: MouseEvent) => {
@@ -34,51 +40,81 @@ export const DashboardShell = ({ children }: { children: ReactNode }) => {
       const url = new URL(link.href, window.location.origin)
       if (url.origin !== window.location.origin) return
       if (url.pathname === window.location.pathname && url.search === window.location.search) return
-      // Don't show loader for anchor links or if explicitly disabled
       if (link.hasAttribute("data-no-loader")) return
       if (url.hash) return
-      
       setIsLoading(true)
     }
     document.addEventListener("click", handleClick, true)
     return () => document.removeEventListener("click", handleClick, true)
   }, [])
 
-  // Unread badge for Connect
+  // Initial Unread Load
+  const loadUnread = async () => {
+    if (!token) return
+    try {
+      const list = await conversationService.list(token)
+      const count = list.reduce((acc, curr) => acc + (curr.unreadCount || 0), 0)
+      setUnread(count)
+    } catch {}
+  }
+
   useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      try {
-        const list = await conversationService.list(token || undefined)
-        let count = 0
-        list.forEach((c) => {
-          const key = `chat:lastSeen:${c.id}`
-          let lastSeen: number = 0
-          try {
-            const v = localStorage.getItem(key)
-            if (v) lastSeen = new Date(v).getTime()
-          } catch {}
-          const lastMessageAt = c.lastMessageAt ? new Date(c.lastMessageAt).getTime() : 0
-          if (lastMessageAt > lastSeen) {
-            count += 1
-          }
-        })
-        if (!cancelled) setUnread(count)
-      } catch {
-        if (!cancelled) setUnread(0)
+    loadUnread()
+  }, [token, pathname]) // Reload when changing pages too, to update if we left chat
+
+  // Socket Listener for Global Notifications
+  useEffect(() => {
+    if (!socket || !userId) return
+
+    const handleMessage = (message: Message) => {
+      if (message.senderId === userId) return
+
+      // If we are NOT on the connect page, show notification and update badge
+      if (!pathname?.startsWith('/connect')) {
+        setUnread(prev => prev + 1)
+        
+        toast.custom((t) => (
+          <div
+            className={`${
+              t.visible ? 'animate-enter' : 'animate-leave'
+            } max-w-md w-full bg-white shadow-lg rounded-lg pointer-events-auto flex ring-1 ring-black ring-opacity-5 cursor-pointer`}
+            onClick={() => {
+              toast.dismiss(t.id)
+              router.push('/connect')
+            }}
+          >
+            <div className="flex-1 w-0 p-4">
+              <div className="flex items-start">
+                <div className="flex-shrink-0 pt-0.5">
+                  <div className="h-10 w-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 font-bold">
+                    💬
+                  </div>
+                </div>
+                <div className="ml-3 flex-1">
+                  <p className="text-sm font-medium text-gray-900">
+                    رسالة جديدة
+                  </p>
+                  <p className="mt-1 text-sm text-gray-500 line-clamp-2">
+                    {message.content}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        ), { duration: 4000, position: "top-left" })
       }
     }
-    load()
-    const interval = setInterval(load, 5000)
+
+    socket.on("message:new", handleMessage)
+    
     return () => {
-      cancelled = true
-      clearInterval(interval)
+      socket.off("message:new", handleMessage)
     }
-  }, [token])
+  }, [socket, userId, pathname, router])
 
   return (
     <div className={`theme-shell relative flex min-h-screen ${layoutClass}`} dir={dir} suppressHydrationWarning>
-      <div className="city-bg pointer-events-none opacity-10 fixed inset-0 z-0 hidden md:block">
+      <div className="city-bg opacity-10 fixed inset-0 z-0 hidden md:block pointer-events-none">
         <svg viewBox="0 0 1200 300" preserveAspectRatio="xMidYMid slice" className="h-full w-full">
           <rect width="1200" height="300" fill="var(--city-2)" />
           <rect x="40" y="120" width="90" height="180" fill="var(--city-1)" />

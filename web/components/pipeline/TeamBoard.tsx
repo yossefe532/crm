@@ -141,36 +141,6 @@ export const TeamBoard = ({ leads }: { leads?: Lead[] }) => {
     return resolvedLeads.filter((lead) => lead.teamId === leaderTeam.id || (lead.assignedUserId ? memberIds.has(lead.assignedUserId) : false))
   }, [resolvedLeads, role, teams, userId])
 
-  const lanes = useMemo(() => {
-    let all = teams || []
-    if (role === "team_leader") {
-      all = all.filter(t => t.leaderUserId === userId)
-    }
-    const lanes = [{ id: "unassigned", title: "غير مسند" }, ...all.map((team) => ({ id: team.id, title: team.name, count: 0 }))]
-    return lanes.map((lane) => {
-      const laneLeads = scopedLeads.filter((lead) => {
-        if (lane.id === "unassigned") return !lead.teamId
-        return lead.teamId === lane.id
-      })
-      return {
-        ...lane,
-        leads: laneLeads,
-        count: laneLeads.length
-      }
-    })
-  }, [scopedLeads, teams, role, userId])
-
-  if (role === "sales") return null
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const leadId = String(event.active.id || "")
-    const overId = event.over?.id ? String(event.over.id) : ""
-    if (!leadId || !overId) return
-    const targetTeamId = overId === "unassigned" ? null : overId
-    if (role === "team_leader" && userTeamId && targetTeamId !== userTeamId) return
-    mutation.mutate({ leadId, teamId: targetTeamId })
-  }
-
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -185,6 +155,66 @@ export const TeamBoard = ({ leads }: { leads?: Lead[] }) => {
     })
   )
 
+  const lanes = useMemo(() => {
+    // 1. Get leads for the current user/role scope
+    const scopedLeads = resolvedLeads.filter((lead) => {
+      if (role === "sales") return lead.assignedUserId === userId
+      if (role === "team_leader") {
+        // TL sees leads assigned to their team
+        // If lead has teamId matching userTeamId, show it
+        return lead.teamId === userTeamId
+      }
+      return true // owner sees all
+    })
+
+    // 2. Map teams to lanes
+    // Always include "Unassigned" lane first
+    const unassignedLane = { id: "unassigned", title: "غير معين", leads: [], count: 0 }
+    
+    // For TL, only show their team lane + unassigned
+    // For Owner, show all team lanes + unassigned
+    let teamLanes: any[] = []
+    
+    if (role === "team_leader") {
+      const myTeam = teams?.find(t => t.id === userTeamId)
+      if (myTeam) {
+        teamLanes = [{ id: myTeam.id, title: myTeam.name, leads: [], count: 0 }]
+      }
+    } else {
+      teamLanes = (teams || []).map(team => ({
+        id: team.id,
+        title: team.name,
+        leads: [],
+        count: 0
+      }))
+    }
+
+    const lanes = [unassignedLane, ...teamLanes]
+
+    return lanes.map((lane) => {
+      const laneLeads = scopedLeads.filter((lead) => {
+        if (lane.id === "unassigned") return !lead.teamId
+        return lead.teamId === lane.id
+      })
+      return {
+        ...lane,
+        leads: laneLeads,
+        count: laneLeads.length
+      }
+    })
+  }, [resolvedLeads, teams, role, userId, userTeamId])
+
+  if (role === "sales") return null
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const leadId = String(event.active.id || "")
+    const overId = event.over?.id ? String(event.over.id) : ""
+    if (!leadId || !overId) return
+    const targetTeamId = overId === "unassigned" ? null : overId
+    if (role === "team_leader" && userTeamId && targetTeamId !== userTeamId) return
+    mutation.mutate({ leadId, teamId: targetTeamId })
+  }
+
   return (
     <Card title="لوحة العملاء حسب الفريق">
       <div className="overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide">
@@ -192,7 +222,7 @@ export const TeamBoard = ({ leads }: { leads?: Lead[] }) => {
           <div className="flex gap-4 w-max px-4">
             {lanes.map((lane) => (
               <Lane key={lane.id} id={lane.id} title={lane.title} count={lane.leads.length} isDisabled={role === "team_leader" && userTeamId !== lane.id && lane.id !== "unassigned"}>
-                {lane.leads.map((lead) => (
+                {lane.leads.map((lead: Lead) => (
                   <LeadCard
                     key={lead.id}
                     id={lead.id}

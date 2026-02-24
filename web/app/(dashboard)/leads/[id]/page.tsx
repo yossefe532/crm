@@ -175,7 +175,12 @@ export default function LeadDetailPage() {
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
           <div className="mb-4 text-lg font-medium text-red-600">تعذر تحميل بيانات العميل</div>
-          <div className="text-sm text-base-500">تأكد من الاتصال بالإنترنت أو صلاحيات الوصول</div>
+          <div className="text-sm text-base-500 mb-2">تأكد من الاتصال بالإنترنت أو صلاحيات الوصول</div>
+          {(leadError as any)?.message && (
+            <div className="text-xs text-red-500 bg-red-50 p-2 rounded border border-red-100 mb-4">
+              {(leadError as any).message}
+            </div>
+          )}
           <Button className="mt-4" onClick={() => router.push("/leads")}>
             العودة للقائمة
           </Button>

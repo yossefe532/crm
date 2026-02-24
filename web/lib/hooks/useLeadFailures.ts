@@ -8,6 +8,7 @@ export const useLeadFailures = (leadId?: string) => {
   return useQuery<LeadFailure[]>({
     queryKey: ["lead_failures", leadId],
     queryFn: async () => leadService.listFailures(leadId, token || undefined),
-    staleTime: 30000
+    staleTime: 0,
+    refetchInterval: 1000
   })
 }

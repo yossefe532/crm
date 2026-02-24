@@ -7,7 +7,7 @@ export const useLeadDeadlines = () => {
   return useQuery<Array<{ id: string; leadId: string; dueAt: string; status: string }>>({
     queryKey: ["lead_deadlines"],
     queryFn: async () => leadService.listDeadlines(token || undefined),
-    staleTime: 30000,
-    refetchInterval: 30000
+    staleTime: 0,
+    refetchInterval: 1000
   })
 }

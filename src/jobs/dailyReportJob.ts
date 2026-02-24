@@ -11,5 +11,12 @@ export const runDailyReportJob = async (tenantId: string) => {
   const leadsCreated = await prisma.lead.count({ where: { tenantId, createdAt: { gte: start, lte: end } } })
   const leadsClosed = await prisma.deal.count({ where: { tenantId, status: "closed", closedAt: { gte: start, lte: end } } })
 
-  await prisma.leadMetricsDaily.create({ data: { tenantId, metricDate: start, leadsCreated, leadsClosed } })
+  await prisma.leadMetricsDaily.create({ 
+    data: { 
+      tenantId, 
+      date: start, 
+      newLeadsCount: leadsCreated, 
+      closingsCount: leadsClosed 
+    } 
+  })
 }

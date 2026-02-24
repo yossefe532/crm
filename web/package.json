@@ -4,7 +4,7 @@
   "description": "Professional CRM system for real estate management",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 0.0.0.0",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -15,8 +15,11 @@
     "@dnd-kit/sortable": "^8.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@tanstack/react-query": "^5.51.1",
+    "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
+    "framer-motion": "^12.34.3",
     "jspdf": "^4.2.0",
+    "lucide-react": "^0.575.0",
     "next": "^14.2.5",
     "react": "^18.3.1",
     "react-big-calendar": "^1.13.0",
@@ -25,6 +28,7 @@
     "react-hot-toast": "^2.6.0",
     "recharts": "^2.12.7",
     "socket.io-client": "^4.8.3",
+    "tailwind-merge": "^3.5.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

@@ -5,9 +5,10 @@ import { UserRequest } from "../types"
 
 export const useUserRequests = () => {
   const { token } = useAuth()
-  return useQuery<UserRequest[]>({
+  return useQuery({
     queryKey: ["user_requests"],
     queryFn: async () => coreService.listUserRequests(token || undefined),
-    staleTime: 30000
+    staleTime: 0,
+    refetchInterval: 1000
   })
 }

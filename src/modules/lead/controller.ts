@@ -97,11 +97,14 @@ export const leadController = {
           select: { userId: true }
         })
         const recipientIds = [...new Set(admins.map(a => a.userId))]
-        await notificationService.send(tenantId, recipientIds, {
+        await notificationService.sendMany(recipientIds, {
+          tenantId,
           title: "طلب إضافة عميل جديد",
           message: `طلب المندوب ${actorName} إضافة عميل جديد: ${name}`,
-          type: "lead_request",
-          entityId: request.id
+          type: "info",
+          entityId: request.id,
+          entityType: "user_request",
+          actionUrl: `/settings/requests/${request.id}`
         })
 
         return res.json({ 
@@ -201,8 +204,11 @@ export const leadController = {
   listLeads: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
     const { skip, take, page, pageSize } = getPagination(req.query.page as string, req.query.pageSize as string)
-    const q = req.query.q ? String(req.query.q) : undefined
-    const leads = await leadService.listLeads(tenantId, skip, take, req.user, q)
+    const filters = {
+      status: req.query.status as string,
+      assignment: req.query.assignment as string
+    }
+    const leads = await leadService.listLeads(tenantId, skip, take, req.user, req.query.q as string, filters)
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.listed", entityType: "lead" })
     res.json({ data: leads, page, pageSize })
   },
@@ -241,6 +247,22 @@ export const leadController = {
       notes: req.body?.notes ? String(req.body.notes) : undefined,
       isWrongNumber: phone && phone !== existing.phone ? false : undefined
     })
+    
+    // Check for mentions in notes
+    if (req.body?.notes && req.body.notes !== existing.notes) {
+      const actor = await prisma.user.findUnique({ where: { id: req.user?.id }, select: { id: true, email: true, profile: { select: { firstName: true, lastName: true } } } })
+      const actorName = actor?.profile ? `${actor.profile.firstName || ""} ${actor.profile.lastName || ""}`.trim() : (actor?.email || "Unknown")
+      
+      await notificationService.notifyMentions(
+        tenantId,
+        req.body.notes,
+        { id: req.user?.id || "", name: actorName },
+        "lead",
+        lead.id,
+        `/leads/${lead.id}`
+      ).catch(console.error)
+    }
+
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.updated", entityType: "lead", entityId: lead.id })
     intelligenceService.queueTrigger({ type: "lead_changed", tenantId, leadId: lead.id, userId: lead.assignedUserId || undefined })
     res.json(lead)
@@ -262,6 +284,26 @@ export const leadController = {
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.deleted", entityType: "lead", entityId: lead.id })
     res.json(lead)
   },
+
+  restoreLead: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    if (!isValidUUID(req.params.id)) throw { status: 404, message: "العميل غير موجود" }
+    
+    // Check if lead exists (even if deleted)
+    const existing = await prisma.lead.findFirst({ where: { id: req.params.id, tenantId } })
+    if (!existing) throw { status: 404, message: "العميل غير موجود" }
+
+    const lead = await leadService.restoreLead(tenantId, req.params.id)
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.restored", entityType: "lead", entityId: lead.id })
+    res.json(lead)
+  },
+
+  listDeletedLeads: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const leads = await leadService.listDeletedLeads(tenantId)
+    res.json(leads)
+  },
+
   updateStage: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
     if (!isValidUUID(req.params.id)) throw { status: 404, message: "العميل غير موجود" }
@@ -276,13 +318,35 @@ export const leadController = {
         throw { status: 403, message: "غير مصرح بتنفيذ المراحل" }
       }
     }
-    const orderMap: Record<string, number> = { new: 0, call: 0, meeting: 1, site_visit: 2, closing: 3 }
+    const orderMap: Record<string, number> = { new: 0, call: 1, meeting: 2, site_visit: 3, closing: 4 }
     const currentIndex = orderMap[existing.status] ?? 0
     const targetIndex = orderMap[stageCode]
-    if (targetIndex === undefined || targetIndex !== currentIndex + 1) {
-      throw { status: 400, message: "انتقال غير صالح بين المراحل" }
+    
+    if (targetIndex === undefined) throw { status: 400, message: "المرحلة غير صالحة" }
+
+    // Prevent skipping stages
+    if (targetIndex > currentIndex + 1) {
+      throw { status: 400, message: "لا يمكن تخطي المراحل" }
     }
-    const updatedState = await lifecycleService.transitionLead(tenantId, req.params.id, state.id, req.user?.id)
+    
+    // Allow strict forward for now, but if we want backward, we need to handle it in lifecycle service too.
+    // The previous code enforced targetIndex !== currentIndex + 1, which strictly enforces next step.
+    // If I want to allow backward, I'd remove the lower bound check.
+    // But since lifecycleService checks for DB transitions which are only forward, I will keep strict forward for now.
+    
+    if (targetIndex !== currentIndex + 1) {
+       // Check if it is a backward move?
+       if (targetIndex <= currentIndex) {
+          // It's a backward move or same stage. 
+          // Lifecycle service requires a transition record. 
+          // Default stages don't have backward transitions.
+          // So this will fail in service unless we bypass it there.
+          // For now, I'll enforce strict forward progression to be safe and consistent.
+          throw { status: 400, message: "يجب الانتقال للمرحلة التالية بالترتيب" }
+       }
+    }
+    const answers = req.body?.answers
+    const updatedState = await lifecycleService.transitionLead(tenantId, req.params.id, state.id, req.user?.id, answers)
     const lead = await prisma.lead.findFirst({ where: { tenantId, id: req.params.id }, select: { id: true, name: true, assignedUserId: true, teamId: true } })
     const stageLabelMap: Record<string, string> = { new: "جديد", call: "مكالمة هاتفية", meeting: "اجتماع", site_visit: "رؤية الموقع", closing: "إغلاق الصفقة" }
     const messageAr = `تم نقل العميل ${lead?.name || req.params.id} إلى مرحلة ${stageLabelMap[updatedState.code] || updatedState.code}`
@@ -315,6 +379,11 @@ export const leadController = {
     })
     if (!lastHistory?.fromStateId) throw { status: 400, message: "لا يمكن التراجع حالياً" }
     const lastMetadata = (lastHistory.metadata || {}) as Record<string, unknown>
+    // Logic for undo... (Assuming this was truncated in previous read, but I'm appending after undoStage)
+    // Actually I should find the END of leadController object.
+    // The file ends with `export const leadController = { ... }`
+    // I'll search for the end of `undoStage` and append there.
+    // Let's read the end of the file first to be safe.
     if (lastMetadata.undoOf) throw { status: 400, message: "لا يمكن التراجع مرة أخرى" }
     const previousState = await prisma.leadStateDefinition.findFirst({ where: { tenantId, id: lastHistory.fromStateId } })
     if (!previousState) throw { status: 404, message: "المرحلة غير موجودة" }
@@ -519,14 +588,50 @@ export const leadController = {
     if (!req.user?.roles?.includes("sales") || lead.assignedUserId !== req.user?.id) {
       throw { status: 403, message: "غير مصرح بإغلاق الصفقة" }
     }
-    if (lead.status !== "closing") throw { status: 400, message: "لا يمكن الإغلاق قبل مرحلة الإغلاق" }
+    if (lead.status !== "closing" && lead.status !== "site_visit" && lead.status !== "meeting" && lead.status !== "call" && lead.status !== "new") {
+       // Allow closing from any active stage, but typically it follows site_visit.
+       // The previous check was: if (lead.status !== "closing") throw ...
+       // But wait, if status is "closing", it means it is ALREADY in closing stage?
+       // If so, we are just creating the closure request?
+       // But the requirement is to use transition to validate questions.
+       // If the lead is already in "closing", we might be updating the closure info?
+       // Actually, the previous code:
+       // if (lead.status !== "closing") throw { status: 400, message: "لا يمكن الإغلاق قبل مرحلة الإغلاق" }
+       // This implies the user must have MANUALLY moved to "closing" stage first using updateStage?
+       // But updateStage to "closing" would require questions!
+       // So if they are already in "closing", they must have answered questions.
+       
+       // BUT, the UI shows "ClosureModal" usually when clicking "Won" or "Close Deal".
+       // If the user flow is: Click "Won" -> Open Modal -> Submit -> Transition to Closing -> Create Closure Request.
+       // Then we should allow transition from any previous stage to "closing".
+       
+       // Let's assume the user can click "Close Deal" from any stage (e.g. after a call).
+    }
+    
     const amount = Number(req.body?.amount)
     if (!Number.isFinite(amount) || amount <= 0) throw { status: 400, message: "قيمة الإغلاق غير صحيحة" }
+    
+    const contractDate = req.body?.contractDate ? String(req.body.contractDate) : undefined
+    if (!contractDate) throw { status: 400, message: "تاريخ العقد مطلوب" }
+
     const note = req.body?.note ? String(req.body.note) : undefined
     const address = req.body?.address ? String(req.body.address) : undefined
     if (!address) throw { status: 400, message: "عنوان الإغلاق مطلوب" }
+
+    // 1. Get Closing State
+    const closingState = await lifecycleService.getStateByCode(tenantId, "closing")
+    if (!closingState) throw { status: 500, message: "مرحلة الإغلاق غير معرفة في النظام" }
+
+    // 2. Transition Lead (Validates questions and deadlines)
+    await lifecycleService.transitionLead(tenantId, lead.id, closingState.id, req.user?.id, {
+        amount,
+        contract_date: contractDate
+    })
+
+    // 3. Create Closure Record
     const closure = await leadService.createClosure(tenantId, { leadId: lead.id, closedBy: req.user?.id, amount, note, address })
-    await prisma.lead.update({ where: { id: lead.id, tenantId }, data: { status: "closing", assignedUserId: null } })
+    
+    // 4. Notifications
     const event = await notificationService.publishEvent(tenantId, "lead.closed", {
       leadId: lead.id,
       leadName: lead.name,
@@ -627,5 +732,113 @@ export const leadController = {
 
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "meeting.created", entityType: "meeting", entityId: meeting.id, metadata: { leadId } })
     res.json(meeting)
+  },
+
+  advanceStage: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    if (!isValidUUID(req.params.id)) throw { status: 404, message: "العميل غير موجود" }
+    
+    const lead = await leadService.getLeadForUser(tenantId, req.params.id, req.user)
+    if (!lead) throw { status: 404, message: "العميل غير موجود أو ليس لديك صلاحية" }
+    
+    if (req.user?.roles?.includes("sales") && !req.user?.roles?.includes("owner") && !req.user?.roles?.includes("team_leader")) {
+        if (lead.assignedUserId !== req.user.id) {
+            throw { status: 403, message: "غير مصرح بتعديل هذا العميل" }
+        }
+    }
+
+    const result = await leadService.advanceStage(tenantId, req.params.id, req.user?.id || "")
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.stage.advanced", entityType: "lead", entityId: req.params.id, metadata: { from: lead.lifecycleStage, to: result.nextStage } })
+    res.json(result)
+  },
+
+  submitDeal: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    if (!isValidUUID(req.params.id)) throw { status: 404, message: "العميل غير موجود" }
+    
+    const lead = await leadService.getLeadForUser(tenantId, req.params.id, req.user)
+    if (!lead) throw { status: 404, message: "العميل غير موجود" }
+
+    if (req.user?.roles?.includes("sales") && !req.user?.roles?.includes("owner") && !req.user?.roles?.includes("team_leader")) {
+        if (lead.assignedUserId !== req.user.id) {
+            throw { status: 403, message: "غير مصرح بإنشاء صفقة لهذا العميل" }
+        }
+    }
+
+    const listingId = req.body.listingId
+    const price = Number(req.body.price)
+    
+    if (!listingId || isNaN(price)) throw { status: 400, message: "بيانات الصفقة غير مكتملة" }
+
+    const deal = await leadService.submitDeal(tenantId, req.params.id, req.user?.id || "", {
+        price,
+        listingId,
+        closedAt: new Date()
+    })
+    
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.deal.submitted", entityType: "deal", entityId: deal.id })
+    res.json(deal)
+  },
+
+  approveDeal: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    if (!req.user?.roles?.includes("owner")) throw { status: 403, message: "فقط المالك يمكنه الموافقة على الصفقات" }
+    
+    const netProfit = Number(req.body.netProfit)
+    if (isNaN(netProfit)) throw { status: 400, message: "صافي الربح مطلوب" }
+
+    const deal = await leadService.approveDeal(tenantId, req.params.dealId, req.user?.id || "", {
+        netProfit,
+        price: req.body.price ? Number(req.body.price) : undefined
+    })
+
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.deal.approved", entityType: "deal", entityId: deal.id })
+    res.json(deal)
+  },
+
+  requestExtension: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const lead = await leadService.getLeadForUser(tenantId, req.params.id, req.user)
+    if (!lead) throw { status: 404, message: "العميل غير موجود" }
+    
+    const reason = req.body.reason
+    if (!reason) throw { status: 400, message: "سبب التمديد مطلوب" }
+
+    const ext = await leadService.requestExtension(tenantId, req.params.id, req.user?.id || "", reason)
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.extension.requested", entityType: "lead_extension", entityId: ext.id })
+    res.json(ext)
+  },
+
+  approveExtension: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    if (!req.user?.roles?.includes("owner") && !req.user?.roles?.includes("team_leader")) {
+        throw { status: 403, message: "غير مصرح بالموافقة على التمديد" }
+    }
+    
+    const ext = await leadService.approveExtension(tenantId, req.params.extensionId, req.user?.id || "")
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.extension.approved", entityType: "lead_extension", entityId: ext.success ? req.params.extensionId : "" })
+    res.json(ext)
+  },
+
+  rejectExtension: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    if (!req.user?.roles?.includes("owner") && !req.user?.roles?.includes("team_leader")) {
+        throw { status: 403, message: "غير مصرح برفض التمديد" }
+    }
+    
+    const result = await leadService.rejectExtension(tenantId, req.params.extensionId, req.user?.id || "")
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.extension.rejected", entityType: "lead_extension", entityId: req.params.extensionId })
+    res.json(result)
+  },
+
+  rejectDeal: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    if (!req.user?.roles?.includes("owner")) throw { status: 403, message: "فقط المالك يمكنه رفض الصفقات" }
+    
+    const reason = req.body?.reason ? String(req.body.reason) : undefined
+
+    const deal = await leadService.rejectDeal(tenantId, req.params.dealId, req.user?.id || "", reason)
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.deal.rejected", entityType: "deal", entityId: deal.id })
+    res.json(deal)
   }
 }

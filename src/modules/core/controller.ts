@@ -3,6 +3,7 @@ import { coreService } from "./service"
 import { leadService } from "../lead/service"
 import { lifecycleService } from "../lifecycle/service"
 import { conversationService } from "../conversations/service"
+import { notificationService } from "../notifications/service"
 import { prisma } from "../../prisma/client"
 import { logActivity } from "../../utils/activity"
 import { generateStrongPassword, hashPassword } from "../auth/password"
@@ -29,6 +30,7 @@ export const coreController = {
     res.json(tenants)
   },
   createUser: async (req: Request, res: Response) => {
+    let createdUser: any = null;
     try {
       const tenantId = req.user?.tenantId || ""
       const actorRoles = req.user?.roles || []
@@ -36,7 +38,30 @@ export const coreController = {
       const email = String(req.body?.email || "").trim().toLowerCase()
       const phone = req.body?.phone ? String(req.body.phone).trim() : undefined
       const password = req.body?.password ? String(req.body.password) : ""
-      const requestedRole = String(req.body?.role || "sales").trim().toLowerCase()
+      const roleInput = String(req.body?.role || "sales").trim()
+       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(roleInput)
+       let resolvedRole = await prisma.role.findFirst({ 
+         where: { 
+           tenantId, 
+           ...(isUUID ? { OR: [{ id: roleInput }, { name: roleInput }] } : { name: roleInput }),
+           deletedAt: null 
+         } 
+       })
+      
+      let requestedRole = "";
+      if (resolvedRole) {
+        requestedRole = resolvedRole.name;
+      } else {
+        const standardRoles = ["owner", "team_leader", "sales"];
+        // Check if it's a standard role name (case insensitive)
+        const matchedStandard = standardRoles.find(r => r === roleInput || r === roleInput.toLowerCase());
+        if (matchedStandard) {
+           requestedRole = matchedStandard;
+        } else {
+           throw { status: 400, message: "نوع الدور غير صالح" };
+        }
+      }
+
       const teamId = req.body?.teamId ? String(req.body.teamId) : undefined
       const teamName = req.body?.teamName ? String(req.body.teamName) : undefined
       if (!tenantId) throw { status: 401, message: "Unauthorized" }
@@ -46,33 +71,69 @@ export const coreController = {
       if (!name) throw { status: 400, message: "الاسم مطلوب" }
       if (!isValidEmail(email)) throw { status: 400, message: "صيغة البريد الإلكتروني غير صحيحة" }
 
-      if (actorRoles.includes("team_leader")) {
+      if (actorRoles.includes("team_leader") && !actorRoles.includes("owner")) {
         if (requestedRole !== "sales") throw { status: 403, message: "يمكن لقائد الفريق إضافة مندوبي مبيعات فقط" }
         const leaderTeam = await coreService.getTeamByLeader(tenantId, req.user?.id || "")
         if (!leaderTeam) throw { status: 400, message: "لا يوجد فريق مرتبط بهذا القائد" }
         
         const payload = { name, email, phone, role: "sales", teamId: leaderTeam.id }
         const request = await coreService.createUserRequest(tenantId, req.user?.id || "", "create_sales", payload)
+        
+        // Notify Owners
+        const owners = await prisma.userRole.findMany({ 
+          where: { tenantId, role: { name: "owner" }, revokedAt: null },
+          select: { userId: true }
+        })
+        const recipientIds = [...new Set(owners.map(o => o.userId))]
+        
+        await notificationService.sendMany(
+          recipientIds,
+          {
+            tenantId,
+            title: "طلب إضافة مندوب مبيعات جديد",
+            message: `طلب القائد (ID: ${req.user?.id}) إضافة مندوب جديد: ${name}`,
+            type: "info",
+            entityType: "user_request",
+            entityId: request.id,
+            actionUrl: `/admin/requests`,
+            senderId: req.user?.id
+          }
+        )
+
         await logActivity({ tenantId, actorUserId: req.user?.id, action: "user_request.created", entityType: "user_request", entityId: request.id })
         res.status(202).json({ message: "تم إرسال طلب إنشاء المستخدم للموافقة", request })
         return
       }
 
+      // Phone check is now handled in coreService.createUser for consistency
+      /*
       if (phone) {
         const existingPhone = await coreService.listUsers(tenantId)
         if (existingPhone.some((user) => user.phone === phone)) {
           throw { status: 409, message: "رقم الهاتف مستخدم بالفعل" }
         }
       }
+      */
   
-      const allowedRoles = ["owner", "team_leader", "sales"]
-      if (!allowedRoles.includes(requestedRole)) throw { status: 400, message: "نوع الدور غير صالح" }
+      // Permission check for Owner
       if (actorRoles.includes("owner")) {
-        if (!(["team_leader", "sales"] as string[]).includes(requestedRole)) {
-          throw { status: 403, message: "غير مصرح بإنشاء هذا الدور" }
+        // Prevent owner from creating another owner
+        if (requestedRole === 'owner') {
+             throw { status: 403, message: "لا يمكن إنشاء حساب مالك آخر. النظام يدعم مالك واحد فقط." }
         }
       }
   
+      // Strict validation for Team Leader creation
+      if (requestedRole === "team_leader") {
+        if (!actorRoles.includes("owner")) throw { status: 403, message: "فقط المالك يمكنه إنشاء قائد فريق" }
+        if (!teamName) throw { status: 400, message: "اسم الفريق مطلوب لقائد الفريق" }
+      }
+
+      if (requestedRole === "team_leader" && teamName) {
+        const existingTeam = await coreService.getTeamByName(tenantId, teamName)
+        if (existingTeam) throw { status: 409, message: "اسم الفريق مستخدم بالفعل" }
+      }
+
       let mustChangePassword = true
       let temporaryPassword: string | undefined
       let passwordHash: string
@@ -86,11 +147,12 @@ export const coreController = {
         passwordHash = await hashPassword(temporaryPassword)
         mustChangePassword = true
       }
-  
+
       const [firstName, ...lastNameParts] = name ? name.split(" ") : [undefined, []]
       const lastName = lastNameParts.join(" ") || undefined
   
       const user = await coreService.createUser(tenantId, { email, passwordHash, mustChangePassword, phone, firstName, lastName })
+      createdUser = user;
       const role = await coreService.getOrCreateRole(tenantId, requestedRole)
       await coreService.assignRole(tenantId, user.id, role.id, req.user?.id)
   
@@ -114,21 +176,94 @@ export const coreController = {
       }
 
       await logActivity({ tenantId, actorUserId: req.user?.id, action: "user.created", entityType: "user", entityId: user.id })
+      
+      // 2. Notify Admins/Owners about new user
+      // First get owner role id
+      const ownerRole = await prisma.role.findFirst({ where: { name: "owner", tenantId } })
+      if (ownerRole) {
+        const owners = await prisma.userRole.findMany({
+          where: { 
+            tenantId, 
+            roleId: ownerRole.id,
+            revokedAt: null 
+          },
+          select: { userId: true }
+        })
+        
+        if (owners.length > 0) {
+          const recipientIds = owners.map(o => o.userId);
+          if (recipientIds.length > 0) {
+            await notificationService.sendMany(recipientIds, {
+              tenantId,
+              type: "info",
+              title: "مستخدم جديد انضم للنظام 👤",
+              message: `تم إنشاء حساب جديد للمستخدم: ${firstName || ""} ${lastName || ""} (${email})`,
+              entityType: "user",
+              entityId: user.id,
+              actionUrl: `/settings/users/${user.id}`,
+              senderId: req.user?.id
+            }).catch(console.error)
+          }
+        }
+      }
+
       res.json({
         user: { id: user.id, tenantId: user.tenantId, email: user.email, phone: user.phone, status: user.status, mustChangePassword: user.mustChangePassword, createdAt: user.createdAt, updatedAt: user.updatedAt },
         ...(temporaryPassword ? { temporaryPassword } : {})
       })
     } catch (error: any) {
       console.error("User creation failed:", error)
+
+      // Rollback: Delete created user if exists to prevent stale data (zombie users)
+      if (createdUser && createdUser.id) {
+        try {
+           console.log(`Rolling back creation for user ${createdUser.id}`)
+           // We need to delete in reverse order of creation dependencies
+           await prisma.teamMember.deleteMany({ where: { userId: createdUser.id } })
+           await prisma.userRole.deleteMany({ where: { userId: createdUser.id } })
+           await prisma.userProfile.deleteMany({ where: { userId: createdUser.id } })
+           // Also clean up any potential conversation/group links if they were created
+           await prisma.conversationParticipant.deleteMany({ where: { userId: createdUser.id } })
+           await prisma.user.delete({ where: { id: createdUser.id } })
+        } catch (rollbackErr) {
+           console.error("Rollback failed for user " + createdUser.id, rollbackErr)
+        }
+      }
+
       if (error.code === 'P2002') {
-         throw { status: 409, message: "البريد الإلكتروني مستخدم بالفعل" }
+         const target = error.meta?.target;
+         if (Array.isArray(target)) {
+           if (target.includes('email')) throw { status: 409, message: "البريد الإلكتروني مستخدم بالفعل" }
+           if (target.includes('phone')) throw { status: 409, message: "رقم الهاتف مستخدم بالفعل" }
+         }
+         throw { status: 409, message: "بيانات (البريد أو الهاتف) مستخدمة بالفعل" }
       }
       throw error
     }
   },
   listUsers: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
-    const users = await coreService.listUsers(tenantId)
+    let users = await coreService.listUsers(tenantId)
+    
+    // Filter for Team Leader & Sales
+    const roles = req.user?.roles || []
+    if (roles.includes("team_leader") && !roles.includes("owner")) {
+       const leaderTeam = await coreService.getTeamByLeader(tenantId, req.user?.id || "")
+       if (leaderTeam) {
+          const teamMembers = await prisma.teamMember.findMany({
+             where: { tenantId, teamId: leaderTeam.id, leftAt: null, deletedAt: null },
+             select: { userId: true }
+          })
+          const memberIds = teamMembers.map(m => m.userId)
+          memberIds.push(req.user?.id || "") // Include self
+          users = users.filter(u => memberIds.includes(u.id))
+       } else {
+          users = users.filter(u => u.id === req.user?.id)
+       }
+    } else if (roles.includes("sales") && !roles.includes("owner") && !roles.includes("team_leader")) {
+        users = users.filter(u => u.id === req.user?.id)
+    }
+
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "user.listed", entityType: "user" })
     const payload = users.map((user) => ({
       id: user.id,
@@ -152,7 +287,7 @@ export const coreController = {
     const tenantId = req.user?.tenantId || ""
     const limit = req.query.limit ? Number(req.query.limit) : 50
     const logs = await prisma.auditLog.findMany({
-      where: { tenantId, actorUserId: req.params.userId },
+      where: { tenantId, userId: req.params.userId },
       orderBy: { createdAt: "desc" },
       take: limit
     })
@@ -162,7 +297,7 @@ export const coreController = {
     const tenantId = req.user?.tenantId || ""
     const limit = req.query.limit ? Number(req.query.limit) : 50
     const logs = await prisma.auditLog.findMany({
-      where: { tenantId, actorUserId: req.user?.id },
+      where: { tenantId, userId: req.user?.id },
       orderBy: { createdAt: "desc" },
       take: limit
     })
@@ -190,16 +325,28 @@ export const coreController = {
         throw { status: 409, message: "رقم الهاتف مستخدم بالفعل" }
       }
     }
-    const updated = await coreService.updateUser(tenantId, req.params.userId, {
-      email,
-      phone,
-      firstName,
-      lastName,
-      status: req.body?.status ? String(req.body.status) : undefined
-    })
+    try {
+      const updated = await coreService.updateUser(tenantId, req.params.userId, {
+        email,
+        phone,
+        firstName,
+        lastName,
+        status: req.body?.status ? String(req.body.status) : undefined
+      })
 
-    await logActivity({ tenantId, actorUserId: req.user?.id, action: "user.updated", entityType: "user", entityId: updated.id })
-    res.json(updated)
+      await logActivity({ tenantId, actorUserId: req.user?.id, action: "user.updated", entityType: "user", entityId: updated.id })
+      res.json(updated)
+    } catch (error: any) {
+      if (error.code === 'P2002') {
+         const target = error.meta?.target;
+         if (Array.isArray(target)) {
+           if (target.includes('email')) throw { status: 409, message: "البريد الإلكتروني مستخدم بالفعل" }
+           if (target.includes('phone')) throw { status: 409, message: "رقم الهاتف مستخدم بالفعل" }
+         }
+         throw { status: 409, message: "بيانات (البريد أو الهاتف) مستخدمة بالفعل" }
+      }
+      throw error
+    }
   },
   getUser: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
@@ -398,8 +545,14 @@ export const coreController = {
       for (const member of members) {
         const memberRoles = member.roleLinks?.map((link) => link.role.name) || []
         if (memberRoles.includes("team_leader")) throw { status: 400, message: "لا يمكن إضافة قائد فريق داخل فريق آخر" }
-        if (member.teamMembers?.length) throw { status: 400, message: "لا يمكن إضافة عضو مرتبط بفريق آخر" }
-        await coreService.addTeamMember(tenantId, team.id, member.id, "member")
+        if (member.teamMembers?.length) {
+             // If member is already in another team, we need to transfer them properly
+             // This ensures they are removed from the old team and added to the new one
+             await coreService.transferTeamMember(tenantId, member.id, team.id, "member")
+        } else {
+             // If not in any team, just add them
+             await coreService.addTeamMember(tenantId, team.id, member.id, "member")
+        }
       }
       // Sync again to add members
       await conversationService.ensureTeamGroup(tenantId, team.id)
@@ -407,6 +560,161 @@ export const coreController = {
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "user.promoted", entityType: "user", entityId: userId, metadata: { teamId: team.id } })
     res.json({ status: "ok", team })
   },
+  updateTeam: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const teamId = String(req.params.teamId || "").trim()
+    const name = String(req.body?.name || "").trim()
+    
+    if (!teamId) throw { status: 400, message: "معرف الفريق مطلوب" }
+    if (!name) throw { status: 400, message: "اسم الفريق مطلوب" }
+
+    // Check permissions: Owner or Team Leader of this team
+    const isOwner = req.user?.roles?.includes("owner")
+    if (!isOwner) {
+      const leaderTeam = await coreService.getTeamByLeader(tenantId, req.user?.id || "")
+      if (!leaderTeam || leaderTeam.id !== teamId) {
+        throw { status: 403, message: "غير مصرح لك بتعديل هذا الفريق" }
+      }
+    }
+
+    const existingName = await coreService.getTeamByName(tenantId, name)
+    if (existingName && existingName.id !== teamId) throw { status: 409, message: "اسم الفريق مستخدم بالفعل" }
+
+    const updated = await prisma.team.update({
+      where: { id: teamId },
+      data: { name }
+    })
+
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "team.updated", entityType: "team", entityId: teamId })
+    res.json(updated)
+  },
+
+  removeTeamMember: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const teamId = String(req.params.teamId || "").trim()
+    const userId = String(req.params.userId || "").trim()
+
+    if (!teamId || !userId) throw { status: 400, message: "بيانات غير مكتملة" }
+
+    // Check permissions
+    const isOwner = req.user?.roles?.includes("owner")
+    if (!isOwner) {
+      const leaderTeam = await coreService.getTeamByLeader(tenantId, req.user?.id || "")
+      if (!leaderTeam || leaderTeam.id !== teamId) {
+        throw { status: 403, message: "غير مصرح لك بإزالة أعضاء من هذا الفريق" }
+      }
+    }
+
+    const member = await prisma.teamMember.findFirst({
+      where: { tenantId, teamId, userId, leftAt: null, deletedAt: null }
+    })
+
+    if (!member) throw { status: 404, message: "العضو غير موجود في الفريق" }
+    if (member.role === "leader") throw { status: 400, message: "لا يمكن إزالة قائد الفريق بهذه الطريقة" }
+
+    await coreService.removeTeamMember(tenantId, teamId, userId)
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "team.member.removed", entityType: "team_member", entityId: member.id })
+    res.json({ status: "ok" })
+  },
+
+  remindTeamMember: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const teamId = req.params.teamId
+    const { userId: memberId, leadId, leadName } = req.body
+    
+    if (!req.user) throw { status: 401, message: "Unauthorized" }
+    if (!memberId || !leadId) throw { status: 400, message: "بيانات ناقصة" }
+
+    await coreService.remindTeamMember(tenantId, teamId, req.user, memberId, leadId, leadName || "Unknown")
+    res.json({ status: "ok" })
+  },
+
+  demoteTeamLeader: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const userId = String(req.params.userId || "").trim()
+    const newLeaderId = req.body?.newLeaderId ? String(req.body.newLeaderId).trim() : undefined
+
+    if (!userId) throw { status: 400, message: "معرف المستخدم مطلوب" }
+    if (await isOwnerAccount(tenantId, userId)) throw { status: 403, message: "لا يمكن تنحية المالك" }
+
+    const user = await coreService.getUserById(tenantId, userId)
+    if (!user) throw { status: 404, message: "المستخدم غير موجود" }
+
+    const roleNames = user.roleLinks?.map((link) => link.role.name) || []
+    if (!roleNames.includes("team_leader")) throw { status: 400, message: "المستخدم ليس قائد فريق" }
+
+    const team = await coreService.getTeamByLeader(tenantId, userId)
+    if (!team) throw { status: 400, message: "لا يوجد فريق مرتبط بهذا القائد" }
+
+    // If new leader provided, transfer leadership
+    if (newLeaderId) {
+      const newLeader = await coreService.getUserById(tenantId, newLeaderId)
+      if (!newLeader) throw { status: 404, message: "القائد الجديد غير موجود" }
+      
+      // Check if new leader is already a leader
+      const newLeaderRoles = newLeader.roleLinks?.map((link) => link.role.name) || []
+      if (newLeaderRoles.includes("team_leader")) throw { status: 400, message: "القائد الجديد يقود فريقاً بالفعل" }
+
+      // Assign roles
+      const teamLeaderRole = await coreService.getOrCreateRole(tenantId, "team_leader")
+      const salesRole = await coreService.getOrCreateRole(tenantId, "sales")
+      
+      // Demote current leader
+      await coreService.revokeRole(tenantId, userId, teamLeaderRole.id)
+      await coreService.assignRole(tenantId, userId, salesRole.id, req.user?.id)
+      
+      // Promote new leader
+      await coreService.assignRole(tenantId, newLeaderId, teamLeaderRole.id, req.user?.id)
+      await coreService.revokeRole(tenantId, newLeaderId, salesRole.id)
+
+      // Update team leadership
+      await prisma.team.update({
+        where: { id: team.id },
+        data: { leaderUserId: newLeaderId }
+      })
+
+      // Update team memberships
+      await coreService.transferTeamMember(tenantId, userId, team.id, "member")
+      await coreService.transferTeamMember(tenantId, newLeaderId, team.id, "leader")
+
+    } else {
+      // Just demote (Owner takes over temporarily)
+      const teamLeaderRole = await coreService.getOrCreateRole(tenantId, "team_leader")
+      const salesRole = await coreService.getOrCreateRole(tenantId, "sales")
+
+      await coreService.revokeRole(tenantId, userId, teamLeaderRole.id)
+      await coreService.assignRole(tenantId, userId, salesRole.id, req.user?.id)
+      
+      const owner = await prisma.user.findFirst({ where: { tenantId, roleLinks: { some: { role: { name: "owner" } } } } })
+      if (owner) {
+         await prisma.team.update({
+           where: { id: team.id },
+           data: { leaderUserId: owner.id }
+         })
+         // Add owner as leader in TeamMember if not already
+         const ownerMember = await prisma.teamMember.findFirst({
+            where: { tenantId, teamId: team.id, userId: owner.id, leftAt: null }
+         })
+         if (!ownerMember) {
+             await coreService.addTeamMember(tenantId, team.id, owner.id, "leader")
+         } else if (ownerMember.role !== "leader") {
+             // Update role to leader? Or keep as is?
+             // Usually owner has super access anyway, but for clarity let's keep them as is or update.
+             // Let's leave it, owner role is powerful enough.
+         }
+      }
+      
+      await coreService.transferTeamMember(tenantId, userId, team.id, "member")
+    }
+
+    // Sync chat groups
+    await conversationService.ensureTeamGroup(tenantId, team.id).catch(console.error)
+    await conversationService.ensureOwnerGroup(tenantId).catch(console.error)
+
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "user.demoted", entityType: "user", entityId: userId })
+    res.json({ status: "ok" })
+  },
+
   deleteTeam: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
     const teamId = String(req.params.teamId || "").trim()
@@ -467,7 +775,7 @@ export const coreController = {
       prisma.message.findMany({ where: { tenantId } }),
       prisma.iconAsset.findMany({ where: { tenantId } }),
       prisma.note.findMany({ where: { tenantId } }),
-      prisma.contact.findMany({ where: { tenantId, deletedAt: null } }),
+      prisma.contact.findMany({ where: { tenantId } }),
       prisma.financeEntry.findMany({ where: { tenantId } }),
     ])
     const snapshot = {
@@ -566,12 +874,11 @@ export const coreController = {
     const roles = req.user?.roles || []
     const userId = req.user?.id || ""
 
-    if (roles.includes("owner")) {
-      res.json(requests)
-      return
-    }
+    let filteredRequests = requests;
 
-    if (roles.includes("team_leader")) {
+    if (roles.includes("owner")) {
+      // Owner sees all
+    } else if (roles.includes("team_leader")) {
       const leaderTeam = await coreService.getTeamByLeader(tenantId, userId)
       if (leaderTeam) {
         const teamMembers = await prisma.teamMember.findMany({
@@ -579,15 +886,31 @@ export const coreController = {
           select: { userId: true }
         })
         const memberIds = teamMembers.map((m) => m.userId)
-        // Team leader sees requests from their team members + their own requests
-        res.json(requests.filter((item) => memberIds.includes(item.requestedBy) || item.requestedBy === userId))
-        return
+        filteredRequests = requests.filter((item) => memberIds.includes(item.requestedBy) || item.requestedBy === userId)
+      } else {
+         filteredRequests = requests.filter((item) => item.requestedBy === userId)
       }
+    } else {
+       filteredRequests = requests.filter((item) => item.requestedBy === userId)
     }
 
-    // Default: only see own requests
-    res.json(requests.filter((item) => item.requestedBy === userId))
+    let pendingRegistrations: any[] = []
+    if (roles.includes("owner")) {
+        pendingRegistrations = await coreService.listPendingRegistrations(tenantId)
+    }
+
+    res.json({ requests: filteredRequests, pendingRegistrations })
   },
+  
+  approveRegistration: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    if (!req.user?.roles.includes("owner")) throw { status: 403, message: "غير مصرح" }
+    
+    const result = await coreService.approveRegistration(tenantId, req.params.userId, req.user.id)
+    await logActivity({ tenantId, actorUserId: req.user.id, action: "user.registration.approved", entityType: "user", entityId: result.id })
+    res.json(result)
+  },
+
   decideUserRequest: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
     const roles = req.user?.roles || []
@@ -622,73 +945,118 @@ export const coreController = {
     let resultData: any = {}
 
     if (status === "approved") {
-      if (request.requestType === "create_sales") {
-        const payload = request.payload as { name: string; email: string; phone?: string; teamId?: string }
-        const password = generateStrongPassword()
-        const passwordHash = await hashPassword(password)
-        const [firstName, ...lastNameParts] = payload.name ? payload.name.split(" ") : [undefined, []]
-        const lastName = lastNameParts.join(" ") || undefined
-        const user = await coreService.createUser(tenantId, { email: payload.email, passwordHash, mustChangePassword: true, phone: payload.phone, firstName, lastName })
-        const role = await coreService.getOrCreateRole(tenantId, "sales")
-        await coreService.assignRole(tenantId, user.id, role.id, userId)
-        if (payload.teamId) {
-          await coreService.addTeamMember(tenantId, payload.teamId, user.id, "member")
-          await conversationService.ensureTeamGroup(tenantId, payload.teamId)
-        }
-        await logActivity({ tenantId, actorUserId: userId, action: "user.created", entityType: "user", entityId: user.id })
-        resultData = { createdUser: { id: user.id, email: user.email, phone: user.phone, mustChangePassword: user.mustChangePassword, temporaryPassword: password } }
-      } else if (request.requestType === "create_lead") {
-        const payload = request.payload as any
-        const phone = payload.phone ? String(payload.phone).trim() : ""
-        
-        // Check for existing lead first to avoid Unique Constraint errors
-        let lead = await prisma.lead.findFirst({
-            where: { tenantId, phone }
-        })
+      try {
+        if (request.requestType === "create_lead") {
+          const payload = request.payload as any
+          const phone = payload.phone ? String(payload.phone).trim() : ""
+          if (!phone) throw { status: 400, message: "رقم الهاتف مطلوب" }
+          
+          console.log(`Processing create_lead request ${request.id} for phone ${phone}`)
 
-        if (lead) {
-             // Restore and Update
-             const stages = await lifecycleService.ensureDefaultStages(tenantId)
-             const callStage = stages.find((stage) => stage.code === "call")
-             const defaultStatus = callStage?.code || "call"
-             
-             lead = await prisma.lead.update({
-                 where: { id: lead.id },
-                 data: {
-                     deletedAt: null,
-                     name: payload.name,
-                     email: payload.email || lead.email,
-                     status: defaultStatus,
-                     assignedUserId: payload.assignedUserId || lead.assignedUserId,
-                     teamId: payload.teamId || lead.teamId
-                 }
-             })
-             
-             // Add history entry for the reactivation/status reset
-             const state = await lifecycleService.getStateByCode(tenantId, defaultStatus)
-             if (state) {
-                 await prisma.leadStateHistory.create({
-                     data: { tenantId, leadId: lead.id, toStateId: state.id, changedBy: userId }
-                 })
-             }
-        } else {
-            // Create New
-            if (!payload.leadCode) {
-               payload.leadCode = `L-${Date.now()}`
+          // Determine the assigned user (default to requester if not specified)
+          let assignedUserId = payload.assignedUserId
+          if (!assignedUserId) {
+            assignedUserId = request.requestedBy
+          }
+
+          // Validate assigned user exists
+          if (assignedUserId) {
+            const assignedUser = await prisma.user.findFirst({ where: { id: assignedUserId, tenantId } })
+            if (!assignedUser) {
+              console.warn(`Assigned user ${assignedUserId} not found, falling back to requester or unassigned`)
+              if (assignedUserId !== request.requestedBy) {
+                  assignedUserId = request.requestedBy
+              } else {
+                  assignedUserId = undefined 
+              }
             }
-            lead = await leadService.createLead(tenantId, { ...payload, phone })
-        }
+          }
 
-        if (payload.assignedUserId && lead) {
-          // Ensure assignment is recorded/updated
-          if (lead.assignedUserId !== payload.assignedUserId) {
-             await leadService.assignLead(tenantId, lead.id, payload.assignedUserId, userId, "Approved Request", payload.teamId)
+          // Check for existing lead first to avoid Unique Constraint errors
+          let lead = await prisma.lead.findFirst({
+              where: { tenantId, phone }
+          })
+
+          if (lead) {
+               // Restore and Update
+               console.log(`Lead found for phone ${phone}, updating...`)
+               const stages = await lifecycleService.ensureDefaultStages(tenantId)
+               const callStage = stages.find((stage) => stage.code === "call")
+               const defaultStatus = callStage?.code || "call"
+               
+               lead = await prisma.lead.update({
+                   where: { id: lead.id },
+                   data: {
+                       deletedAt: null,
+                       name: payload.name,
+                       email: payload.email || lead.email,
+                       status: defaultStatus,
+                       assignedUserId: assignedUserId || lead.assignedUserId,
+                       teamId: payload.teamId || lead.teamId
+                   }
+               })
+               
+               // Add history entry for the reactivation/status reset
+               const state = await lifecycleService.getStateByCode(tenantId, defaultStatus)
+               if (state) {
+                   await prisma.leadStateHistory.create({
+                       data: { tenantId, leadId: lead.id, toStateId: state.id, changedBy: userId }
+                   })
+               }
+          } else {
+              // Create New
+              console.log(`Creating new lead for phone ${phone}`)
+              const createPayload = {
+                  leadCode: payload.leadCode || `L-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                  name: payload.name || "Unknown Client",
+                  phone: phone,
+                  email: payload.email,
+                  assignedUserId: assignedUserId,
+                  // Safely map numeric fields
+                  budget: payload.budget ? Number(payload.budget) : undefined,
+                  budgetMin: payload.budgetMin ? Number(payload.budgetMin) : undefined,
+                  budgetMax: payload.budgetMax ? Number(payload.budgetMax) : undefined,
+                  // Map other fields
+                  areaOfInterest: payload.areaOfInterest,
+                  sourceLabel: payload.sourceLabel,
+                  sourceId: payload.sourceId,
+                  status: payload.status,
+                  priority: payload.priority,
+                  desiredLocation: payload.desiredLocation,
+                  propertyType: payload.propertyType,
+                  profession: payload.profession,
+                  notes: payload.notes,
+                  teamId: payload.teamId
+              }
+              
+              // Validate numeric fields are valid numbers (not NaN)
+              if (createPayload.budget && isNaN(createPayload.budget)) createPayload.budget = undefined;
+              if (createPayload.budgetMin && isNaN(createPayload.budgetMin)) createPayload.budgetMin = undefined;
+              if (createPayload.budgetMax && isNaN(createPayload.budgetMax)) createPayload.budgetMax = undefined;
+
+              lead = await leadService.createLead(tenantId, createPayload)
+          }
+
+          if (assignedUserId && lead) {
+                // Ensure assignment is recorded/updated
+                if (lead.assignedUserId !== assignedUserId) {
+                   await leadService.assignLead(tenantId, lead.id, assignedUserId, userId, "Approved Request", payload.teamId)
+                } else {
+                   // Even if assigned, ensure history is created if createLead didn't do it (createLead doesn't create LeadAssignment)
+                   const assignment = await prisma.leadAssignment.findFirst({ where: { leadId: lead.id, releasedAt: null } })
+                   if (!assignment) {
+                      await leadService.assignLead(tenantId, lead.id, assignedUserId, userId, "Approved Request", payload.teamId)
+                   }
+                }
+          }
+          if (lead) {
+              await logActivity({ tenantId, actorUserId: userId, action: "lead.created", entityType: "lead", entityId: lead.id, metadata: { approvedRequestId: request.id, isDuplicateResolved: true } })
+              resultData = { createdLead: lead }
           }
         }
-        if (lead) {
-            await logActivity({ tenantId, actorUserId: userId, action: "lead.created", entityType: "lead", entityId: lead.id, metadata: { approvedRequestId: request.id, isDuplicateResolved: true } })
-            resultData = { createdLead: lead }
-        }
+      } catch (error: any) {
+        console.error("Error approving request (DETAILS):", JSON.stringify(error, Object.getOwnPropertyNames(error)), error.stack)
+        throw { status: 500, message: error.message || "حدث خطأ أثناء تنفيذ الطلب" }
       }
     }
 

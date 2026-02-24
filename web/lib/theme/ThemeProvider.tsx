@@ -43,15 +43,14 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     try {
       stored = localStorage.getItem("crm_theme") as Theme | null
     } catch {}
-    if (stored) {
-      setThemeState(stored)
-      applyTheme(stored)
-    } else {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
-      const initial = prefersDark ? "dark" : "light"
-      setThemeState(initial)
-      applyTheme(initial)
+    
+    // Default to dark if no preference stored
+    if (!stored) {
+      stored = "dark" 
     }
+    
+    setThemeState(stored)
+    applyTheme(stored)
   }, [])
 
   useEffect(() => {
@@ -118,12 +117,9 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   }, [])
 
   const toggleTheme = useCallback(() => {
-    setThemeState((prev) => {
-      const next = prev === "dark" ? "light" : "dark"
-      applyTheme(next)
-      return next
-    })
-  }, [])
+    const next = theme === "dark" ? "light" : "dark"
+    setTheme(next)
+  }, [theme, setTheme])
 
   const value = useMemo<ThemeContextValue>(() => ({ theme, setTheme, toggleTheme }), [theme, setTheme, toggleTheme])
 

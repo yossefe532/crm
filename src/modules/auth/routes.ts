@@ -5,6 +5,7 @@ import { authMiddleware } from "../../middleware/auth"
 
 export const router = Router()
 
+router.get("/setup-status", asyncHandler(authController.getSetupStatus))
 router.post("/login", asyncHandler(authController.login))
 router.post("/register", asyncHandler(authController.register))
 router.get("/me", authMiddleware, asyncHandler(authController.me))

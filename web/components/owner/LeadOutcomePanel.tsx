@@ -6,6 +6,7 @@ import { Input } from "../ui/Input"
 import { useAuth } from "../../lib/auth/AuthContext"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { leadService } from "../../lib/services/leadService"
+import { coreService } from "../../lib/services/coreService"
 import { useLeads } from "../../lib/hooks/useLeads"
 import { useLeadFailures } from "../../lib/hooks/useLeadFailures"
 import { useLeadClosures } from "../../lib/hooks/useLeadClosures"
@@ -21,16 +22,55 @@ export const LeadOutcomePanel = () => {
   const queryClient = useQueryClient()
   const [editingClosureId, setEditingClosureId] = useState<string | null>(null)
   const [editAmount, setEditAmount] = useState<string>("")
+  const [reassigningFailureId, setReassigningFailureId] = useState<string | null>(null)
 
   const leadsById = new Map((leads || []).map((lead) => [lead.id, lead]))
   const usersById = new Map((users || []).map((user) => [user.id, user]))
+
   const decideMutation = useMutation({
     mutationFn: (payload: { closureId: string; status: "approved" | "rejected"; amount?: number }) => 
       leadService.decideClosure(payload.closureId, { status: payload.status, amount: payload.amount }, token || undefined),
-    onSuccess: () => {
+    onSuccess: async (data, variables) => {
+      if (variables.status === "approved") {
+        const closure = closures?.find(c => c.id === variables.closureId)
+        if (closure) {
+          const amount = variables.amount || closure.amount
+          try {
+            await coreService.createFinanceEntry({
+              entryType: "income",
+              category: "sales",
+              amount: Number(amount),
+              note: `إغلاق صفقة: ${leadsById.get(closure.leadId)?.name || "عميل"}`,
+              occurredAt: new Date().toISOString()
+            }, token || undefined)
+          } catch (e) {
+            console.error("Failed to create finance entry", e)
+          }
+        }
+      }
       queryClient.invalidateQueries({ queryKey: ["lead_closures"] })
       queryClient.invalidateQueries({ queryKey: ["leads"] })
+      queryClient.invalidateQueries({ queryKey: ["finance_entries"] })
+      queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] })
       setEditingClosureId(null)
+    }
+  })
+
+  const reassignMutation = useMutation({
+    mutationFn: (payload: { leadId: string; userId: string }) => 
+      leadService.assign(payload.leadId, { assignedUserId: payload.userId }, token || undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] })
+      queryClient.invalidateQueries({ queryKey: ["lead_failures"] })
+      setReassigningFailureId(null)
+    }
+  })
+
+  const archiveMutation = useMutation({
+    mutationFn: (leadId: string) => leadService.updateStage(leadId, "archived", token || undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] })
+      queryClient.invalidateQueries({ queryKey: ["lead_failures"] })
     }
   })
 
@@ -118,6 +158,34 @@ export const LeadOutcomePanel = () => {
                 <p className="text-xs text-base-500">
                   فشل بواسطة: {usersById.get(failure.failedBy)?.name || usersById.get(failure.failedBy)?.email || failure.failedBy}
                 </p>
+              )}
+              {role === "owner" && (
+                <div className="mt-2 flex items-center gap-2">
+                   {reassigningFailureId === failure.id ? (
+                     <div className="flex items-center gap-1">
+                       <select 
+                         className="h-8 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                         onChange={(e) => {
+                           if (e.target.value) {
+                             reassignMutation.mutate({ leadId: failure.leadId, userId: e.target.value })
+                           }
+                         }}
+                         defaultValue=""
+                         autoFocus
+                         onBlur={() => setReassigningFailureId(null)}
+                       >
+                         <option value="" disabled>اختر مستخدم</option>
+                         {(users || []).map(u => (
+                           <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                         ))}
+                       </select>
+                       <Button variant="ghost" size="sm" onClick={() => setReassigningFailureId(null)}>x</Button>
+                     </div>
+                   ) : (
+                     <Button variant="outline" size="sm" onClick={() => setReassigningFailureId(failure.id)}>إعادة تعيين</Button>
+                   )}
+                   <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => archiveMutation.mutate(failure.leadId)}>أرشيف</Button>
+                </div>
               )}
             </div>
           ))}

@@ -22,6 +22,7 @@ export const SiteVisitDialog = ({ isOpen, onClose, leadId, onSuccess }: SiteVisi
   const queryClient = useQueryClient()
   const [notes, setNotes] = useState("")
   const [visitDate, setVisitDate] = useState(new Date().toISOString().slice(0, 16))
+  const [project, setProject] = useState("")
   const [status, setStatus] = useState("scheduled")
 
   const visitMutation = useMutation({
@@ -31,14 +32,17 @@ export const SiteVisitDialog = ({ isOpen, onClose, leadId, onSuccess }: SiteVisi
       const end = new Date(start.getTime() + 90 * 60000) // Default 1.5 hours
       
       await leadService.createMeeting(leadId, {
-        title: `زيارة موقع: ${status === 'completed' ? 'تمت' : 'مجدولة'}`,
+        title: `زيارة موقع: ${status === 'completed' ? 'تمت' : 'مجدولة'} - ${project}`,
         startsAt: start,
         endsAt: end,
         status: status
       }, token || undefined)
 
       // 2. Update Lead Stage to "site_visit"
-      await leadService.update(leadId, { status: "site_visit" }, token || undefined)
+      await leadService.updateStage(leadId, 'site_visit', {
+        date: start.toISOString().split('T')[0],
+        project: project
+      }, token || undefined)
 
       // 3. Add notes to lead
       if (notes) {
@@ -59,6 +63,10 @@ export const SiteVisitDialog = ({ isOpen, onClose, leadId, onSuccess }: SiteVisi
   const handleSave = () => {
     if (!visitDate) {
         alert("يرجى تحديد تاريخ الزيارة")
+        return
+    }
+    if (!project.trim()) {
+        alert("يرجى إدخال اسم المشروع")
         return
     }
     if (status === 'completed' && !notes.trim()) {
@@ -93,6 +101,15 @@ export const SiteVisitDialog = ({ isOpen, onClose, leadId, onSuccess }: SiteVisi
                 <option value="completed">تمت بالفعل</option>
                 <option value="cancelled">ملغاة</option>
             </Select>
+            <div className="col-span-2">
+                <Input
+                    label="المشروع"
+                    value={project}
+                    onChange={(e) => setProject(e.target.value)}
+                    placeholder="اسم المشروع"
+                    required
+                />
+            </div>
           </div>
 
           <Textarea

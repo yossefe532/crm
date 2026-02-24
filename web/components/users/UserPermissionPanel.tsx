@@ -3,17 +3,24 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { coreService } from "../../lib/services/coreService"
 import { useAuth } from "../../lib/auth/AuthContext"
+import { useUsers } from "../../lib/hooks/useUsers"
 import { Button } from "../ui/Button"
 import { Input } from "../ui/Input"
 import { Checkbox } from "../ui/Checkbox"
 import { useState } from "react"
+import { DemoteTeamLeaderModal } from "./DemoteTeamLeaderModal"
+import { AlertTriangle } from "lucide-react"
 
 export const UserPermissionPanel = ({ userId, userName, roles, onClose }: { userId: string; userName: string; roles: string[]; onClose: () => void }) => {
   const { token } = useAuth()
   const queryClient = useQueryClient()
   const isOwner = roles.includes("owner")
+  const isTeamLeader = roles.includes("team_leader")
   const [pendingChanges, setPendingChanges] = useState<Record<string, boolean>>({})
   const [search, setSearch] = useState("")
+  const [isDemoteModalOpen, setIsDemoteModalOpen] = useState(false)
+  
+  const { data: users } = useUsers()
   
   const { data: allPermissions, isLoading: isLoadingAll } = useQuery({
     queryKey: ["permissions"],
@@ -149,12 +156,34 @@ export const UserPermissionPanel = ({ userId, userName, roles, onClose }: { user
         ))}
       </div>
 
-      <div className="mt-6 flex justify-end gap-2 pt-4 border-t">
-        <Button variant="ghost" onClick={onClose}>إلغاء</Button>
-        <Button onClick={handleSave} disabled={updateMutation.isPending}>
-          {updateMutation.isPending ? "جاري الحفظ..." : "حفظ التغييرات"}
-        </Button>
+      <div className="mt-6 flex justify-between gap-2 pt-4 border-t">
+        {isTeamLeader && (
+          <Button 
+            variant="outline" 
+            className="text-red-600 border-red-200 hover:bg-red-50"
+            onClick={() => setIsDemoteModalOpen(true)}
+          >
+            <AlertTriangle className="w-4 h-4 ml-2" />
+            تنحية قائد الفريق
+          </Button>
+        )}
+        <div className="flex gap-2">
+          <Button variant="ghost" onClick={onClose}>إلغاء</Button>
+          <Button onClick={handleSave} disabled={updateMutation.isPending}>
+            {updateMutation.isPending ? "جاري الحفظ..." : "حفظ التغييرات"}
+          </Button>
+        </div>
       </div>
+
+      {isDemoteModalOpen && (
+        <DemoteTeamLeaderModal
+          isOpen={isDemoteModalOpen}
+          onClose={() => setIsDemoteModalOpen(false)}
+          leaderId={userId}
+          leaderName={userName}
+          availableUsers={(users || []).map(u => ({ ...u, name: u.name || u.email, roles: u.roles || [] }))}
+        />
+      )}
     </div>
   )
 }

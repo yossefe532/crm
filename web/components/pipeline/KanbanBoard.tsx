@@ -68,17 +68,19 @@ const KanbanLane = ({ id, title, count, children }: { id: string; title: string;
   )
 }
 
-const KanbanCard = ({ lead, usersById, teamsById, role, notifyMutation, onDelete }: { 
+const KanbanCard = ({ lead, usersById, teamsById, role, notifyMutation, onDelete, disabled }: { 
   lead: Lead & { pipelineStage: string }; 
   usersById: Map<string, User>; 
   teamsById: Map<string, string>;
   role: string;
   notifyMutation: UseMutationResult<void, Error, { userId: string; leadName: string }, unknown>;
   onDelete: (id: string) => void;
+  disabled?: boolean;
 }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: lead.id,
-    data: { lead }
+    data: { lead },
+    disabled
   })
   const router = useRouter()
   
@@ -165,7 +167,7 @@ const KanbanCard = ({ lead, usersById, teamsById, role, notifyMutation, onDelete
         
         {lead.phone && (
            <a 
-             href={`https://wa.me/${lead.phone.replace(/\D/g, "")}`}
+             href={`https://wa.me/${lead.phone.replace(/\D/g, "").replace(/^0/, "20")}`}
              target="_blank"
              rel="noopener noreferrer"
              onPointerDown={(e) => { e.stopPropagation() }}
@@ -276,6 +278,14 @@ export const KanbanBoard = ({ leads }: { leads?: Lead[] }) => {
     }
   })
 
+  // Delete Mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => leadService.delete(id, token || undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] })
+    }
+  })
+
   // Filter leads
   const resolvedLeads = useMemo(() => {
     const filteredSource = leads || data || []
@@ -365,14 +375,15 @@ export const KanbanBoard = ({ leads }: { leads?: Lead[] }) => {
               <KanbanLane key={lane.id} id={lane.id} title={lane.title} count={lane.leads.length}>
                 {lane.leads.map((lead) => (
                   <KanbanCard 
-                    key={lead.id} 
-                    lead={lead} 
-                    usersById={usersById} 
-                    teamsById={teamsById} 
-                    role={role || ""}
-                    notifyMutation={notifyMutation}
-                    onDelete={(id) => deleteMutation.mutate(id)}
-                  />
+            key={lead.id} 
+            lead={lead} 
+            usersById={usersById} 
+            teamsById={teamsById} 
+            role={role || ""}
+            notifyMutation={notifyMutation}
+            onDelete={(id) => deleteMutation.mutate(id)}
+            disabled={role === "owner"}
+          />
                 ))}
               </KanbanLane>
             ))}

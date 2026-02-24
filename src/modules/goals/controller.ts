@@ -1,3 +1,4 @@
+import { prisma } from "../../prisma/client"
 import { Request, Response } from "express"
 import { goalsService } from "./service"
 import { coreService } from "../core/service"
@@ -13,7 +14,13 @@ export const goalsController = {
     if (!name) throw { status: 400, message: "الاسم مطلوب" }
     if (!["weekly", "monthly"].includes(period)) throw { status: 400, message: "نوع الفترة غير صحيح" }
     if (roles.includes("team_leader") && !req.user?.id) throw { status: 403, message: "غير مصرح" }
-    const plan = await goalsService.createPlan(tenantId, { name, period, startsAt: req.body?.startsAt, endsAt: req.body?.endsAt })
+    const plan = await goalsService.createPlan(tenantId, { 
+      name, 
+      period, 
+      startsAt: req.body?.startsAt, 
+      endsAt: req.body?.endsAt,
+      isPinned: req.body?.isPinned === true
+    })
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "goal.plan.created", entityType: "goal_plan", entityId: plan.id })
     res.json(plan)
   },

@@ -15,7 +15,7 @@ interface CallLogDialogProps {
   onClose: () => void
   leadId: string
   phone: string
-  onSuccess?: (outcome: string) => void
+  onSuccess?: (outcome: string, notes?: string) => void
 }
 
 export const CallLogDialog = ({ isOpen, onClose, leadId, phone, onSuccess }: CallLogDialogProps) => {
@@ -36,7 +36,7 @@ export const CallLogDialog = ({ isOpen, onClose, leadId, phone, onSuccess }: Cal
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads", leadId] })
-      if (onSuccess) onSuccess(outcome)
+      if (onSuccess) onSuccess(outcome, notes)
       onClose()
     }
   })
@@ -78,7 +78,7 @@ export const CallLogDialog = ({ isOpen, onClose, leadId, phone, onSuccess }: Cal
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads", leadId] })
-      if (onSuccess) onSuccess(outcome)
+      if (onSuccess) onSuccess(outcome, notes)
       onClose()
     }
   })

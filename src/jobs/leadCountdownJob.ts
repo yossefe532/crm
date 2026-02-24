@@ -40,18 +40,45 @@ export const runLeadCountdownJob = async (tenantId: string) => {
       const roleNames = roles.map((row) => row.role.name)
       if (roleNames.includes("sales")) {
         await prisma.user.update({ where: { id: deadline.lead.assignedUserId }, data: { status: "inactive" } })
+        
+        // Notify the user about deactivation
+        await notificationService.send({
+          tenantId,
+          userId: deadline.lead.assignedUserId,
+          type: "error",
+          title: "تم إيقاف حسابك",
+          message: `تم إيقاف حسابك بسبب تجاوز مهلة العميل ${deadline.lead.name} في مرحلة ${deadline.state.name}`,
+          entityType: "lead",
+          entityId: deadline.leadId,
+          actionUrl: `/leads/${deadline.leadId}`
+        }).catch(console.error)
       }
     }
-    const event = await notificationService.publishEvent(tenantId, "lead.deadline.overdue", {
-      leadId: deadline.leadId,
-      leadCode: deadline.lead.leadCode,
-      leadName: deadline.lead.name,
-      stage: deadline.state.code,
-      dueAt: deadline.dueAt.toISOString(),
-      targets: ["owner"],
-      messageAr: `تجاوز العميل ${deadline.lead.name} المهلة في مرحلة ${deadline.state.name}`
+
+    // Notify Owners
+    const owners = await prisma.user.findMany({
+      where: {
+        tenantId,
+        roleLinks: { some: { role: { name: "owner" } } }
+      },
+      select: { id: true }
     })
-    await notificationService.queueDelivery(tenantId, event.id, "in_app")
+
+    if (owners.length > 0) {
+      await notificationService.sendMany(
+        owners.map(o => o.id),
+        {
+          tenantId,
+          type: "error",
+          title: "تجاوز مهلة العميل",
+          message: `تجاوز العميل ${deadline.lead.name} المهلة في مرحلة ${deadline.state.name}`,
+          entityType: "lead",
+          entityId: deadline.leadId,
+          actionUrl: `/leads/${deadline.leadId}`
+        }
+      ).catch(console.error)
+    }
+
     await logActivity({
       tenantId,
       action: "lead.deadline.overdue",

@@ -50,7 +50,23 @@ const translations: Record<Locale, Record<string, string>> = {
     login_success: "تم تسجيل الدخول بنجاح",
     login_invalid: "بيانات الدخول غير صحيحة",
     network_error: "تعذر الاتصال بالخادم",
-    unexpected_error: "حدث خطأ غير متوقع"
+    unexpected_error: "حدث خطأ غير متوقع",
+    remember_me: "تذكرني",
+    forgot_password: "نسيت كلمة المرور؟",
+    get_started: "تسجيل الدخول",
+    need_help: "هل تحتاج مساعدة؟",
+    create_account: "إنشاء حساب جديد",
+    welcome_doctor: "أهلاً بك يا دكتور",
+    crm_name: "EL DOCTOR REAL ESTATE",
+    username: "اسم المستخدم",
+    forgot_password_desc: "أدخل بياناتك لطلب إعادة تعيين كلمة المرور عبر واتساب",
+    full_name: "الاسم الكامل",
+    role_position: "الدور / المنصب",
+    cancel: "إلغاء",
+    send_request: "إرسال الطلب",
+    fill_all_fields: "يرجى ملء جميع الحقول",
+    request_sent: "تم إرسال الطلب عبر واتساب",
+    already_have_account: "لديك حساب بالفعل؟"
   },
   en: {
     app_title: "Real Estate CRM",
@@ -97,54 +113,67 @@ const translations: Record<Locale, Record<string, string>> = {
     login_success: "Signed in successfully",
     login_invalid: "Invalid credentials",
     network_error: "Unable to reach the server",
-    unexpected_error: "Unexpected error"
+    unexpected_error: "Unexpected error",
+    remember_me: "Remember me",
+    forgot_password: "Forgot Password?",
+    get_started: "Get Started",
+    need_help: "Need Help?",
+    create_account: "Create Account",
+    welcome_doctor: "Welcome, Doctor",
+    crm_name: "EL DOCTOR REAL ESTATE",
+    username: "Username",
+    forgot_password_desc: "Enter your details to request a password reset via WhatsApp",
+    full_name: "Full Name",
+    role_position: "Role / Position",
+    cancel: "Cancel",
+    send_request: "Send Request",
+    fill_all_fields: "Please fill all fields",
+    request_sent: "Request sent via WhatsApp",
+    already_have_account: "Already have an account?"
   }
 }
 
 type LocaleContextValue = {
   locale: Locale
-  dir: "rtl" | "ltr"
-  toggleLocale: () => void
+  setLocale: (next: Locale) => void
   t: (key: string) => string
+  dir: "rtl" | "ltr"
 }
 
 const LocaleContext = createContext<LocaleContextValue | null>(null)
 
 export const LocaleProvider = ({ children }: { children: ReactNode }) => {
-  const [locale, setLocale] = useState<Locale>("ar")
+  const [locale, setLocaleState] = useState<Locale>("ar")
 
   useEffect(() => {
-    if (typeof window === "undefined") return
-    let stored: Locale | null = null
     try {
-      stored = window.localStorage.getItem("ui_locale") as Locale | null
+      const stored = localStorage.getItem("crm_locale") as Locale | null
+      if (stored === "ar" || stored === "en") {
+        setLocaleState(stored)
+        document.documentElement.lang = stored
+        document.documentElement.dir = stored === "ar" ? "rtl" : "ltr"
+      }
     } catch {}
-    if (stored === "ar" || stored === "en") {
-      setLocale(stored)
-    }
   }, [])
 
-  useEffect(() => {
-    if (typeof document === "undefined") return
-    document.documentElement.lang = locale
-    document.documentElement.dir = locale === "ar" ? "rtl" : "ltr"
+  const setLocale = (next: Locale) => {
+    setLocaleState(next)
     try {
-      window.localStorage.setItem("ui_locale", locale)
-    } catch {
-    }
-  }, [locale])
+      localStorage.setItem("crm_locale", next)
+      document.documentElement.lang = next
+      document.documentElement.dir = next === "ar" ? "rtl" : "ltr"
+    } catch {}
+  }
 
-  const value = useMemo<LocaleContextValue>(
-    () => ({
-      locale,
-      dir: locale === "ar" ? "rtl" : "ltr",
-      toggleLocale: () => setLocale((prev) => (prev === "ar" ? "en" : "ar")),
-      t: (key: string) => translations[locale][key] || key
-    }),
-    [locale]
+  const t = (key: string) => {
+    return translations[locale][key] || key
+  }
+
+  return (
+    <LocaleContext.Provider value={{ locale, setLocale, t, dir: locale === "ar" ? "rtl" : "ltr" }}>
+      {children}
+    </LocaleContext.Provider>
   )
-
-  return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>
 }
 
 export const useLocale = () => {

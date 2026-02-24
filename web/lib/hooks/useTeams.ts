@@ -8,6 +8,7 @@ export const useTeams = () => {
   return useQuery<Team[]>({
     queryKey: ["teams"],
     queryFn: async () => coreService.listTeams(token || undefined),
-    staleTime: 60000
+    staleTime: 0,
+    refetchInterval: 1000
   })
 }

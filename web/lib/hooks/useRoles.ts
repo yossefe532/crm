@@ -8,6 +8,7 @@ export const useRoles = () => {
   return useQuery<RoleItem[]>({
     queryKey: ["roles"],
     queryFn: async () => coreService.listRoles(token || undefined),
-    staleTime: 60000
+    staleTime: 0,
+    refetchInterval: 1000
   })
 }

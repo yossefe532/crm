@@ -1,51 +1,68 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useState } from "react"
 import { io, Socket } from "socket.io-client"
 import { useAuth } from "../auth/AuthContext"
 import { toast } from "react-hot-toast"
+import { useQueryClient } from "@tanstack/react-query"
+import { Notification } from "../types"
 
 export const useSocket = () => {
   const { userId, tenantId, token } = useAuth()
-  const socketRef = useRef<Socket | null>(null)
+  const [socket, setSocket] = useState<Socket | null>(null)
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     if (!userId || !token) return
 
     // Connect to the backend
-    // Assuming backend is at same host or configured via env
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:4000/api"
-    const socketUrl = baseUrl.replace("/api", "")
+    // Dynamically determine backend URL based on current window location
+    // This allows connecting from other devices on the network
+    const backendPort = 4000
+    const socketUrl = typeof window !== 'undefined' 
+        ? `${window.location.protocol}//${window.location.hostname}:${backendPort}`
+        : "http://localhost:4000"
     
-    // Check if socket is already connected
-    if (socketRef.current?.connected) return
-
-    socketRef.current = io(socketUrl, {
+    const newSocket = io(socketUrl, {
       auth: { token },
+      query: { userId, tenantId },
       transports: ["websocket", "polling"],
       path: "/socket.io"
     })
 
-    socketRef.current.on("connect", () => {
+    newSocket.on("connect", () => {
       // console.log("Socket connected")
-      // Join rooms
-      if (tenantId) socketRef.current?.emit("join_tenant", tenantId)
-      if (userId) socketRef.current?.emit("join_user", userId)
+      // Join rooms if not handled by server automatically on connection
+      if (tenantId) newSocket.emit("join_tenant", tenantId)
+      if (userId) newSocket.emit("join_user", userId)
     })
 
-    socketRef.current.on("notification", (data: { message: string, type?: "success" | "error" | "info" }) => {
+    // Legacy notification event
+    newSocket.on("notification", (data: { message: string, type?: "success" | "error" | "info" }) => {
       if (data.type === "success") toast.success(data.message)
       else if (data.type === "error") toast.error(data.message)
       else toast(data.message)
     })
 
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect()
-        socketRef.current = null
-      }
-    }
-  }, [userId, tenantId, token])
+    // New notification event
+    newSocket.on("notification:new", (notification: Notification) => {
+      // Invalidate queries to refresh lists
+      queryClient.invalidateQueries({ queryKey: ["notifications"] })
+      queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] })
+      
+      // Show toast
+      if (notification.type === "success") toast.success(notification.message)
+      else if (notification.type === "error") toast.error(notification.message)
+      else if (notification.type === "warning") toast(notification.message, { icon: "⚠️" })
+      else toast(notification.message, { icon: "🔔" })
+    })
 
-  return socketRef.current
+    setSocket(newSocket)
+
+    return () => {
+      newSocket.disconnect()
+    }
+  }, [userId, tenantId, token, queryClient])
+
+  return socket
 }

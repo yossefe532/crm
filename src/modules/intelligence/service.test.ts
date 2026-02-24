@@ -61,7 +61,7 @@ describe("intelligence service", () => {
   it("computes reminder priorities", async () => {
     const { prisma } = (await import("../../prisma/client")) as any
     prisma.leadTask.findMany.mockResolvedValue([
-      { leadId: "lead-1", assignedUserId: "user-1", dueAt: new Date(), lead: { deals: [{ dealValue: { toNumber: () => 300000 } }] } }
+      { leadId: "lead-1", assignedUserId: "user-1", dueAt: new Date(), lead: { deals: [{ price: { toNumber: () => 300000 } }] } }
     ])
     prisma.leadDeadline.findMany.mockResolvedValue([])
     prisma.rankingSnapshot.create.mockResolvedValue({ id: "rank-1" })
@@ -73,7 +73,7 @@ describe("intelligence service", () => {
     const { prisma } = (await import("../../prisma/client")) as any
     prisma.user.findMany.mockResolvedValue([{ id: "user-1" }])
     prisma.lead.findMany.mockResolvedValue([{ id: "lead-1", assignedUserId: "user-1", createdAt: new Date(), updatedAt: new Date() }])
-    prisma.deal.findMany.mockResolvedValue([{ leadId: "lead-1", status: "closed", dealValue: { toNumber: () => 500000 }, createdAt: new Date() }])
+    prisma.deal.findMany.mockResolvedValue([{ leadId: "lead-1", status: "closed", price: { toNumber: () => 500000 }, createdAt: new Date() }])
     prisma.callLog.findMany.mockResolvedValue([])
     prisma.meeting.findMany.mockResolvedValue([])
     prisma.meetingRescheduleRequest.findMany.mockResolvedValue([])

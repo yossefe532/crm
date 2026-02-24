@@ -12,11 +12,11 @@ export const logActivity = async (input: {
   return prisma.auditLog.create({
     data: {
       tenantId: input.tenantId,
-      actorUserId: input.actorUserId,
+      userId: input.actorUserId,
       action: input.action,
-      entityType: input.entityType,
+      entity: input.entityType,
       entityId: input.entityId,
-      metadata: input.metadata ? (input.metadata as Prisma.InputJsonValue) : undefined
+      details: input.metadata ? (input.metadata as Prisma.InputJsonValue) : undefined
     }
   })
 }

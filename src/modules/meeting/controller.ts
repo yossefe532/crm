@@ -34,7 +34,7 @@ export const meetingController = {
   },
   createReminder: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
-    const reminder = await meetingService.createReminder(tenantId, req.params.id, req.body.scheduledAt)
+    const reminder = await meetingService.createReminder(tenantId, { meetingId: req.params.id, scheduledAt: req.body.scheduledAt })
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "meeting.reminder.created", entityType: "meeting_reminder", entityId: reminder.id })
     intelligenceService.queueTrigger({ type: "meeting_changed", tenantId, userId: req.user?.id })
     res.json(reminder)

@@ -5,6 +5,39 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        border: "hsl(var(--border) / <alpha-value>)",
+        input: "hsl(var(--input) / <alpha-value>)",
+        ring: "hsl(var(--ring) / <alpha-value>)",
+        background: "hsl(var(--background) / <alpha-value>)",
+        foreground: "hsl(var(--foreground) / <alpha-value>)",
+        primary: {
+          DEFAULT: "hsl(var(--primary) / <alpha-value>)",
+          foreground: "hsl(var(--primary-foreground) / <alpha-value>)",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary) / <alpha-value>)",
+          foreground: "hsl(var(--secondary-foreground) / <alpha-value>)",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive) / <alpha-value>)",
+          foreground: "hsl(var(--destructive-foreground) / <alpha-value>)",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted) / <alpha-value>)",
+          foreground: "hsl(var(--muted-foreground) / <alpha-value>)",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent) / <alpha-value>)",
+          foreground: "hsl(var(--accent-foreground) / <alpha-value>)",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover) / <alpha-value>)",
+          foreground: "hsl(var(--popover-foreground) / <alpha-value>)",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card) / <alpha-value>)",
+          foreground: "hsl(var(--card-foreground) / <alpha-value>)",
+        },
         base: {
           0: "rgb(var(--base-0) / <alpha-value>)",
           50: "rgb(var(--base-50) / <alpha-value>)",
@@ -23,8 +56,6 @@ const config: Config = {
           600: "rgb(var(--brand-600) / <alpha-value>)",
           700: "rgb(var(--brand-700) / <alpha-value>)"
         },
-        primary: "rgb(var(--primary) / <alpha-value>)",
-        accent: "rgb(var(--accent) / <alpha-value>)",
         text: {
           primary: "rgb(var(--text-primary-rgb) / <alpha-value>)",
           invert: "rgb(var(--text-invert) / <alpha-value>)"

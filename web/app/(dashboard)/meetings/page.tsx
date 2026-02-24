@@ -12,9 +12,11 @@ const AvailabilityCalendar = dynamic(
 
 export default function MeetingsPage() {
   const [showCalendar, setShowCalendar] = useState(false)
+  const [date, setDate] = useState<Date>(new Date())
+
   return (
     <div className="space-y-6">
-      <MeetingDatePicker />
+      <MeetingDatePicker date={date} onDateChange={setDate} />
       <UpcomingMeetings />
       <div className="md:hidden">
         <button
@@ -27,7 +29,7 @@ export default function MeetingsPage() {
       <div className="md:block">
         {(showCalendar || typeof window === "undefined") && (
           <div className="overflow-x-auto rounded-lg border border-base-200 bg-white p-2 md:p-4">
-            <AvailabilityCalendar />
+            <AvailabilityCalendar date={date} onDateChange={setDate} />
           </div>
         )}
       </div>

@@ -278,10 +278,10 @@ export const LeadList = () => {
             <div className="mt-4">
               <StageProgress
                 stage={lead.status}
-                readOnly={!(role === "owner" || role === "team_leader" || (role === "sales" && lead.assignedUserId === userId))}
+                readOnly={!(role === "team_leader" || (role === "sales" && lead.assignedUserId === userId))}
                 onStageChange={() => router.push(`/leads/${lead.id}`)}
               />
-              {(role === "owner" || role === "team_leader" || (role === "sales" && lead.assignedUserId === userId)) && (
+              {(role === "team_leader" || (role === "sales" && lead.assignedUserId === userId)) && (
                 <div className="mt-2">
                   <StageControls
                     currentStage={lead.status}

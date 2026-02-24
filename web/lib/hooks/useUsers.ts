@@ -8,6 +8,7 @@ export const useUsers = () => {
   return useQuery<User[]>({
     queryKey: ["users"],
     queryFn: async () => coreService.listUsers(token || undefined),
-    staleTime: 60000
+    staleTime: 0,
+    refetchInterval: 1000
   })
 }

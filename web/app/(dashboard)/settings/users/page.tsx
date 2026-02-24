@@ -9,6 +9,7 @@ import { Input } from "../../../../components/ui/Input"
 import { Select } from "../../../../components/ui/Select"
 import { Avatar } from "../../../../components/ui/Avatar"
 import { Checkbox } from "../../../../components/ui/Checkbox"
+import { DemoteTeamLeaderModal } from "../../../../components/users/DemoteTeamLeaderModal"
 import { UserPermissionPanel } from "../../../../components/users/UserPermissionPanel"
 import { useMemo, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -16,16 +17,35 @@ import { useUserRequests } from "../../../../lib/hooks/useUserRequests"
 import { coreService } from "../../../../lib/services/coreService"
 import { useTeams } from "../../../../lib/hooks/useTeams"
 import { useLeads } from "../../../../lib/hooks/useLeads"
-
 import { ConfirmationModal } from "../../../../components/ui/ConfirmationModal"
+import { TeamDetailsModal } from "../../../../components/users/TeamDetailsModal"
+import { Search, Filter, MoreVertical, Shield, Users, UserMinus, KeyRound, ArrowRightLeft, UserCheck } from "lucide-react"
+import Link from "next/link"
+import { toast } from "react-hot-toast"
 
 export default function UsersSettingsPage() {
   const { role, token, userId: currentUserId } = useAuth()
-  const { data } = useUsers()
-  const { data: requests } = useUserRequests()
+  const { data: usersData } = useUsers()
+  const { data: requestsData } = useUserRequests()
+  
+  // Safely extract requests array
+  const requests = useMemo(() => {
+      if (!requestsData) return []
+      if (Array.isArray(requestsData)) return requestsData
+      // @ts-ignore
+      return requestsData.requests || []
+  }, [requestsData])
+
   const { data: teams } = useTeams()
   const { data: leads } = useLeads()
+  
+  // Search & Filter State
+  const [searchQuery, setSearchQuery] = useState("")
+  const [roleFilter, setRoleFilter] = useState<string>("all")
+  
   const [selectedUser, setSelectedUser] = useState<{ id: string; name: string; roles: string[] } | null>(null)
+  const [selectedTeam, setSelectedTeam] = useState<any | null>(null)
+  const [detailsUser, setDetailsUser] = useState<any | null>(null)
   const [resetInfo, setResetInfo] = useState<Record<string, string>>({})
   const [transferTargets, setTransferTargets] = useState<Record<string, string>>({})
   const [teamSetup, setTeamSetup] = useState<{ leaderId: string } | null>(null)
@@ -35,6 +55,7 @@ export default function UsersSettingsPage() {
   const [auditUserId, setAuditUserId] = useState<string | null>(null)
   const [deleteUserConfirmationId, setDeleteUserConfirmationId] = useState<string | null>(null)
   const [deleteTeamConfirmationId, setDeleteTeamConfirmationId] = useState<string | null>(null)
+  const [demoteTarget, setDemoteTarget] = useState<{ id: string; name: string } | null>(null)
   const queryClient = useQueryClient()
   const decideMutation = useMutation({
     mutationFn: (payload: { requestId: string; status: "approved" | "rejected" }) =>
@@ -49,7 +70,13 @@ export default function UsersSettingsPage() {
     onSuccess: (result, userId) => {
       if (result.temporaryPassword) {
         setResetInfo((prev) => ({ ...prev, [userId]: result.temporaryPassword || "" }))
+        toast.success("تم إنشاء كلمة مرور مؤقتة بنجاح")
+      } else {
+        toast.success("تم إرسال تعليمات إعادة التعيين")
       }
+    },
+    onError: () => {
+      toast.error("حدث خطأ أثناء إعادة تعيين كلمة المرور")
     }
   })
   const updateUserMutation = useMutation({
@@ -113,12 +140,26 @@ export default function UsersSettingsPage() {
   }, [teams])
 
   const availableTeamMembers = useMemo(() => {
-    return (data || []).filter((user) => {
+    return (usersData || []).filter((user) => {
       const hasTeam = (user.teamMemberships || []).length > 0
       const isLeader = (user.roles || []).includes("team_leader")
       return !hasTeam && !isLeader
     })
-  }, [data])
+  }, [usersData])
+
+  const filteredUsers = useMemo(() => {
+    if (!usersData) return []
+    const query = searchQuery.toLowerCase()
+    return usersData.filter((user) => {
+      const nameMatch = (user.name || "").toLowerCase().includes(query)
+      const emailMatch = (user.email || "").toLowerCase().includes(query)
+      const phoneMatch = (user.phone || "").includes(query)
+      const matchesSearch = nameMatch || emailMatch || phoneMatch
+      
+      if (roleFilter === "all") return matchesSearch
+      return matchesSearch && (user.roles || []).includes(roleFilter)
+    })
+  }, [usersData, searchQuery, roleFilter])
 
   if (role !== "owner" && role !== "team_leader") {
     return <Card title="إدارة المستخدمين">غير مصرح لك بالدخول إلى هذه الصفحة</Card>
@@ -158,10 +199,24 @@ export default function UsersSettingsPage() {
       {role === "owner" && (
         <Card title="إدارة الفرق">
           <div className="space-y-3">
-            {(teams || []).map((team) => (
-              <div key={team.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-base-100 px-3 py-2">
+            {(teams || []).map((team) => {
+              const leader = (usersData || []).find(u => u.id === team.leaderUserId)
+              return (
+              <div 
+                key={team.id} 
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-base-100 px-3 py-2 cursor-pointer hover:bg-base-50 transition-colors"
+                onClick={() => setSelectedTeam(team)}
+              >
                 <div>
-                  <p className="text-sm font-semibold text-base-900">{team.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-base-900">{team.name}</p>
+                    {leader && (
+                      <span className="flex items-center gap-1 rounded bg-brand-50 px-1.5 py-0.5 text-[10px] text-brand-700">
+                        <Users className="h-3 w-3" />
+                        {leader.name || leader.email}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-base-500">{team.status}</p>
                   <p className="text-xs text-base-500">الأعضاء: {teamMembersCount.get(team.id) || 0} / 10</p>
                   {(team.members || []).length > 0 && (
@@ -182,19 +237,50 @@ export default function UsersSettingsPage() {
                 </div>
                 <Button
                   variant="ghost"
-                  onClick={() => setDeleteTeamConfirmationId(team.id)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setDeleteTeamConfirmationId(team.id)
+                  }}
                 >
                   حذف الفريق
                 </Button>
               </div>
-            ))}
+            )})}
             {(teams || []).length === 0 && <p className="text-sm text-base-500">لا توجد فرق</p>}
           </div>
         </Card>
       )}
       <Card title="قائمة المستخدمين">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex-1">
+             <Search className="absolute right-3 top-2.5 h-4 w-4 text-base-400" />
+             <Input 
+                className="pr-9" 
+                placeholder="بحث بالاسم أو البريد أو الهاتف..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+             />
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-base-400" />
+            <Select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="w-40">
+              <option value="all">كل الأدوار</option>
+              <option value="owner">المالك</option>
+              <option value="team_leader">قائد فريق</option>
+              <option value="sales">مبيعات</option>
+            </Select>
+            {role === "owner" && (
+              <Link href="/settings/roles">
+                <Button variant="secondary" className="gap-2">
+                  <Shield className="h-4 w-4" />
+                  إدارة الأدوار
+                </Button>
+              </Link>
+            )}
+          </div>
+        </div>
         <div className="space-y-3">
-          {(data || []).map((user) => {
+          {filteredUsers.map((user) => {
             const isOwnerAccount = (user.roles || []).includes("owner") || (role === "owner" && user.id === currentUserId) || user.email === "admin@crm-doctor.com" // Fallback protection
             return (
             <div key={user.id} className={`space-y-3 rounded-lg border px-3 py-2 ${isOwnerAccount ? "border-amber-200 bg-amber-50" : "border-base-100"}`}>
@@ -266,26 +352,31 @@ export default function UsersSettingsPage() {
               )}
               {role === "owner" && !isOwnerAccount && (
                 <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-[1fr_auto_auto]">
-                  <Select
-                    className="text-right"
-                    value={transferTargets[user.id] || ""}
-                    onChange={(event) =>
-                      setTransferTargets((prev) => ({ ...prev, [user.id]: event.target.value }))
-                    }
-                  >
-                    <option value="">نقل إلى فريق</option>
-                    {(teams || []).map((team) => (
-                      <option key={team.id} value={team.id}>{team.name}</option>
-                    ))}
-                  </Select>
-                  <Button
-                    variant="secondary"
-                    type="button"
-                    disabled={!transferTargets[user.id]}
-                    onClick={() => transferMutation.mutate({ userId: user.id, teamId: transferTargets[user.id] })}
-                  >
-                    نقل
-                  </Button>
+                  {!user.roles?.includes("team_leader") && (
+                    <>
+                      <Select
+                        className="text-right"
+                        value={transferTargets[user.id] || ""}
+                        onChange={(event) =>
+                          setTransferTargets((prev) => ({ ...prev, [user.id]: event.target.value }))
+                        }
+                      >
+                        <option value="">نقل إلى فريق</option>
+                        {(teams || []).map((team) => (
+                          <option key={team.id} value={team.id}>{team.name}</option>
+                        ))}
+                      </Select>
+                      <Button
+                        variant="secondary"
+                        type="button"
+                        disabled={!transferTargets[user.id]}
+                        onClick={() => transferMutation.mutate({ userId: user.id, teamId: transferTargets[user.id] })}
+                      >
+                        نقل
+                      </Button>
+                    </>
+                  )}
+                  
                   <Button
                     type="button"
                     disabled={user.roles?.includes("team_leader")}
@@ -295,10 +386,13 @@ export default function UsersSettingsPage() {
                       setTeamSetupMembers([])
                     }}
                   >
-                    إنشاء فريق
+                    ترقية لقائد فريق
                   </Button>
+                  
                   {user.roles?.includes("team_leader") && (
-                    <p className="md:col-span-3 text-xs text-base-500">هذا المستخدم قائد فريق بالفعل</p>
+                    <div className="md:col-span-3 flex items-center justify-between bg-base-50 p-2 rounded text-xs text-base-500">
+                       <span>هذا المستخدم قائد فريق بالفعل</span>
+                    </div>
                   )}
                 </div>
               )}
@@ -317,6 +411,12 @@ export default function UsersSettingsPage() {
                     }
                   >
                     حفظ التعديلات
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setDetailsUser(user)}
+                  >
+                    عرض التفاصيل
                   </Button>
                   <Button
                     variant="ghost"
@@ -447,6 +547,13 @@ export default function UsersSettingsPage() {
         confirmText="حذف الفريق"
       />
 
+      {selectedTeam && (
+        <TeamDetailsModal 
+          team={selectedTeam} 
+          isOpen={!!selectedTeam} 
+          onClose={() => setSelectedTeam(null)} 
+        />
+      )}
       <ConfirmationModal
         isOpen={!!deleteUserConfirmationId}
         onClose={() => setDeleteUserConfirmationId(null)}
@@ -459,6 +566,128 @@ export default function UsersSettingsPage() {
         description="سيتم حذف المستخدم وتعطيل دخوله للنظام. هل أنت متأكد؟"
         confirmText="حذف المستخدم"
       />
+
+      {detailsUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-4xl rounded-2xl bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto relative animate-in fade-in zoom-in-95 duration-200">
+             <button 
+               onClick={() => setDetailsUser(null)}
+               className="absolute top-4 left-4 p-2 rounded-full hover:bg-gray-100 transition-colors text-gray-400 hover:text-gray-600"
+             >
+               ✕
+             </button>
+             
+             <div className="mb-8 flex flex-col md:flex-row md:items-center gap-6 border-b pb-6">
+               <Avatar name={detailsUser.name || detailsUser.email} size="xl" className="h-20 w-20 text-2xl shadow-lg ring-4 ring-gray-50" />
+               <div className="space-y-2">
+                 <div>
+                   <h2 className="text-2xl font-bold text-gray-900">{detailsUser.name || "مستخدم بدون اسم"}</h2>
+                   <p className="text-base text-gray-500 font-mono">{detailsUser.email}</p>
+                 </div>
+                 <div className="flex flex-wrap gap-2">
+                   {(detailsUser.roles || []).map((r: string) => (
+                     <span key={r} className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10 uppercase tracking-wider">
+                       {r === 'owner' ? 'المالك' : r === 'team_leader' ? 'قائد فريق' : r === 'sales' ? 'مبيعات' : r}
+                     </span>
+                   ))}
+                   <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset capitalize ${
+                     detailsUser.status === 'active' 
+                       ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20' 
+                       : 'bg-rose-50 text-rose-700 ring-rose-600/20'
+                   }`}>
+                     {detailsUser.status === 'active' ? 'نشط' : 'غير نشط'}
+                   </span>
+                 </div>
+               </div>
+             </div>
+
+             <div className="grid gap-6 md:grid-cols-3">
+               {/* Stats Card */}
+               <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-5 shadow-sm">
+                 <h3 className="mb-4 font-semibold text-gray-900 flex items-center gap-2 text-sm uppercase tracking-wide">
+                   <Users className="h-4 w-4 text-indigo-500" />
+                   بيانات الحساب
+                 </h3>
+                 <div className="space-y-3">
+                   <div className="flex justify-between items-center text-sm p-2 rounded hover:bg-white transition-colors">
+                     <span className="text-gray-500">تاريخ الانضمام</span>
+                     <span className="font-medium text-gray-900">{new Date(detailsUser.createdAt).toLocaleDateString('ar-EG')}</span>
+                   </div>
+                   <div className="flex justify-between items-center text-sm p-2 rounded hover:bg-white transition-colors">
+                     <span className="text-gray-500">رقم الهاتف</span>
+                     <span className="font-medium text-gray-900 font-mono" dir="ltr">{detailsUser.phone || '-'}</span>
+                   </div>
+                   <div className="flex justify-between items-center text-sm p-2 rounded hover:bg-white transition-colors">
+                     <span className="text-gray-500">آخر ظهور</span>
+                     <span className="font-medium text-gray-900">-</span>
+                   </div>
+                 </div>
+               </div>
+
+               {/* Leads List */}
+               <div className="md:col-span-2 rounded-xl border border-gray-100 bg-white shadow-sm flex flex-col h-[400px]">
+                 <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/30 rounded-t-xl">
+                   <h3 className="font-semibold text-gray-900 flex items-center gap-2 text-sm uppercase tracking-wide">
+                     <Users className="h-4 w-4 text-indigo-500" />
+                     العملاء المسندون
+                     <span className="ml-2 rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
+                       {(leadsByUser.get(detailsUser.id) || []).length}
+                     </span>
+                   </h3>
+                 </div>
+                 
+                 <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2">
+                   {(leadsByUser.get(detailsUser.id) || []).length > 0 ? (
+                     (leadsByUser.get(detailsUser.id) || []).map((lead) => (
+                       <div key={lead.id} className="group flex items-center justify-between rounded-lg border border-transparent p-3 hover:border-gray-200 hover:bg-gray-50 transition-all duration-200">
+                         <div className="flex items-center gap-3">
+                           <div className={`h-2 w-2 rounded-full ${
+                             lead.status === "new" ? "bg-blue-500" :
+                             lead.status === "won" ? "bg-emerald-500" :
+                             lead.status === "lost" ? "bg-rose-500" :
+                             "bg-gray-300"
+                           }`} />
+                           <div>
+                             <p className="font-medium text-sm text-gray-900 group-hover:text-indigo-600 transition-colors">{lead.name}</p>
+                             <p className="text-xs text-gray-500 font-mono">{lead.phone || "بدون رقم"}</p>
+                           </div>
+                         </div>
+                         <div className="flex flex-col items-end gap-1.5">
+                           <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-medium border ${
+                             lead.status === "new" ? "bg-blue-50 text-blue-700 border-blue-100" :
+                             lead.status === "won" ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
+                             lead.status === "lost" ? "bg-rose-50 text-rose-700 border-rose-100" :
+                             "bg-gray-50 text-gray-700 border-gray-100"
+                           }`}>
+                             {lead.status}
+                           </span>
+                           <span className="text-[10px] text-gray-400">
+                             {new Date(lead.createdAt).toLocaleDateString('ar-EG')}
+                           </span>
+                         </div>
+                       </div>
+                     ))
+                   ) : (
+                     <div className="flex h-full flex-col items-center justify-center text-gray-400 gap-2">
+                       <UserMinus className="h-8 w-8 opacity-20" />
+                       <p className="text-sm">لا يوجد عملاء مسندون لهذا المستخدم</p>
+                     </div>
+                   )}
+                 </div>
+               </div>
+             </div>
+          </div>
+        </div>
+      )}
+      {demoteTarget && (
+        <DemoteTeamLeaderModal
+          isOpen={!!demoteTarget}
+          onClose={() => setDemoteTarget(null)}
+          leaderId={demoteTarget.id}
+          leaderName={demoteTarget.name}
+          availableUsers={data || []}
+        />
+      )}
     </div>
   )
 }

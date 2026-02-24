@@ -20,6 +20,7 @@ export const ClosureModal = ({ isOpen, onClose, lead }: ClosureModalProps) => {
   const { token } = useAuth()
   const queryClient = useQueryClient()
   const [amount, setAmount] = useState<string>(lead.budgetMin ? String(lead.budgetMin) : "")
+  const [contractDate, setContractDate] = useState(new Date().toISOString().split('T')[0])
   const [note, setNote] = useState("")
   const [address, setAddress] = useState("")
   const [error, setError] = useState("")
@@ -29,10 +30,14 @@ export const ClosureModal = ({ isOpen, onClose, lead }: ClosureModalProps) => {
       if (!amount || isNaN(Number(amount))) {
         throw new Error("يرجى إدخال مبلغ صحيح")
       }
+      if (!contractDate) {
+        throw new Error("يرجى تحديد تاريخ العقد")
+      }
       return leadService.close(
         lead.id,
         {
           amount: Number(amount),
+          contractDate,
           note: note || undefined,
           address: address || undefined
         },
@@ -63,19 +68,33 @@ export const ClosureModal = ({ isOpen, onClose, lead }: ClosureModalProps) => {
           أنت على وشك إغلاق الصفقة بنجاح! سيتم تسجيل المبلغ في تقارير المبيعات الخاصة بك.
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-base-700 mb-1">
-            قيمة الصفقة (ج.م) <span className="text-rose-500">*</span>
-          </label>
-          <Input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="مثال: 1500000"
-            required
-            min={0}
-            className="w-full"
-          />
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-base-700 mb-1">
+              قيمة الصفقة (ج.م) <span className="text-rose-500">*</span>
+            </label>
+            <Input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="مثال: 1500000"
+              required
+              min={0}
+              className="w-full"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-base-700 mb-1">
+              تاريخ العقد <span className="text-rose-500">*</span>
+            </label>
+            <Input
+              type="date"
+              value={contractDate}
+              onChange={(e) => setContractDate(e.target.value)}
+              required
+              className="w-full"
+            />
+          </div>
         </div>
 
         <div>

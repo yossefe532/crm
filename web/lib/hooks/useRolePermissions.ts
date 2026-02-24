@@ -12,6 +12,7 @@ export const useRolePermissions = (roleId: string) => {
       return rows.map((row) => row.permission)
     },
     enabled: Boolean(roleId),
-    staleTime: 60000
+    staleTime: 0,
+    refetchInterval: 1000
   })
 }

@@ -10,7 +10,7 @@ export const useDashboardAnalytics = () => {
       const data = await analyticsService.getDashboardMetrics(token || undefined)
       return data
     },
-    staleTime: 60000,
-    refetchInterval: 30000
+    staleTime: 0,
+    refetchInterval: 1000
   })
 }

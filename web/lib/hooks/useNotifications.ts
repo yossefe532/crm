@@ -3,29 +3,77 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "../auth/AuthContext"
 import { notificationService } from "../services/notificationService"
-import { NotificationEvent } from "../types"
+import { Notification } from "../types"
 
-export const useNotifications = () => {
+export const useNotifications = (params: { page?: number; limit?: number; unreadOnly?: boolean } = {}) => {
   const { token } = useAuth()
-  return useQuery<NotificationEvent[]>({
-    queryKey: ["notifications"],
-    queryFn: async () => notificationService.listEvents(20, token || undefined),
-    staleTime: 30000,
-    refetchInterval: 60000
+  return useQuery({
+    queryKey: ["notifications", params],
+    queryFn: async () => notificationService.list(params, token || undefined),
+    enabled: !!token,
+    staleTime: 0,
+    refetchInterval: 1000,
   })
 }
 
-export const useClearNotifications = () => {
+export const useUnreadCount = () => {
+  const { token } = useAuth()
+  return useQuery({
+    queryKey: ["notifications", "unread-count"],
+    queryFn: async () => notificationService.getUnreadCount(token || undefined),
+    enabled: !!token,
+    refetchInterval: 1000 // Refresh every second
+  })
+}
+
+export const useMarkAsRead = () => {
   const { token } = useAuth()
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async () => notificationService.clearEvents(token || undefined),
+    mutationFn: async (id: string) => notificationService.markAsRead(id, token || undefined),
     onSuccess: () => {
-      // Optimistically clear the list
-      queryClient.setQueryData(["notifications"], [])
-      // Also invalidate to be sure
       queryClient.invalidateQueries({ queryKey: ["notifications"] })
+      queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] })
+    }
+  })
+}
+
+export const useMarkAllAsRead = () => {
+  const { token } = useAuth()
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async () => notificationService.markAllAsRead(token || undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] })
+      queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] })
+    }
+  })
+}
+
+export const useArchiveNotification = () => {
+  const { token } = useAuth()
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async (id: string) => notificationService.archive(id, token || undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] })
+      queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] })
+    }
+  })
+}
+
+export const useArchiveAll = () => {
+  const { token } = useAuth()
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: async () => notificationService.archiveAll(token || undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] })
+      queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count"] })
     }
   })
 }

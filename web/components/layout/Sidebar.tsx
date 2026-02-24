@@ -6,51 +6,79 @@ import { useAuth } from "../../lib/auth/AuthContext"
 import { useLocale } from "../../lib/i18n/LocaleContext"
 import { Button } from "../ui/Button"
 import { useRouter } from "next/navigation"
+import { useCurrentUserPermissions } from "../../lib/hooks/useCurrentUserPermissions"
 
-const navByRole = {
-  owner: [
-    { href: "/owner", label: "لوحة المالك" },
-    { href: "/pipeline", label: "قناة العملاء" },
-    { href: "/analytics", label: "التحليلات" },
-    { href: "/analytics/goals", label: "الأهداف" },
-    { href: "/meetings", label: "الاجتماعات" },
-    { href: "/leads", label: "العملاء المحتملون" },
-    { href: "/finance", label: "المالية" },
-    { href: "/requests", label: "الطلبات" },
-    { href: "/settings/users", label: "إدارة المستخدمين" },
-    { href: "/settings/roles", label: "إدارة الصلاحيات" },
-    { href: "/connect", label: "التواصل" },
-    { href: "/account", label: "إدارة الحساب" }
-  ],
-  team_leader: [
-    { href: "/team", label: "لوحة قائد الفريق" },
-    { href: "/pipeline", label: "قناة العملاء" },
-    { href: "/analytics", label: "التحليلات" },
-    { href: "/analytics/goals", label: "الأهداف" },
-    { href: "/meetings", label: "الاجتماعات" },
-    { href: "/leads", label: "العملاء المحتملون" },
-    { href: "/requests", label: "الطلبات" },
-    { href: "/connect", label: "التواصل" },
-    { href: "/settings/users", label: "إدارة المستخدمين" },
-    { href: "/account", label: "إدارة الحساب" }
-  ],
-  sales: [
-    { href: "/sales", label: "لوحة المبيعات" },
-    { href: "/pipeline", label: "قناة العملاء" },
-    { href: "/analytics/goals", label: "الأهداف" },
-    { href: "/meetings", label: "الاجتماعات" },
-    { href: "/leads", label: "عملائي" },
-    { href: "/requests", label: "الطلبات" },
-    { href: "/connect", label: "التواصل" },
-    { href: "/account", label: "إدارة الحساب" }
-  ]
+type NavItem = {
+  href: string
+  label: string
+  permissions?: string[]
+  roles?: string[]
+  fallbackRoles?: string[]
 }
+
+const allNavItems: NavItem[] = [
+  // Dashboards
+  { href: "/owner", label: "لوحة المالك", roles: ["owner"] },
+  { href: "/team", label: "لوحة قائد الفريق", roles: ["team_leader"] },
+  { href: "/sales", label: "لوحة المبيعات", roles: ["sales"] },
+  
+  // Core Modules
+  { href: "/pipeline", label: "قناة العملاء", permissions: ["leads.read"], fallbackRoles: ["sales", "team_leader"] },
+  { href: "/analytics", label: "التحليلات", permissions: ["analytics.read"], fallbackRoles: ["team_leader"] },
+  { href: "/analytics/goals", label: "الأهداف", permissions: ["analytics.read"], fallbackRoles: ["sales", "team_leader"] },
+  { href: "/meetings", label: "الاجتماعات", permissions: ["meetings.read"], fallbackRoles: ["sales", "team_leader"] },
+  { href: "/leads", label: "العملاء المحتملون", permissions: ["leads.read"], fallbackRoles: ["sales", "team_leader"] },
+  
+  { href: "/finance", label: "المالية", permissions: ["finance.read"] }, // Removed team_leader fallback
+  { href: "/requests", label: "الطلبات", permissions: ["user_requests.read"], fallbackRoles: ["team_leader"] },
+  
+  // Settings & Admin
+  { href: "/settings/users", label: "إدارة الفريق", permissions: ["users.read"], fallbackRoles: ["team_leader"] }, // Renamed to Team Management for TL context? Or just keep generic label map
+  { href: "/settings/roles", label: "إدارة الصلاحيات", permissions: ["roles.read"] },
+  { href: "/settings/archive", label: "الأرشيف", permissions: ["leads.delete"] },
+  
+  { href: "/connect", label: "التواصل", permissions: ["conversations.read"], fallbackRoles: ["sales", "team_leader"] },
+  { href: "/account", label: "إدارة الحساب" } // Everyone
+]
 
 export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const { role, signOut } = useAuth()
-  const { t, dir, toggleLocale } = useLocale()
+  const { t, dir, locale, setLocale } = useLocale()
   const router = useRouter()
-  const items = role ? navByRole[role] : []
+
+  const toggleLocale = () => {
+    const nextLocale = locale === "ar" ? "en" : "ar"
+    setLocale(nextLocale)
+    document.documentElement.lang = nextLocale
+    document.documentElement.dir = nextLocale === "ar" ? "rtl" : "ltr"
+  }
+  const { data: permissions } = useCurrentUserPermissions()
+
+  const items = allNavItems.filter(item => {
+    // 1. If roles are specified, user must have one of them
+    if (item.roles && role && !item.roles.includes(role)) return false
+    
+    // 2. Permission Check
+    if (item.permissions) {
+      if (role === 'owner') return true 
+      
+      // Check DB permissions
+      const hasDbPermission = permissions && item.permissions.some(code => 
+        permissions.rolePermissions.some(p => p.code === code) || 
+        permissions.directPermissions.some(p => p.code === code)
+      )
+      
+      if (hasDbPermission) return true
+      
+      // Check Fallback Roles
+      if (item.fallbackRoles && role && item.fallbackRoles.includes(role)) return true
+      
+      return false
+    }
+    
+    return true
+  })
+
   const borderClass = dir === "rtl" ? "border-l" : "border-r"
   const textAlign = dir === "rtl" ? "text-right" : "text-left"
   const anchorClass = dir === "rtl" ? "right-0" : "left-0"
@@ -67,6 +95,7 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
     "المالية": t("finance"),
     "الطلبات": "الطلبات",
     "إدارة المستخدمين": t("users"),
+    "إدارة الفريق": role === 'team_leader' ? "إدارة فريقي" : t("users"), // Dynamic label
     "إدارة الصلاحيات": t("roles"),
     "التواصل": t("connect"),
     "إدارة الحساب": t("account")
@@ -100,9 +129,9 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
 
       {/* Mobile Sidebar Overlay */}
       {isOpen && (
-        <div className="fixed inset-0 z-[90] bg-base-900/50 backdrop-blur-sm md:hidden transition-opacity" onClick={onClose}>
+        <div className="fixed inset-0 z-[140] bg-base-900/50 backdrop-blur-sm md:hidden transition-opacity" onClick={onClose}>
           <aside
-            className={`nav-drawer theme-surface fixed top-0 bottom-0 ${anchorClass} flex w-[85vw] max-w-[300px] flex-col bg-base-0 px-5 py-6 shadow-2xl ${textAlign} transition-transform duration-300 ease-in-out z-[95]`}
+            className={`nav-drawer theme-surface fixed top-0 bottom-0 ${anchorClass} flex w-[85vw] max-w-[300px] flex-col bg-base-0 px-5 py-6 shadow-2xl ${textAlign} transition-transform duration-300 ease-in-out z-[150]`}
             dir={dir}
             onClick={(event) => event.stopPropagation()}
           >
@@ -121,6 +150,8 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
                   onClick={onClose}
                   prefetch={false}
                   className="rounded-lg px-3 py-3 text-base font-medium text-base-700 hover:bg-base-100 active:bg-base-200 transition-colors"
+                  title={labelMap[item.label] || item.label}
+                  aria-label={labelMap[item.label] || item.label}
                 >
                   {labelMap[item.label] || item.label}
                 </Link>

@@ -1,3 +1,4 @@
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,6 +15,7 @@ model Tenant {
   timezone  String   @default("UTC")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
+  editedAt  DateTime? @map("edited_at")
   deletedAt DateTime? @map("deleted_at")
 
   users         User[]
@@ -40,6 +42,7 @@ model Tenant {
   leadAssignments LeadAssignment[]
   leadActivityLogs LeadActivityLog[]
   leadTasks     LeadTask[]
+  tasks         Task[]
   callLogs      CallLog[]
   leadStateDefinitions LeadStateDefinition[]
   leadStateTransitions LeadStateTransition[]
@@ -112,6 +115,8 @@ model User {
   mustChangePassword Boolean @default(true) @map("must_change_password")
   status       String   @default("active")
   lastLoginAt  DateTime? @map("last_login_at")
+  isOnline     Boolean   @default(false) @map("is_online")
+  lastSeen     DateTime? @map("last_seen")
   lastNotificationClearTime DateTime? @map("last_notification_clear_time")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -130,7 +135,6 @@ model User {
   reassignmentFrom ReassignmentEvent[] @relation("ReassignFrom")
   reassignmentTo   ReassignmentEvent[] @relation("ReassignTo")
   negligencePoints NegligencePoint[]
-  commissionApprovals CommissionApproval[]
   commissionLedger CommissionLedger[]
   leadMetricsDaily LeadMetricsDaily[]
   disciplineIndexSnapshots DisciplineIndexSnapshot[]
@@ -142,7 +146,10 @@ model User {
   leadExtensionsRequested LeadExtension[] @relation("ExtensionRequester")
   leadExtensionsApproved LeadExtension[] @relation("ExtensionApprover")
   assignedLeads Lead[]
+  createdLeads  Lead[] @relation("LeadCreator")
   assignedTasks LeadTask[]
+  tasks         Task[]
+  createdTasks  Task[] @relation("TaskCreator")
   auditLogs     AuditLog[]
   leadStateChanges LeadStateHistory[]
   leadFailures LeadFailure[]
@@ -154,6 +161,14 @@ model User {
   userPermissions UserPermission[]
   conversationParticipants ConversationParticipant[]
   messagesSent Message[]
+  approvedDeals Deal[] @relation("DealApprover")
+  meetingParticipants MeetingParticipant[]
+
+  // Notifications
+  notificationsReceived NotificationDelivery[]
+  notificationsSent     NotificationDelivery[] @relation("NotificationSender")
+  
+  approvedCommissions CommissionApproval[] @relation("CommissionApprover")
 
   @@index([tenantId, email])
   @@index([tenantId, status])
@@ -209,6 +224,7 @@ model TeamMember {
   teamId    String   @db.Uuid @map("team_id")
   userId    String   @db.Uuid @map("user_id")
   role      String   @default("member")
+  lastReadAt DateTime? @map("last_read_at")
   joinedAt  DateTime @default(now()) @map("joined_at")
   leftAt    DateTime? @map("left_at")
   createdAt DateTime @default(now()) @map("created_at")
@@ -300,165 +316,128 @@ model UserPermission {
   tenantId     String   @db.Uuid @map("tenant_id")
   userId       String   @db.Uuid @map("user_id")
   permissionId String   @db.Uuid @map("permission_id")
-  grantedBy    String?  @db.Uuid @map("granted_by")
-  grantedAt    DateTime @default(now()) @map("granted_at")
+  createdAt    DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id])
   permission Permission @relation(fields: [permissionId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId, userId])
-  @@index([tenantId, permissionId])
   @@map("user_permissions")
-}
-
-model AuditLog {
-  id          String   @id @default(uuid()) @db.Uuid
-  tenantId    String   @db.Uuid @map("tenant_id")
-  actorUserId String?  @db.Uuid @map("actor_user_id")
-  action      String
-  entityType  String   @map("entity_type")
-  entityId    String?  @db.Uuid @map("entity_id")
-  metadata    Json?
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  actor  User? @relation(fields: [actorUserId], references: [id])
-
-  @@index([tenantId, entityType, entityId])
-  @@index([tenantId, actorUserId])
-  @@index([createdAt])
-  @@map("audit_logs")
-}
-
-model Module {
-  id        String   @id @default(uuid()) @db.Uuid
-  key       String   @unique
-  name      String
-  version   String
-  status    String   @default("enabled")
-  manifest  Json?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  configs ModuleConfig[]
-  permissions ModulePermission[]
-  eventSubscriptions ModuleEventSubscription[]
-
-  @@index([status])
-  @@map("modules")
 }
 
 model ModuleConfig {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  moduleId  String   @db.Uuid @map("module_id")
-  config    Json?
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
+  moduleKey String   @map("module_key")
+  config    Json
+  isEnabled Boolean  @default(true) @map("is_enabled")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  module Module @relation(fields: [moduleId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
-  @@index([tenantId, moduleId])
-  @@index([tenantId, isActive])
+  @@unique([tenantId, moduleKey])
   @@map("module_configs")
 }
 
 model ModulePermission {
   id           String   @id @default(uuid()) @db.Uuid
-  moduleId     String   @db.Uuid @map("module_id")
+  moduleKey    String   @map("module_key")
   permissionId String   @db.Uuid @map("permission_id")
-  createdAt    DateTime @default(now()) @map("created_at")
 
-  module Module @relation(fields: [moduleId], references: [id])
   permission Permission @relation(fields: [permissionId], references: [id])
 
-  @@index([moduleId])
-  @@index([permissionId])
+  @@index([moduleKey])
   @@map("module_permissions")
 }
 
 model ModuleEventSubscription {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  moduleId  String   @db.Uuid @map("module_id")
-  eventKey  String   @map("event_key")
-  handlerRef String  @map("handler_ref")
-  isActive  Boolean  @default(true) @map("is_active")
+  moduleKey String   @map("module_key")
+  event     String
+  webhookUrl String  @map("webhook_url")
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
 
-  module Module @relation(fields: [moduleId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
-  @@index([tenantId, moduleId])
-  @@index([eventKey])
-  @@index([tenantId, isActive])
+  @@index([tenantId, moduleKey])
   @@map("module_event_subscriptions")
 }
 
 model File {
-  id         String   @id @default(uuid()) @db.Uuid
-  tenantId   String   @db.Uuid @map("tenant_id")
-  storageKey String   @map("storage_key")
-  filename   String
-  contentType String  @map("content_type")
-  sizeBytes  BigInt   @map("size_bytes")
-  createdBy  String?  @db.Uuid @map("created_by")
-  createdAt  DateTime @default(now()) @map("created_at")
-  deletedAt  DateTime? @map("deleted_at")
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  filename  String
+  mimetype  String
+  size      Int
+  path      String
+  url       String?
+  uploadedBy String? @db.Uuid @map("uploaded_by")
+  createdAt DateTime @default(now()) @map("created_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
-  creator User? @relation(fields: [createdBy], references: [id])
+  uploader User? @relation(fields: [uploadedBy], references: [id])
   userProfiles UserProfile[]
+  iconAssets IconAsset[]
+  recordings CallLog[]
   listingMedia ListingMedia[]
-  callLogs CallLog[]
-  messages Message[]
-
-  @@index([tenantId, createdBy])
-  @@index([tenantId, createdAt])
+  
+  @@index([tenantId, uploadedBy])
   @@map("files")
 }
 
 model IconAsset {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  entityType String  @map("entity_type")
-  entityId  String   @db.Uuid @map("entity_id")
-  label     String?
-  url       String
-  createdBy String?  @db.Uuid @map("created_by")
+  name      String
+  fileId    String   @db.Uuid @map("file_id")
+  uploadedBy String? @db.Uuid @map("uploaded_by")
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
-  creator User? @relation(fields: [createdBy], references: [id])
+  file File @relation(fields: [fileId], references: [id])
+  uploader User? @relation(fields: [uploadedBy], references: [id])
 
-  @@index([tenantId, entityType, entityId])
-  @@index([tenantId, createdBy])
-  @@index([tenantId, url])
+  @@index([tenantId, name])
   @@map("icon_assets")
 }
 
 model Note {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  entityType String  @map("entity_type")
-  entityId  String   @db.Uuid @map("entity_id")
-  body      String
+  content   String
+  relatedTo String?  @map("related_to")
+  relatedId String?  @db.Uuid @map("related_id")
   createdBy String?  @db.Uuid @map("created_by")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   creator User? @relation(fields: [createdBy], references: [id])
 
-  @@index([tenantId, entityType, entityId])
-  @@index([tenantId, createdBy])
+  @@index([tenantId, relatedId])
   @@map("notes")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  userId    String?  @db.Uuid @map("user_id")
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  details   Json?
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, action])
+  @@map("audit_logs")
 }
 
 model LeadSource {
@@ -467,84 +446,83 @@ model LeadSource {
   name      String
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
 
-  leads Lead[]
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
-  @@index([tenantId, name])
+  @@index([tenantId, isActive])
   @@map("lead_sources")
 }
 
 model Contact {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  firstName String?  @map("first_name")
-  lastName  String?  @map("last_name")
-  primaryEmail String? @map("primary_email")
-  primaryPhone String? @map("primary_phone")
+  name      String
+  phone     String?
+  email     String?
+  type      String   @default("individual")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   channels ContactChannel[]
   leadContacts LeadContact[]
-  properties Property[]
-  whatsappMessages WhatsappMessage[]
-  whatsappOptOuts WhatsappOptOut[]
+  meetingParticipants MeetingParticipant[]
 
-  @@index([tenantId, primaryEmail])
-  @@index([tenantId, primaryPhone])
+  @@index([tenantId, phone])
+  @@index([tenantId, email])
   @@map("contacts")
 }
 
 model ContactChannel {
-  id         String   @id @default(uuid()) @db.Uuid
-  tenantId   String   @db.Uuid @map("tenant_id")
-  contactId  String   @db.Uuid @map("contact_id")
-  channelType String  @map("channel_type")
-  channelValue String @map("channel_value")
-  isPrimary  Boolean  @default(false) @map("is_primary")
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  contactId String   @db.Uuid @map("contact_id")
+  type      String
+  value     String
+  isPrimary Boolean  @default(false) @map("is_primary")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  contact Contact @relation(fields: [contactId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
+  contact Contact @relation(fields: [contactId], references: [id])
 
   @@index([tenantId, contactId])
-  @@index([tenantId, channelType])
   @@map("contact_channels")
 }
 
 model Lead {
-  id         String   @id @default(uuid()) @db.Uuid
-  tenantId   String   @db.Uuid @map("tenant_id")
-  leadCode   String   @map("lead_code")
-  name       String
-  phone      String
-  email      String?
-  budget     Decimal? @db.Decimal(14, 2)
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  leadCode  String   @map("lead_code")
+  name      String
+  phone     String
+  email     String?
+  budget    Decimal? @db.Decimal(14, 2)
   areaOfInterest String? @map("area_of_interest")
   sourceLabel String? @map("source_label")
-  sourceId   String?  @db.Uuid @map("source_id")
+  sourceId  String?  @db.Uuid @map("source_id")
   assignedUserId String? @db.Uuid @map("assigned_user_id")
-  teamId     String?  @db.Uuid @map("team_id")
-  status     String   @default("new")
-  priority   String   @default("normal")
-  budgetMin  Decimal? @db.Decimal(14, 2) @map("budget_min")
-  budgetMax  Decimal? @db.Decimal(14, 2) @map("budget_max")
+  teamId    String?  @db.Uuid @map("team_id")
+  status    String   @default("new")
+  priority  String   @default("normal")
+  budgetMin Decimal? @map("budget_min") @db.Decimal(14, 2)
+  budgetMax Decimal? @map("budget_max") @db.Decimal(14, 2)
   desiredLocation String? @map("desired_location")
   propertyType String? @map("property_type")
   profession String?
-  notes      String?
-  isWrongNumber Boolean @default(false) @map("is_wrong_number")
+  notes     String?
+  
+  lifecycleStage String @default("new") @map("lifecycle_stage")
+  timerStartDate DateTime? @map("timer_start_date")
+  isTimerExtended Boolean @default(false) @map("is_timer_extended")
+  
+  createdByUserId String? @db.Uuid @map("created_by_user_id")
+  createdByUser   User?   @relation("LeadCreator", fields: [createdByUserId], references: [id])
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
-  source LeadSource? @relation(fields: [sourceId], references: [id])
   assignedUser User? @relation(fields: [assignedUserId], references: [id])
   team Team? @relation(fields: [teamId], references: [id])
   contacts LeadContact[]
@@ -558,22 +536,13 @@ model Lead {
   extensions LeadExtension[]
   failures LeadFailure[]
   closures LeadClosure[]
-  inquiries Inquiry[]
-  deals Deal[]
   meetings Meeting[]
-  reminderSchedules ReminderSchedule[]
-  reminderSent RemindersSent[]
-  blacklistMatches BlacklistMatch[]
-  riskScores RiskScore[]
-  leadScores LeadScore[]
-  whatsappMessages WhatsappMessage[]
+  listings Listing[]
+  deals Deal[]
   negligencePoints NegligencePoint[]
-  reassignmentEvents ReassignmentEvent[]
 
-  @@index([tenantId, leadCode])
-  @@unique([tenantId, phone])
-  @@index([tenantId, name])
-  @@index([tenantId, email])
+  @@unique([tenantId, leadCode])
+  @@unique([tenantId, phone]) // Enforce unique phone per tenant
   @@index([tenantId, status])
   @@index([tenantId, assignedUserId])
   @@index([tenantId, createdAt])
@@ -674,7 +643,6 @@ model LeadTask {
   dueAt     DateTime? @map("due_at")
   status    String   @default("open")
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
 
   lead Lead @relation(fields: [leadId], references: [id])
   assignedUser User? @relation(fields: [assignedUserId], references: [id])
@@ -682,9 +650,35 @@ model LeadTask {
 
   @@index([tenantId, leadId])
   @@index([tenantId, assignedUserId])
-  @@index([tenantId, dueAt])
-  @@index([tenantId, status])
   @@map("lead_tasks")
+}
+
+model Task {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  title     String
+  description String?
+  assignedUserId String? @db.Uuid @map("assigned_user_id")
+  createdByUserId String? @db.Uuid @map("created_by_user_id")
+  
+  status    String   @default("open")
+  priority  String   @default("medium")
+  dueDate   DateTime? @map("due_date")
+  
+  relatedType String? @map("related_type")
+  relatedId   String? @db.Uuid @map("related_id")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  assignedUser User? @relation(fields: [assignedUserId], references: [id])
+  creator User? @relation("TaskCreator", fields: [createdByUserId], references: [id])
+
+  @@index([tenantId, assignedUserId])
+  @@index([tenantId, status])
+  @@index([tenantId, dueDate])
+  @@map("tasks")
 }
 
 model CallLog {
@@ -692,8 +686,8 @@ model CallLog {
   tenantId  String   @db.Uuid @map("tenant_id")
   leadId    String   @db.Uuid @map("lead_id")
   callerUserId String? @db.Uuid @map("caller_user_id")
-  callTime  DateTime @default(now()) @map("call_time")
   durationSeconds Int? @map("duration_seconds")
+  callTime  DateTime @default(now()) @map("call_time")
   outcome   String?
   recordingFileId String? @db.Uuid @map("recording_file_id")
   createdAt DateTime @default(now()) @map("created_at")
@@ -716,6 +710,7 @@ model LeadStateDefinition {
   name      String
   isTerminal Boolean @default(false) @map("is_terminal")
   slaHours  Int?     @map("sla_hours")
+  questions Json?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -758,6 +753,7 @@ model LeadStateHistory {
   changedBy String?  @db.Uuid @map("changed_by")
   changedAt DateTime @default(now()) @map("changed_at")
   metadata  Json?
+  answers   Json?
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   lead Lead @relation(fields: [leadId], references: [id])
@@ -870,6 +866,7 @@ model UserRequest {
   decidedBy String?  @db.Uuid @map("decided_by")
   decidedAt DateTime? @map("decided_at")
   createdAt DateTime @default(now()) @map("created_at")
+  notes     String?
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   requester User @relation("UserRequestRequester", fields: [requestedBy], references: [id])
@@ -894,7 +891,6 @@ model FinanceEntry {
   tenant Tenant @relation(fields: [tenantId], references: [id])
   creator User? @relation(fields: [createdBy], references: [id])
 
-  @@index([tenantId, entryType])
   @@index([tenantId, occurredAt])
   @@map("finance_entries")
 }
@@ -902,25 +898,17 @@ model FinanceEntry {
 model Property {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  ownerContactId String? @db.Uuid @map("owner_contact_id")
-  address   String
-  city      String
-  state     String
-  country   String
-  propertyType String @map("property_type")
-  status    String   @default("active")
+  name      String
+  type      String
+  location  String
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  deletedAt DateTime? @map("deleted_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
-  ownerContact Contact? @relation(fields: [ownerContactId], references: [id])
   units PropertyUnit[]
   listings Listing[]
 
-  @@index([tenantId, city])
-  @@index([tenantId, propertyType])
-  @@index([tenantId, status])
+  @@index([tenantId, location])
   @@map("properties")
 }
 
@@ -928,10 +916,12 @@ model PropertyUnit {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
   propertyId String  @db.Uuid @map("property_id")
-  unitCode  String   @map("unit_code")
-  bedrooms  Int?
+  unitNumber String  @map("unit_number")
+  floor     Int?
+  area      Decimal? @db.Decimal(10, 2)
+  rooms     Int?
   bathrooms Int?
-  sizeSqm   Decimal? @db.Decimal(10, 2) @map("size_sqm")
+  status    String   @default("available")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -940,32 +930,33 @@ model PropertyUnit {
   listings Listing[]
 
   @@index([tenantId, propertyId])
-  @@index([tenantId, unitCode])
   @@map("property_units")
 }
 
 model Listing {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  propertyId String  @db.Uuid @map("property_id")
+  propertyId String? @db.Uuid @map("property_id")
   unitId    String?  @db.Uuid @map("unit_id")
-  listingType String @map("listing_type")
-  price     Decimal @db.Decimal(14, 2)
-  currency  String  @default("USD")
-  status    String  @default("active")
+  leadId    String?  @db.Uuid @map("lead_id")
+  type      String   // sale, rent
+  price     Decimal  @db.Decimal(14, 2)
+  currency  String   @default("EGP")
+  status    String   @default("active")
+  description String?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  property Property @relation(fields: [propertyId], references: [id])
-  unit PropertyUnit? @relation(fields: [unitId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
+  property Property? @relation(fields: [propertyId], references: [id])
+  unit PropertyUnit? @relation(fields: [unitId], references: [id])
+  lead Lead? @relation(fields: [leadId], references: [id])
   media ListingMedia[]
-  inquiries Inquiry[]
   deals Deal[]
+  offers Offer[]
 
-  @@index([tenantId, propertyId])
+  @@index([tenantId, type])
   @@index([tenantId, status])
-  @@index([tenantId, price])
   @@map("listings")
 }
 
@@ -974,72 +965,77 @@ model ListingMedia {
   tenantId  String   @db.Uuid @map("tenant_id")
   listingId String   @db.Uuid @map("listing_id")
   fileId    String   @db.Uuid @map("file_id")
-  sortOrder Int      @default(0) @map("sort_order")
+  type      String   // image, video, document
+  isMain    Boolean  @default(false) @map("is_main")
+  order     Int      @default(0)
   createdAt DateTime @default(now()) @map("created_at")
 
+  tenant Tenant @relation(fields: [tenantId], references: [id])
   listing Listing @relation(fields: [listingId], references: [id])
   file File @relation(fields: [fileId], references: [id])
-  tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId, listingId])
-  @@index([tenantId, sortOrder])
   @@map("listing_media")
 }
 
 model Inquiry {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  leadId    String   @db.Uuid @map("lead_id")
-  listingId String   @db.Uuid @map("listing_id")
-  inquiryType String @map("inquiry_type")
+  leadId    String?  @db.Uuid @map("lead_id")
+  contactId String?  @db.Uuid @map("contact_id")
+  content   String
+  status    String   @default("new")
   createdAt DateTime @default(now()) @map("created_at")
 
-  lead Lead @relation(fields: [leadId], references: [id])
-  listing Listing @relation(fields: [listingId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
-  @@index([tenantId, leadId])
-  @@index([tenantId, listingId])
+  @@index([tenantId, status])
   @@map("inquiries")
 }
 
 model Deal {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  leadId    String   @db.Uuid @map("lead_id")
   listingId String   @db.Uuid @map("listing_id")
-  stage     String   @default("negotiation")
-  dealValue Decimal? @db.Decimal(14, 2) @map("deal_value")
-  status    String   @default("open")
+  leadId    String   @db.Uuid @map("lead_id")
+  dealId    String?  @db.Uuid @map("deal_id")
+  price     Decimal  @db.Decimal(14, 2)
+  netProfit Decimal? @map("net_profit") @db.Decimal(14, 2)
+  
+  status    String   @default("pending")
+  approvalStatus String @default("pending") @map("approval_status")
+  stage     String   @default("prospecting")
+  
+  approvedByUserId String? @db.Uuid @map("approved_by_user_id")
+  approvedBy User? @relation("DealApprover", fields: [approvedByUserId], references: [id])
+
   closedAt  DateTime? @map("closed_at")
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
 
-  lead Lead @relation(fields: [leadId], references: [id])
-  listing Listing @relation(fields: [listingId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
-  offers Offer[]
+  listing Listing @relation(fields: [listingId], references: [id])
   commissions CommissionLedger[]
+  lead Lead @relation(fields: [leadId], references: [id])
+  offers Offer[]
 
-  @@index([tenantId, leadId])
   @@index([tenantId, status])
-  @@index([tenantId, closedAt])
   @@map("deals")
 }
 
 model Offer {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  dealId    String   @db.Uuid @map("deal_id")
-  amount    Decimal  @db.Decimal(14, 2)
-  status    String   @default("submitted")
-  submittedAt DateTime @default(now()) @map("submitted_at")
-  decidedAt DateTime? @map("decided_at")
+  listingId String   @db.Uuid @map("listing_id")
+  leadId    String   @db.Uuid @map("lead_id")
+  dealId    String?  @db.Uuid @map("deal_id")
+  price     Decimal  @db.Decimal(14, 2)
+  status    String   @default("pending")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  deal Deal @relation(fields: [dealId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
+  listing Listing @relation(fields: [listingId], references: [id])
+  deal Deal? @relation(fields: [dealId], references: [id])
 
-  @@index([tenantId, dealId])
   @@index([tenantId, status])
   @@map("offers")
 }
@@ -1048,25 +1044,27 @@ model Meeting {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
   leadId    String   @db.Uuid @map("lead_id")
-  organizerUserId String? @db.Uuid @map("organizer_user_id")
+  organizerUserId String @db.Uuid @map("organizer_user_id")
   title     String
   startsAt  DateTime @map("starts_at")
   endsAt    DateTime @map("ends_at")
-  timezone  String
+  timezone  String   @default("UTC")
+  location  String?
   status    String   @default("scheduled")
+  notes     String?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  lead Lead @relation(fields: [leadId], references: [id])
-  organizer User? @relation("MeetingOrganizer", fields: [organizerUserId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
+  lead Lead @relation(fields: [leadId], references: [id])
+  organizer User @relation("MeetingOrganizer", fields: [organizerUserId], references: [id])
   participants MeetingParticipant[]
   rescheduleRequests MeetingRescheduleRequest[]
   reminders MeetingReminder[]
 
   @@index([tenantId, leadId])
-  @@index([tenantId, startsAt])
   @@index([tenantId, organizerUserId])
+  @@index([tenantId, startsAt])
   @@map("meetings")
 }
 
@@ -1074,16 +1072,17 @@ model MeetingParticipant {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
   meetingId String   @db.Uuid @map("meeting_id")
-  participantType String @map("participant_type")
-  participantRefId String @db.Uuid @map("participant_ref_id")
-  responseStatus String @default("pending") @map("response_status")
+  userId    String?  @db.Uuid @map("user_id")
+  contactId String?  @db.Uuid @map("contact_id")
+  status    String   @default("pending")
   createdAt DateTime @default(now()) @map("created_at")
 
-  meeting Meeting @relation(fields: [meetingId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
+  meeting Meeting @relation(fields: [meetingId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
+  contact Contact? @relation(fields: [contactId], references: [id])
 
   @@index([tenantId, meetingId])
-  @@index([tenantId, participantType])
   @@map("meeting_participants")
 }
 
@@ -1091,13 +1090,13 @@ model MeetingRoom {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
   name      String
-  capacity  Int?
-  status    String   @default("active")
+  capacity  Int
+  location  String?
   createdAt DateTime @default(now()) @map("created_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
-  @@index([tenantId, status])
+  @@index([tenantId, name])
   @@map("meeting_rooms")
 }
 
@@ -1105,18 +1104,18 @@ model MeetingRescheduleRequest {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
   meetingId String   @db.Uuid @map("meeting_id")
-  requestedBy String? @db.Uuid @map("requested_by")
-  proposedStartsAt DateTime @map("proposed_starts_at")
-  proposedEndsAt DateTime @map("proposed_ends_at")
-  status    String  @default("pending")
+  requestedBy String @db.Uuid @map("requested_by")
+  suggestedStart DateTime @map("suggested_start")
+  suggestedEnd DateTime @map("suggested_end")
+  reason    String?
+  status    String   @default("pending")
   createdAt DateTime @default(now()) @map("created_at")
 
-  meeting Meeting @relation(fields: [meetingId], references: [id])
-  requester User? @relation(fields: [requestedBy], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
+  meeting Meeting @relation(fields: [meetingId], references: [id])
+  requester User @relation(fields: [requestedBy], references: [id])
 
   @@index([tenantId, meetingId])
-  @@index([tenantId, status])
   @@map("meeting_reschedule_requests")
 }
 
@@ -1124,15 +1123,15 @@ model MeetingReminder {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
   meetingId String   @db.Uuid @map("meeting_id")
-  scheduledAt DateTime @map("scheduled_at")
-  status    String  @default("queued")
+  minutesBefore Int  @map("minutes_before")
+  method    String   @default("notification") // notification, email, sms
+  isSent    Boolean  @default(false) @map("is_sent")
   createdAt DateTime @default(now()) @map("created_at")
 
-  meeting Meeting @relation(fields: [meetingId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
+  meeting Meeting @relation(fields: [meetingId], references: [id])
 
-  @@index([tenantId, scheduledAt])
-  @@index([tenantId, status])
+  @@index([tenantId, meetingId])
   @@map("meeting_reminders")
 }
 
@@ -1140,17 +1139,14 @@ model ReassignmentRule {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
   name      String
-  triggerKey String @map("trigger_key")
-  conditions Json?
-  action    Json?
-  isActive  Boolean @default(true) @map("is_active")
+  condition Json     // e.g. { "days_inactive": 7, "status": "new" }
+  action    Json     // e.g. { "reassign_to": "pool", "pool_id": "..." }
+  isEnabled Boolean  @default(true) @map("is_enabled")
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
-  events ReassignmentEvent[]
 
-  @@index([tenantId, triggerKey])
-  @@index([tenantId, isActive])
   @@map("reassignment_rules")
 }
 
@@ -1158,13 +1154,13 @@ model ReassignmentPool {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
   name      String
-  strategy  String
+  strategy  String   @default("round_robin")
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   members PoolMember[]
 
-  @@index([tenantId, name])
   @@map("reassignment_pools")
 }
 
@@ -1174,14 +1170,14 @@ model PoolMember {
   poolId    String   @db.Uuid @map("pool_id")
   userId    String   @db.Uuid @map("user_id")
   weight    Int      @default(1)
+  lastAssignedAt DateTime? @map("last_assigned_at")
   createdAt DateTime @default(now()) @map("created_at")
 
+  tenant Tenant @relation(fields: [tenantId], references: [id])
   pool ReassignmentPool @relation(fields: [poolId], references: [id])
   user User @relation(fields: [userId], references: [id])
-  tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId, poolId])
-  @@index([tenantId, userId])
   @@map("pool_members")
 }
 
@@ -1208,110 +1204,93 @@ model ReassignmentEvent {
   tenantId  String   @db.Uuid @map("tenant_id")
   leadId    String   @db.Uuid @map("lead_id")
   fromUserId String? @db.Uuid @map("from_user_id")
-  toUserId  String   @db.Uuid @map("to_user_id")
-  ruleId    String?  @db.Uuid @map("rule_id")
-  createdAt DateTime @default(now()) @map("created_at")
+  toUserId  String?  @db.Uuid @map("to_user_id")
+  reason    String?
+  occurredAt DateTime @default(now()) @map("occurred_at")
 
-  lead Lead @relation(fields: [leadId], references: [id])
-  fromUser User? @relation("ReassignFrom", fields: [fromUserId], references: [id])
-  toUser User @relation("ReassignTo", fields: [toUserId], references: [id])
-  rule ReassignmentRule? @relation(fields: [ruleId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
+  fromUser User? @relation("ReassignFrom", fields: [fromUserId], references: [id])
+  toUser User? @relation("ReassignTo", fields: [toUserId], references: [id])
 
   @@index([tenantId, leadId])
-  @@index([tenantId, fromUserId])
-  @@index([tenantId, toUserId])
   @@map("reassignment_events")
 }
 
 model WhatsappAccount {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  provider  String
   phoneNumber String @map("phone_number")
-  status    String   @default("active")
-  config    Json?
+  displayName String? @map("display_name")
+  isConnected Boolean @default(false) @map("is_connected")
+  config    Json?    // API keys, etc
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
+  templates WhatsappTemplate[]
   messages WhatsappMessage[]
 
   @@index([tenantId, phoneNumber])
-  @@index([tenantId, status])
   @@map("whatsapp_accounts")
 }
 
 model WhatsappTemplate {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
+  accountId String   @db.Uuid @map("account_id")
   name      String
-  language  String
-  body      String
-  variables Json?
-  status    String   @default("approved")
+  content   String
+  status    String   @default("active")
   createdAt DateTime @default(now()) @map("created_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
-  messages WhatsappMessage[]
+  account WhatsappAccount @relation(fields: [accountId], references: [id])
 
-  @@index([tenantId, name])
-  @@index([tenantId, status])
+  @@index([tenantId, accountId])
   @@map("whatsapp_templates")
 }
 
 model WhatsappMessage {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  accountId String?  @db.Uuid @map("account_id")
-  leadId    String?  @db.Uuid @map("lead_id")
-  contactId String?  @db.Uuid @map("contact_id")
-  templateId String? @db.Uuid @map("template_id")
-  direction String
-  status    String   @default("queued")
-  payload   Json?
-  providerMessageId String? @map("provider_message_id")
+  accountId String   @db.Uuid @map("account_id")
+  toPhone   String   @map("to_phone")
+  content   String
+  status    String   @default("queued") // queued, sent, delivered, read, failed
   sentAt    DateTime? @map("sent_at")
-  deliveredAt DateTime? @map("delivered_at")
   createdAt DateTime @default(now()) @map("created_at")
 
-  account WhatsappAccount? @relation(fields: [accountId], references: [id])
-  lead Lead? @relation(fields: [leadId], references: [id])
-  contact Contact? @relation(fields: [contactId], references: [id])
-  template WhatsappTemplate? @relation(fields: [templateId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
+  account WhatsappAccount @relation(fields: [accountId], references: [id])
 
-  @@index([tenantId, leadId])
-  @@index([tenantId, status])
-  @@index([tenantId, sentAt])
+  @@index([tenantId, accountId])
+  @@index([tenantId, toPhone])
   @@map("whatsapp_messages")
 }
 
 model WhatsappWebhook {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  provider  String
-  eventType String   @map("event_type")
-  payload   Json?
-  receivedAt DateTime @default(now()) @map("received_at")
+  url       String
+  events    Json     // array of event names
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
-  @@index([tenantId, eventType])
-  @@index([receivedAt])
   @@map("whatsapp_webhooks")
 }
 
 model WhatsappOptOut {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  contactId String   @db.Uuid @map("contact_id")
+  phone     String
   reason    String?
-  optedOutAt DateTime @default(now()) @map("opted_out_at")
+  createdAt DateTime @default(now()) @map("created_at")
 
-  contact Contact @relation(fields: [contactId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
-  @@index([tenantId, contactId])
+  @@unique([tenantId, phone])
   @@map("whatsapp_opt_outs")
 }
 
@@ -1319,36 +1298,33 @@ model ReminderRule {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
   name      String
-  triggerKey String @map("trigger_key")
-  schedule  Json?
-  channel   String
-  isActive  Boolean @default(true) @map("is_active")
+  condition Json     // e.g. { "state": "call", "hours_inactive": 24 }
+  message   String
+  method    String   @default("notification") // notification, whatsapp, email
+  isEnabled Boolean  @default(true) @map("is_enabled")
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   schedules ReminderSchedule[]
-  sent RemindersSent[]
 
-  @@index([tenantId, triggerKey])
-  @@index([tenantId, isActive])
   @@map("reminder_rules")
 }
 
 model ReminderSchedule {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  leadId    String   @db.Uuid @map("lead_id")
   ruleId    String   @db.Uuid @map("rule_id")
-  scheduledAt DateTime @map("scheduled_at")
-  status    String   @default("queued")
+  leadId    String   @db.Uuid @map("lead_id")
+  dueAt     DateTime @map("due_at")
+  status    String   @default("pending") // pending, sent, cancelled
   createdAt DateTime @default(now()) @map("created_at")
 
-  rule ReminderRule @relation(fields: [ruleId], references: [id])
-  lead Lead @relation(fields: [leadId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
-
-  @@index([tenantId, scheduledAt])
-  @@index([tenantId, status])
+  rule ReminderRule @relation(fields: [ruleId], references: [id])
+  
+  @@index([tenantId, leadId])
+  @@index([tenantId, dueAt])
   @@map("reminder_schedules")
 }
 
@@ -1356,17 +1332,13 @@ model RemindersSent {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
   leadId    String   @db.Uuid @map("lead_id")
-  ruleId    String   @db.Uuid @map("rule_id")
-  channel   String
+  content   String
+  method    String
   sentAt    DateTime @default(now()) @map("sent_at")
-  result    String?
 
-  rule ReminderRule @relation(fields: [ruleId], references: [id])
-  lead Lead @relation(fields: [leadId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId, leadId])
-  @@index([tenantId, sentAt])
   @@map("reminders_sent")
 }
 
@@ -1374,13 +1346,14 @@ model CommissionPlan {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
   name      String
-  isActive  Boolean @default(true) @map("is_active")
+  targetAmount Decimal @db.Decimal(14, 2) @map("target_amount")
+  baseRate  Decimal  @db.Decimal(5, 2) @map("base_rate") // percentage
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   rules CommissionRule[]
 
-  @@index([tenantId, isActive])
   @@map("commission_plans")
 }
 
@@ -1389,10 +1362,13 @@ model CommissionRule {
   tenantId  String   @db.Uuid @map("tenant_id")
   planId    String   @db.Uuid @map("plan_id")
   rule      Json?
+  minAmount Decimal? @db.Decimal(14, 2) @map("min_amount")
+  maxAmount Decimal? @db.Decimal(14, 2) @map("max_amount")
+  rate      Decimal? @db.Decimal(5, 2)
   createdAt DateTime @default(now()) @map("created_at")
 
-  plan CommissionPlan @relation(fields: [planId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
+  plan CommissionPlan @relation(fields: [planId], references: [id])
 
   @@index([tenantId, planId])
   @@map("commission_rules")
@@ -1401,22 +1377,21 @@ model CommissionRule {
 model CommissionLedger {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  dealId    String   @db.Uuid @map("deal_id")
   userId    String   @db.Uuid @map("user_id")
+  dealId    String?  @db.Uuid @map("deal_id")
+  leadId    String?  @db.Uuid @map("lead_id")
   amount    Decimal  @db.Decimal(14, 2)
   currency  String   @default("USD")
   entryType String   @map("entry_type")
   status    String   @default("pending")
   createdAt DateTime @default(now()) @map("created_at")
 
-  deal Deal @relation(fields: [dealId], references: [id])
-  user User @relation(fields: [userId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+  deal Deal? @relation(fields: [dealId], references: [id])
   approvals CommissionApproval[]
 
-  @@index([tenantId, dealId])
   @@index([tenantId, userId])
-  @@index([tenantId, status])
   @@map("commission_ledger")
 }
 
@@ -1424,16 +1399,15 @@ model CommissionApproval {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
   ledgerId  String   @db.Uuid @map("ledger_id")
-  approvedBy String? @db.Uuid @map("approved_by")
   status    String   @default("pending")
+  approvedBy String? @db.Uuid @map("approved_by")
   decidedAt DateTime? @map("decided_at")
   createdAt DateTime @default(now()) @map("created_at")
 
-  ledger CommissionLedger @relation(fields: [ledgerId], references: [id])
-  approver User? @relation(fields: [approvedBy], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
+  ledger CommissionLedger @relation(fields: [ledgerId], references: [id])
+  approver User? @relation("CommissionApprover", fields: [approvedBy], references: [id])
 
-  @@index([tenantId, ledgerId])
   @@index([tenantId, status])
   @@map("commission_approvals")
 }
@@ -1441,17 +1415,14 @@ model CommissionApproval {
 model BlacklistEntry {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  identifierType String @map("identifier_type")
-  identifierValue String @map("identifier_value")
+  phone     String
   reason    String?
-  severity  String
+  addedBy   String?  @db.Uuid @map("added_by")
   createdAt DateTime @default(now()) @map("created_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
-  matches BlacklistMatch[]
 
-  @@index([tenantId, identifierType, identifierValue])
-  @@index([tenantId, severity])
+  @@index([tenantId, phone])
   @@map("blacklist_entries")
 }
 
@@ -1460,16 +1431,11 @@ model BlacklistMatch {
   tenantId  String   @db.Uuid @map("tenant_id")
   leadId    String   @db.Uuid @map("lead_id")
   entryId   String   @db.Uuid @map("entry_id")
-  matchScore Decimal @db.Decimal(5, 2) @map("match_score")
-  status    String   @default("flagged")
-  createdAt DateTime @default(now()) @map("created_at")
+  matchedAt DateTime @default(now()) @map("matched_at")
 
-  lead Lead @relation(fields: [leadId], references: [id])
-  entry BlacklistEntry @relation(fields: [entryId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId, leadId])
-  @@index([tenantId, status])
   @@map("blacklist_matches")
 }
 
@@ -1477,15 +1443,13 @@ model RiskScore {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
   leadId    String   @db.Uuid @map("lead_id")
-  score     Decimal  @db.Decimal(5, 2)
-  factors   Json?
+  score     Int
+  factors   Json
   createdAt DateTime @default(now()) @map("created_at")
 
-  lead Lead @relation(fields: [leadId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId, leadId])
-  @@index([tenantId, score])
   @@map("risk_scores")
 }
 
@@ -1493,36 +1457,34 @@ model LeadScore {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
   leadId    String   @db.Uuid @map("lead_id")
-  score     Decimal  @db.Decimal(5, 2)
-  reasons   Json?
-  createdAt DateTime @default(now()) @map("created_at")
+  score     Int
+  factors   Json
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  lead Lead @relation(fields: [leadId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId, leadId])
-  @@index([tenantId, score])
   @@map("lead_scores")
 }
 
 model LeadMetricsDaily {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  metricDate DateTime @db.Date @map("metric_date")
-  teamId    String?  @db.Uuid @map("team_id")
+  date      DateTime @db.Date
   userId    String?  @db.Uuid @map("user_id")
-  leadsCreated Int @default(0) @map("leads_created")
-  leadsClosed Int @default(0) @map("leads_closed")
-  avgCycleHours Decimal? @db.Decimal(10, 2) @map("avg_cycle_hours")
-  createdAt DateTime @default(now()) @map("created_at")
+  teamId    String?  @db.Uuid @map("team_id")
+  
+  newLeadsCount Int @default(0) @map("new_leads_count")
+  callsCount    Int @default(0) @map("calls_count")
+  meetingsCount Int @default(0) @map("meetings_count")
+  closingsCount Int @default(0) @map("closings_count")
+  revenueAmount Decimal @default(0) @db.Decimal(14, 2) @map("revenue_amount")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
-  team Team? @relation(fields: [teamId], references: [id])
   user User? @relation(fields: [userId], references: [id])
+  team Team? @relation(fields: [teamId], references: [id])
 
-  @@index([tenantId, metricDate])
-  @@index([tenantId, teamId])
-  @@index([tenantId, userId])
+  @@unique([tenantId, date, userId, teamId])
   @@map("lead_metrics_daily")
 }
 
@@ -1530,15 +1492,14 @@ model DisciplineIndexSnapshot {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
   userId    String   @db.Uuid @map("user_id")
-  snapshotDate DateTime @db.Date @map("snapshot_date")
-  score     Decimal @db.Decimal(5, 2)
-  factors   Json?
+  date      DateTime @db.Date
+  score     Int
+  details   Json
   createdAt DateTime @default(now()) @map("created_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   user User @relation(fields: [userId], references: [id])
 
-  @@index([tenantId, snapshotDate])
   @@index([tenantId, userId])
   @@map("discipline_index_snapshots")
 }
@@ -1546,16 +1507,91 @@ model DisciplineIndexSnapshot {
 model RankingSnapshot {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  snapshotDate DateTime @db.Date @map("snapshot_date")
-  rankingType String @map("ranking_type")
+  period    String   // e.g. "2023-10"
+  type      String   // "user" or "team"
+  entityId  String   @db.Uuid @map("entity_id")
+  rank      Int
+  score     Int
   payload   Json?
   createdAt DateTime @default(now()) @map("created_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
-  @@index([tenantId, snapshotDate])
-  @@index([tenantId, rankingType])
+  @@index([tenantId, period])
   @@map("ranking_snapshots")
+}
+
+model NotificationEvent {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  code      String   @unique
+  name      String
+  description String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("notification_events")
+}
+
+model NotificationRule {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  eventCode String   @map("event_code")
+  channels  Json     // ["web", "email", "push"]
+  recipients Json    // { "roles": ["admin"], "users": [] }
+  template  String
+  isEnabled Boolean  @default(true) @map("is_enabled")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, eventCode])
+  @@map("notification_rules")
+}
+
+model NotificationDelivery {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  userId    String   @db.Uuid @map("user_id")
+  senderId  String?  @db.Uuid @map("sender_id") // Who triggered this notification?
+  type      String   // info, success, warning, error, mention, assignment
+  title     String
+  message   String
+  entityId  String?  @map("entity_id") // ID of related entity (lead, task, etc.)
+  entityType String? @map("entity_type") // lead, task, deal, etc.
+  actionUrl String?  @map("action_url") // Where to go when clicked
+  metadata  Json?    // Extra data (e.g. { "dealValue": 5000 })
+  isRead    Boolean  @default(false) @map("is_read")
+  isArchived Boolean @default(false) @map("is_archived")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sender User?  @relation("NotificationSender", fields: [senderId], references: [id])
+
+  @@index([tenantId, userId])
+  @@index([tenantId, isRead])
+  @@map("notification_deliveries")
+}
+
+model NotificationQuota {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  userId    String   @db.Uuid @map("user_id")
+  channel   String
+  limit     Int
+  used      Int      @default(0)
+  period    String   // "daily", "monthly"
+  resetAt   DateTime @map("reset_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([tenantId, userId, channel, period])
+  @@map("notification_quotas")
 }
 
 model GoalPlan {
@@ -1566,6 +1602,7 @@ model GoalPlan {
   startsAt  DateTime @map("starts_at")
   endsAt    DateTime @map("ends_at")
   status    String   @default("active")
+  isPinned  Boolean  @default(false) @map("is_pinned")
   createdAt DateTime @default(now()) @map("created_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
@@ -1580,107 +1617,41 @@ model GoalTarget {
   id          String   @id @default(uuid()) @db.Uuid
   tenantId    String   @db.Uuid @map("tenant_id")
   planId      String   @db.Uuid @map("plan_id")
-  subjectType String   @map("subject_type")
-  subjectId   String   @db.Uuid @map("subject_id")
+  
+  subjectType String   @map("subject_type") // user, team, all
+  subjectId   String   @map("subject_id")
+  
   metricKey   String   @map("metric_key")
-  targetValue Decimal  @db.Decimal(14, 2) @map("target_value")
+  targetValue Decimal  @map("target_value") @db.Decimal(10, 2)
   weight      Decimal? @db.Decimal(5, 2)
+  bonusAmount Decimal? @map("bonus_amount") @db.Decimal(14, 2)
+  
   achievedAt  DateTime? @map("achieved_at")
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   plan GoalPlan @relation(fields: [planId], references: [id])
 
-  @@index([tenantId, planId])
-  @@index([tenantId, subjectType, subjectId])
-  @@index([tenantId, metricKey])
+  @@index([planId])
+  @@index([subjectType, subjectId])
   @@map("goal_targets")
-}
-
-model NotificationEvent {
-  id        String   @id @default(uuid()) @db.Uuid
-  tenantId  String   @db.Uuid @map("tenant_id")
-  eventKey  String   @map("event_key")
-  payload   Json?
-  createdAt DateTime @default(now()) @map("created_at")
-
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  deliveries NotificationDelivery[]
-
-  @@index([tenantId, eventKey])
-  @@index([createdAt])
-  @@map("notification_events")
-}
-
-model NotificationRule {
-  id        String   @id @default(uuid()) @db.Uuid
-  tenantId  String   @db.Uuid @map("tenant_id")
-  eventKey  String   @map("event_key")
-  channel   String
-  recipients Json?
-  templateRef String? @map("template_ref")
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  deliveries NotificationDelivery[]
-
-  @@index([tenantId, eventKey])
-  @@index([tenantId, isActive])
-  @@map("notification_rules")
-}
-
-model NotificationDelivery {
-  id        String   @id @default(uuid()) @db.Uuid
-  tenantId  String   @db.Uuid @map("tenant_id")
-  ruleId    String?  @db.Uuid @map("rule_id")
-  eventId   String   @db.Uuid @map("event_id")
-  channel   String
-  status    String   @default("queued")
-  scheduledAt DateTime? @map("scheduled_at")
-  sentAt    DateTime? @map("sent_at")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  rule NotificationRule? @relation(fields: [ruleId], references: [id])
-  event NotificationEvent @relation(fields: [eventId], references: [id])
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-
-  @@index([tenantId, status])
-  @@index([tenantId, scheduledAt])
-  @@map("notification_deliveries")
-}
-
-model NotificationQuota {
-  id        String   @id @default(uuid()) @db.Uuid
-  tenantId  String   @db.Uuid @map("tenant_id")
-  userId    String   @db.Uuid @map("user_id")
-  dayKey    String   @map("day_key")
-  sentCount Int      @default(0) @map("sent_count")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  tenant Tenant @relation(fields: [tenantId], references: [id])
-  user User @relation(fields: [userId], references: [id])
-
-  @@unique([tenantId, userId, dayKey])
-  @@index([tenantId, dayKey])
-  @@map("notification_quota")
 }
 
 model ScheduledJob {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  jobKey    String   @map("job_key")
-  schedule  String
-  isActive  Boolean  @default(true) @map("is_active")
+  name      String
+  schedule  String   // cron expression
+  handler   String
+  isEnabled Boolean  @default(true) @map("is_enabled")
   lastRunAt DateTime? @map("last_run_at")
   createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
   runs JobRun[]
 
-  @@index([tenantId, jobKey])
-  @@index([tenantId, isActive])
   @@map("scheduled_jobs")
 }
 
@@ -1688,28 +1659,27 @@ model JobRun {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
   jobId     String   @db.Uuid @map("job_id")
-  startedAt DateTime @map("started_at")
-  finishedAt DateTime? @map("finished_at")
-  status    String
+  startedAt DateTime @default(now()) @map("started_at")
+  endedAt   DateTime? @map("ended_at")
+  status    String   // running, success, failed
   result    Json?
-  createdAt DateTime @default(now()) @map("created_at")
+  error     String?
 
-  job ScheduledJob @relation(fields: [jobId], references: [id])
   tenant Tenant @relation(fields: [tenantId], references: [id])
+  job ScheduledJob @relation(fields: [jobId], references: [id])
 
-  @@index([tenantId, jobId])
-  @@index([tenantId, status])
-  @@index([startedAt])
+  @@index([jobId])
   @@map("job_runs")
 }
 
 model Conversation {
   id        String   @id @default(uuid()) @db.Uuid
   tenantId  String   @db.Uuid @map("tenant_id")
-  type      String
+  type      String   // direct, group, channel
   title     String?
-  entityType String?
-  entityId   String? @db.Uuid
+  entityType String? @map("entity_type") // team, lead, etc.
+  entityId  String?  @map("entity_id")
+  metadata  Json?
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
@@ -1719,7 +1689,6 @@ model Conversation {
   messages Message[]
 
   @@index([tenantId, type])
-  @@index([tenantId, entityType, entityId])
   @@map("conversations")
 }
 
@@ -1728,15 +1697,15 @@ model ConversationParticipant {
   tenantId  String   @db.Uuid @map("tenant_id")
   conversationId String @db.Uuid @map("conversation_id")
   userId    String   @db.Uuid @map("user_id")
-  role      String   @default("member")
+  role      String   @default("member") // admin, member
   joinedAt  DateTime @default(now()) @map("joined_at")
+  lastReadAt DateTime? @map("last_read_at")
 
+  tenant Tenant @relation(fields: [tenantId], references: [id])
   conversation Conversation @relation(fields: [conversationId], references: [id])
   user User @relation(fields: [userId], references: [id])
-  tenant Tenant @relation(fields: [tenantId], references: [id])
 
-  @@index([tenantId, conversationId])
-  @@index([tenantId, userId])
+  @@unique([conversationId, userId])
   @@map("conversation_participants")
 }
 
@@ -1746,18 +1715,23 @@ model Message {
   conversationId String @db.Uuid @map("conversation_id")
   senderId  String   @db.Uuid @map("sender_id")
   content   String?
-  contentType String @default("text")
-  mediaFileId String? @db.Uuid @map("media_file_id")
+  contentType String @default("text") @map("content_type") // text, image, file
+  fileId    String?  @db.Uuid @map("file_id")
+  metadata  Json?
+  
+  replyToId String?  @db.Uuid @map("reply_to_id")
+  replyTo   Message? @relation("ReplyTo", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   Message[] @relation("ReplyTo")
+  
   createdAt DateTime @default(now()) @map("created_at")
-  readBy    Json?
+  updatedAt DateTime @updatedAt @map("updated_at")
+  editedAt  DateTime? @map("edited_at")
+  deletedAt DateTime? @map("deleted_at")
 
+  tenant Tenant @relation(fields: [tenantId], references: [id])
   conversation Conversation @relation(fields: [conversationId], references: [id])
   sender User @relation(fields: [senderId], references: [id])
-  mediaFile File? @relation(fields: [mediaFileId], references: [id])
-  tenant Tenant @relation(fields: [tenantId], references: [id])
 
-  @@index([tenantId, conversationId])
-  @@index([tenantId, senderId])
-  @@index([tenantId, createdAt])
+  @@index([conversationId, createdAt])
   @@map("messages")
 }

@@ -21,6 +21,7 @@ import { router as intelligenceRouter } from "./modules/intelligence/routes"
 import { router as authRouter } from "./modules/auth/routes"
 import { router as goalsRouter } from "./modules/goals/routes"
 import { router as conversationRouter } from "./modules/conversations/routes"
+import { router as taskRouter } from "./modules/tasks/routes"
 
 export const createApp = () => {
   const app = express()
@@ -84,6 +85,7 @@ export const createApp = () => {
   app.use("/api/scoring", scoringRouter)
   app.use("/api/intelligence", intelligenceRouter)
   app.use("/api/goals", goalsRouter)
+  app.use("/api/tasks", taskRouter)
 
   app.use(errorHandler)
   return app

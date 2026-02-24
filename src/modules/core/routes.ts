@@ -17,12 +17,22 @@ router.post("/users/:userId/reset-password", requireOwner, requirePermission("us
 router.get("/activity", asyncHandler(coreController.listMyActivity))
 router.post("/users/:userId/transfer", requireOwner, requirePermission("users.update"), asyncHandler(coreController.transferUserTeam))
 router.post("/users/:userId/promote", requireOwner, requirePermission("users.update"), asyncHandler(coreController.promoteToTeamLeader))
+router.post("/users/:userId/demote", requireOwner, requirePermission("users.update"), asyncHandler(coreController.demoteTeamLeader))
 router.post("/user-requests", (req, res, next) => {
   if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
   return requirePermission("user_requests.create")(req, res, next)
 }, asyncHandler(coreController.createUserRequest))
-router.get("/user-requests", requirePermission("user_requests.read"), asyncHandler(coreController.listUserRequests))
-router.post("/user-requests/:requestId/decide", requirePermission("user_requests.decide"), asyncHandler(coreController.decideUserRequest))
+router.get("/user-requests", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("user_requests.read")(req, res, next)
+}, asyncHandler(coreController.listUserRequests))
+
+router.post("/user-requests/:requestId/decide", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader")) return next()
+  return requirePermission("user_requests.decide")(req, res, next)
+}, asyncHandler(coreController.decideUserRequest))
+
+router.post("/registrations/:userId/approve", requireOwner, asyncHandler(coreController.approveRegistration))
 
 router.post("/roles", requireOwner, requirePermission("roles.create"), asyncHandler(coreController.createRole))
 router.get("/roles", requireOwner, requirePermission("roles.read"), asyncHandler(coreController.listRoles))
@@ -33,6 +43,20 @@ router.put("/roles/:roleId/permissions", requireOwner, requirePermission("roles.
 
 router.post("/teams", requirePermission("teams.create"), asyncHandler(coreController.createTeam))
 router.get("/teams", requirePermission("teams.read"), asyncHandler(coreController.listTeams))
+router.put("/teams/:teamId", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader")) return next()
+  return requirePermission("teams.update")(req, res, next)
+}, asyncHandler(coreController.updateTeam))
+router.delete("/teams/:teamId/members/:userId", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader")) return next()
+  return requirePermission("teams.update")(req, res, next)
+}, asyncHandler(coreController.removeTeamMember))
+
+router.post("/teams/:teamId/remind", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader")) return next()
+  return requirePermission("teams.update")(req, res, next)
+}, asyncHandler(coreController.remindTeamMember))
+
 router.delete("/teams/:teamId", requireOwner, requirePermission("teams.delete"), asyncHandler(coreController.deleteTeam))
 
 router.post("/files", requirePermission("files.create"), asyncHandler(coreController.createFile))

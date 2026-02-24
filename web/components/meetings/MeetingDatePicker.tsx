@@ -17,18 +17,21 @@ import { useLocale } from "../../lib/i18n/LocaleContext"
 import { meetingService } from "../../lib/services/meetingService"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 
-export const MeetingDatePicker = () => {
+export const MeetingDatePicker = ({ date: propDate, onDateChange }: { date?: Date, onDateChange?: (date: Date) => void }) => {
   const { data, isLoading, isError } = useMeetings()
   const { data: leads } = useLeads()
   const { token, role, userId } = useAuth()
   const { dir } = useLocale()
   const queryClient = useQueryClient()
 
-  const [selected, setSelected] = useState<Date | undefined>()
+  const [selected, setSelected] = useState<Date | undefined>(propDate || new Date())
 
   useEffect(() => {
-    setSelected(new Date())
-  }, [])
+    if (propDate) {
+      setSelected(propDate)
+    }
+  }, [propDate])
+
   const [leadId, setLeadId] = useState("")
   const [title, setTitle] = useState("")
   const [startsAt, setStartsAt] = useState("")
@@ -38,6 +41,9 @@ export const MeetingDatePicker = () => {
   // Sync DayPicker with input
   const handleDaySelect = (date: Date | undefined) => {
     setSelected(date)
+    if (onDateChange && date) {
+      onDateChange(date)
+    }
     if (date) {
       // If there's an existing time in startsAt, preserve it. Otherwise default to 09:00
       let hour = 9

@@ -11,13 +11,13 @@ export const reminderController = {
   },
   schedule: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
-    const schedule = await reminderService.scheduleReminder(tenantId, req.body)
+    const schedule = await reminderService.createSchedule(tenantId, req.body)
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "reminder.scheduled", entityType: "reminder_schedule", entityId: schedule.id })
     res.json(schedule)
   },
   markSent: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
-    const record = await reminderService.markSent(tenantId, req.body)
+    const record = await reminderService.createSent(tenantId, req.body)
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "reminder.sent", entityType: "reminder_sent", entityId: record.id })
     res.json(record)
   }

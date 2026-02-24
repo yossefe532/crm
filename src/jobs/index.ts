@@ -8,8 +8,19 @@ import { meetingReminderJob } from "./meetingReminderJob"
 import { runDailyReportJob } from "./dailyReportJob"
 import { runWeeklyReportJob } from "./weeklyReportJob"
 import { runGoalCleanupJob } from "./goalCleanupJob"
+import { runGoalCheckJob } from "./goalCheckJob"
+
+import { taskReminderJob } from "./taskReminderJob"
 
 export const startJobs = () => {
+  cron.schedule("*/5 * * * *", async () => {
+    try {
+      await taskReminderJob()
+    } catch (error) {
+      console.error("Task reminder job failed", error)
+    }
+  }, { timezone: env.cronTimezone })
+
   cron.schedule("0 */6 * * *", async () => {
     const tenants = await prisma.tenant.findMany({ where: { deletedAt: null }, select: { id: true } })
     await Promise.all(tenants.map((t: { id: string }) => runLeadCountdownJob(t.id)))
@@ -31,6 +42,11 @@ export const startJobs = () => {
     } catch (error) {
       console.error("Meeting reminder job failed", error)
     }
+  }, { timezone: env.cronTimezone })
+
+  cron.schedule("0 * * * *", async () => {
+    const tenants = await prisma.tenant.findMany({ where: { deletedAt: null }, select: { id: true } })
+    await Promise.all(tenants.map((t: { id: string }) => runGoalCheckJob(t.id)))
   }, { timezone: env.cronTimezone })
 
   cron.schedule("0 1 * * *", async () => {

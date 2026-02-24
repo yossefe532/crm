@@ -22,6 +22,10 @@ import { ConfirmationModal } from "../ui/ConfirmationModal"
 import { useRouter } from "next/navigation"
 import { ClosureModal } from "./ClosureModal"
 import { FailureModal } from "./FailureModal"
+import { StageTransitionModal } from "./StageTransitionModal"
+import { Countdown } from "./Countdown"
+import { ExtensionRequestModal } from "./ExtensionRequestModal"
+import { DealSubmissionModal } from "./DealSubmissionModal"
 
 import { Modal } from "../ui/Modal"
 
@@ -37,33 +41,53 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [isClosureModalOpen, setIsClosureModalOpen] = useState(false)
   const [isFailureModalOpen, setIsFailureModalOpen] = useState(false)
+  const [isStageTransitionModalOpen, setIsStageTransitionModalOpen] = useState(false)
   const [meetingTitle, setMeetingTitle] = useState("اجتماع جديد")
   const [activeTab, setActiveTab] = useState<"details" | "activity" | "notes">("details")
   const [pendingStage, setPendingStage] = useState<string | null>(null)
+  const [targetStage, setTargetStage] = useState<string | null>(null)
   const [nextAction, setNextAction] = useState<string | null>(null)
   const [pendingMeeting, setPendingMeeting] = useState<Meeting | undefined>(undefined)
 
   const [isEditPhoneOpen, setIsEditPhoneOpen] = useState(false)
   const [newPhone, setNewPhone] = useState("")
+  const [isExtensionModalOpen, setIsExtensionModalOpen] = useState(false)
+  const [isDealModalOpen, setIsDealModalOpen] = useState(false)
 
   const { data: lead, isLoading } = useLead(leadId)
   const isOwnerAssignedToOther = !isLoading && lead && (role === 'owner' || role === 'team_leader') && !!lead.assignedUserId && lead.assignedUserId !== userId
   const { data: users } = useUsers()
   const { data: teams } = useTeams()
   
-  const STAGES = ["new", "call", "meeting", "site_visit", "closing"]
+  // Backend: call, meeting, site_visit, deal, won, lost
+  // Frontend STAGES: new, call, meeting, site_visit, deal
+  const STAGES = ["new", "call", "meeting", "site_visit", "deal"]
   const STAGE_LABELS = ["جديد", "مكالمة هاتفية", "اجتماع", "رؤية الموقع", "إغلاق الصفقة"]
-  
-  const updateStatusMutation = useMutation({
-    mutationFn: async (newStatus: string) => {
-      return leadService.update(leadId, { status: newStatus }, token || undefined)
+
+  // Calculate remaining time
+  const TIMER_DAYS = lead?.isTimerExtended ? 10 : 7
+  const startDate = lead?.timerStartDate ? new Date(lead.timerStartDate) : null
+  let hoursRemaining = 0
+  if (startDate) {
+    const now = new Date()
+    const endDate = new Date(startDate.getTime() + TIMER_DAYS * 24 * 60 * 60 * 1000)
+    const diff = endDate.getTime() - now.getTime()
+    hoursRemaining = Math.max(0, Math.floor(diff / (1000 * 60 * 60)))
+  }
+
+  const advanceStageMutation = useMutation({
+    mutationFn: async () => {
+      return leadService.advanceStage(leadId, token || undefined)
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["lead", leadId] })
-      queryClient.invalidateQueries({ queryKey: ["leads"] })
+    onSuccess: (data) => {
+        queryClient.invalidateQueries({ queryKey: ["lead", leadId] })
+        // If advanced to deal/closing, maybe show confetti?
+    },
+    onError: (error: any) => {
+        alert(error.response?.data?.message || "لا يمكن الانتقال للمرحلة التالية. تأكد من إكمال المتطلبات.")
     }
   })
-
+  
   const updatePhoneMutation = useMutation({
     mutationFn: async () => {
         // 1. Update Phone
@@ -103,52 +127,20 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
     }
   })
 
+  const updateStageMutation = useMutation({
+    mutationFn: async (data: { stage: string, answers?: any }) => {
+        return leadService.updateStage(leadId, data.stage, data.answers, token || undefined)
+    },
+    onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["lead", leadId] })
+        queryClient.invalidateQueries({ queryKey: ["leads"] })
+    }
+  })
+
   const handleStageChange = (index: number) => {
-    if (!lead) return
-    const currentStageIndex = STAGES.indexOf(lead.status)
-    const targetStage = STAGES[index]
-    
-    if (index === currentStageIndex) return
-    
-    // Prevent skipping stages
-    if (index > currentStageIndex + 1) {
-        alert("يجب إكمال المراحل بالترتيب")
-        return
-    }
-
-    // Allow moving back
-    if (index < currentStageIndex) {
-      updateStatusMutation.mutate(targetStage)
-      return
-    }
-
-    // Moving forward
-    setPendingStage(targetStage)
-
-    if (lead.status === 'new') {
-        setIsCallDialogOpen(true)
-        return
-    }
-
-    if (lead.status === 'call') {
-        setIsCallDialogOpen(true)
-        return
-    }
-
-    if (lead.status === 'meeting') {
-        const pending = lead.meetings?.find(m => m.status === 'scheduled')
-        setPendingMeeting(pending)
-        setIsMeetingOutcomeDialogOpen(true)
-        return
-    }
-
-    if (lead.status === 'site_visit') {
-        setIsSiteVisitDialogOpen(true)
-        return
-    }
-    
-    // Fallback
-    updateStatusMutation.mutate(targetStage)
+    // Strict flow: Disable manual stage jumping via progress bar
+    // Just show details or do nothing
+    return;
   }
 
   const usersById = new Map((users || []).map((user) => [user.id, user]))
@@ -239,47 +231,47 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
       )}
 
       {/* Header Card */}
-      <div className="bg-white dark:bg-[#111111] rounded-xl shadow-sm border border-base-200 p-6 relative overflow-hidden">
+      <div className="bg-white dark:bg-[#111111] rounded-xl shadow-sm border border-base-200 p-4 md:p-6 relative overflow-hidden">
         {/* Decorative background element */}
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-500 to-brand-300"></div>
         
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
-          <div className="flex items-start gap-5">
-            <div className="relative">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 md:gap-6">
+          <div className="flex items-start gap-3 md:gap-5 min-w-0">
+            <div className="relative shrink-0">
                 <Avatar 
                 name={lead.name} 
                 size="lg" 
-                className="h-20 w-20 text-2xl bg-brand-50 text-brand-600 border-2 border-white shadow-md"
+                className="h-16 w-16 md:h-20 md:w-20 text-xl md:text-2xl bg-brand-50 text-brand-600 border-2 border-white shadow-md"
                 />
-                <span className={`absolute bottom-0 right-0 w-5 h-5 rounded-full border-2 border-white ${
+                <span className={`absolute bottom-0 right-0 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 border-white ${
                     lead.priority === 'high' ? 'bg-red-500' : 
                     lead.priority === 'low' ? 'bg-green-500' : 'bg-yellow-500'
                 }`} title={`أولوية: ${lead.priority === 'high' ? 'عالية' : lead.priority === 'low' ? 'منخفضة' : 'عادية'}`}></span>
             </div>
             
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-3xl font-bold text-base-900 dark:text-white tracking-tight">{lead.name}</h1>
-                <Badge variant={lead.priority === "high" ? "danger" : lead.priority === "low" ? "success" : "warning"} className="px-2 py-1">
+            <div className="space-y-1.5 md:space-y-2 min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                <h1 className="text-xl md:text-3xl font-bold text-base-900 dark:text-white tracking-tight break-words">{lead.name}</h1>
+                <Badge variant={lead.priority === "high" ? "danger" : lead.priority === "low" ? "success" : "warning"} className="px-1.5 py-0.5 md:px-2 md:py-1 text-xs">
                   {lead.priority === "high" ? "🔥 هام جداً" : lead.priority === "low" ? "منخفض" : "عادي"}
                 </Badge>
                 {lead.leadCode && (
-                  <Badge variant="outline" className="font-mono text-xs">#{lead.leadCode}</Badge>
+                  <Badge variant="outline" className="font-mono text-[10px] md:text-xs">#{lead.leadCode}</Badge>
                 )}
               </div>
               
-              <div className="flex flex-wrap items-center gap-4 text-sm text-base-500">
-                <span className="flex items-center gap-1.5 bg-base-50 dark:bg-base-900 px-2 py-1 rounded-md">
-                   <span className="opacity-70">💼</span>
-                   <span>{lead.profession || "المهنة غير محددة"}</span>
+              <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm text-base-500">
+                <span className="flex items-center gap-1.5 bg-base-50 dark:bg-base-900 px-2 py-1 rounded-md max-w-full truncate">
+                   <span className="opacity-70 shrink-0">💼</span>
+                   <span className="truncate">{lead.profession || "المهنة غير محددة"}</span>
                 </span>
-                <div className="flex items-center gap-2">
-                    <span className="flex items-center gap-1.5 bg-base-50 dark:bg-base-900 px-2 py-1 rounded-md">
-                    <span className="opacity-70">📞</span>
-                    <span className={lead.phone ? (isWrongNumber ? "text-rose-600 font-bold line-through decoration-2" : "text-base-900 dark:text-white font-medium") : "text-base-400"}>
+                <div className="flex items-center gap-2 max-w-full">
+                    <span className="flex items-center gap-1.5 bg-base-50 dark:bg-base-900 px-2 py-1 rounded-md max-w-full truncate">
+                    <span className="opacity-70 shrink-0">📞</span>
+                    <span className={`truncate ${lead.phone ? (isWrongNumber ? "text-rose-600 font-bold line-through decoration-2" : "text-base-900 dark:text-white font-medium") : "text-base-400"}`}>
                         {lead.phone || "لا يوجد هاتف"}
                     </span>
-                    {isWrongNumber && <span className="text-xs text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full font-bold">⚠️ رقم خاطئ</span>}
+                    {isWrongNumber && <span className="text-[10px] md:text-xs text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-full font-bold shrink-0">⚠️ رقم خاطئ</span>}
                     </span>
                     {role === 'owner' && (
                         <button 
@@ -294,37 +286,40 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
                     )}
                 </div>
                 {lead.email && (
-                    <span className="flex items-center gap-1.5 bg-base-50 dark:bg-base-900 px-2 py-1 rounded-md">
-                        <span className="opacity-70">📧</span>
-                        <span className="text-base-900 dark:text-white">{lead.email}</span>
+                    <span className="flex items-center gap-1.5 bg-base-50 dark:bg-base-900 px-2 py-1 rounded-md max-w-full truncate">
+                        <span className="opacity-70 shrink-0">📧</span>
+                        <span className="text-base-900 dark:text-white truncate">{lead.email}</span>
                     </span>
                 )}
               </div>
             </div>
           </div>
           
-          <div className="flex flex-wrap gap-2 w-full md:w-auto mt-2 md:mt-0">
+          <div className="flex flex-wrap gap-2 w-full md:w-auto mt-2 md:mt-0 shrink-0">
             {lead.phone && !isOwnerAssignedToOther && (
-              <>
-                <Button
-                  className="flex-1 md:flex-none bg-[#25D366] hover:bg-[#128C7E] text-white border-transparent gap-2 shadow-sm"
-                  onClick={() => window.open(whatsappLink, "_blank")}
+              <div className="flex gap-2">
+                <a 
+                  href={`https://wa.me/${lead.phone.replace(/\D/g, "").replace(/^0/, "20")}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-sm btn-ghost gap-2 text-emerald-600 hover:bg-emerald-50"
                 >
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                  <span className="w-5 h-5 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+                  </span>
                   واتساب
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1 md:flex-none gap-2"
-                  onClick={() => {
-                    if (callLink) window.location.href = callLink
-                    setIsCallDialogOpen(true)
-                  }}
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                </a>
+                <a 
+                   href={`tel:${lead.phone}`}
+                   onClick={() => setIsCallDialogOpen(true)}
+                   className="btn btn-sm btn-ghost gap-2 text-blue-600 hover:bg-blue-50"
+                 >
+                  <span className="w-5 h-5 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  </span>
                   اتصال
-                </Button>
-              </>
+                </a>
+              </div>
             )}
             {!isOwnerAssignedToOther && (
                 <Button
@@ -336,6 +331,16 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                   جدولة
+                </Button>
+            )}
+            {(lead.status === 'meeting' || lead.status === 'site_visit') && !isOwnerAssignedToOther && (
+                <Button
+                    variant="outline"
+                    className="flex-1 md:flex-none border-blue-300 text-blue-700 hover:bg-blue-50 gap-2"
+                    onClick={() => setIsSiteVisitDialogOpen(true)}
+                >
+                    <span className="w-4 h-4 flex items-center justify-center">📅</span>
+                    جدولة زيارة موقع
                 </Button>
             )}
                 {role === "owner" && (
@@ -417,16 +422,37 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
         onClose={() => setIsCallDialogOpen(false)}
         leadId={leadId}
         phone={lead.phone || ""}
-        onSuccess={(outcome) => {
+        onSuccess={(outcome, notes) => {
             if (nextAction === 'open_meeting_outcome') {
                 setNextAction(null)
                 setIsMeetingOutcomeDialogOpen(true)
                 return
             }
             if (pendingStage && STAGES.indexOf(pendingStage) > STAGES.indexOf(lead.status)) {
-                if (outcome === 'answered') {
-                    updateStatusMutation.mutate(pendingStage)
-                    setPendingStage(null)
+                // Map outcomes to Arabic values expected by backend
+                const outcomeMap: Record<string, string> = {
+                    "answered": "تم الرد",
+                    "no_answer": "لم يتم الرد",
+                    "busy": "مشغول",
+                    "wrong_number": "رقم خاطئ",
+                    "refused": "رفض / غير مهتم"
+                }
+                
+                const arabicOutcome = outcomeMap[outcome] || outcome
+
+                if (pendingStage === 'call') {
+                     updateStageMutation.mutate({ 
+                         stage: 'call', 
+                         answers: { outcome: arabicOutcome, notes: notes || "" } 
+                     })
+                     setPendingStage(null)
+                } else {
+                     // If target is beyond call (e.g. user clicked Meeting but triggered call dialog first?)
+                     // This logic might need review if we allow skipping.
+                     // But for now, if we are just completing the Call stage requirements:
+                     setTargetStage(pendingStage)
+                     setIsStageTransitionModalOpen(true)
+                     setPendingStage(null)
                 }
             }
         }}
@@ -446,7 +472,8 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
         meeting={pendingMeeting}
         onSuccess={() => {
             if (pendingStage && STAGES.indexOf(pendingStage) > STAGES.indexOf(lead.status)) {
-                updateStatusMutation.mutate(pendingStage)
+                setTargetStage(pendingStage)
+                setIsStageTransitionModalOpen(true)
                 setPendingStage(null)
             }
         }}
@@ -456,12 +483,27 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
         isOpen={isSiteVisitDialogOpen}
         onClose={() => setIsSiteVisitDialogOpen(false)}
         leadId={leadId}
-        onSuccess={() => {
-            if (pendingStage && STAGES.indexOf(pendingStage) > STAGES.indexOf(lead.status)) {
-                updateStatusMutation.mutate(pendingStage)
-                setPendingStage(null)
-            }
-        }}
+        // SiteVisitDialog handles transition internally
+      />
+
+      <StageTransitionModal
+        isOpen={isStageTransitionModalOpen}
+        onClose={() => setIsStageTransitionModalOpen(false)}
+        leadId={leadId}
+        targetStage={targetStage || ""}
+        currentStage={lead?.status || ""}
+      />
+
+      <ExtensionRequestModal 
+        isOpen={isExtensionModalOpen} 
+        onClose={() => setIsExtensionModalOpen(false)} 
+        leadId={leadId} 
+      />
+
+      <DealSubmissionModal 
+        isOpen={isDealModalOpen} 
+        onClose={() => setIsDealModalOpen(false)} 
+        leadId={leadId} 
       />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
@@ -730,28 +772,6 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
         </div>
       </div>
 
-      <CallLogDialog
-        isOpen={isCallDialogOpen}
-        onClose={() => setIsCallDialogOpen(false)}
-        leadId={leadId}
-        phone={lead.phone || ""}
-        onSuccess={() => {
-            if (pendingStage === 'call') {
-                updateStatusMutation.mutate('call')
-                setPendingStage(null)
-            } else if (pendingStage === 'meeting') {
-                setIsMeetingDialogOpen(true)
-                setPendingStage(null)
-            }
-        }}
-      />
-
-      <MeetingDialog
-        isOpen={isMeetingDialogOpen}
-        onClose={() => setIsMeetingDialogOpen(false)}
-        leadId={leadId}
-        initialTitle={meetingTitle}
-      />
     </div>
   )
 }

@@ -44,7 +44,6 @@ export default function OwnerDashboard() {
       <div className="grid grid-cols-1 gap-6">
         <LeadOutcomePanel />
         <LeadStageSummary />
-        <LeadList />
       </div>
       <div className="grid grid-cols-1 gap-6">
         <BroadcastForm />

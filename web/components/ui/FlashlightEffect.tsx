@@ -61,19 +61,19 @@ export default function FlashlightEffect() {
       {/* Primary Glow (Wide Flashlight Beam) */}
       <div
         ref={glowRef}
-        className="pointer-events-none fixed inset-0 z-[9998] transition-opacity duration-300 hidden md:block"
+        className="fixed inset-0 z-[9998] transition-opacity duration-300 hidden md:block pointer-events-none"
       />
       
       {/* Secondary Glow (Intense Center) */}
       <div
         ref={centerRef}
-        className="pointer-events-none fixed inset-0 z-[9998] transition-opacity duration-300 hidden md:block"
+        className="fixed inset-0 z-[9998] transition-opacity duration-300 hidden md:block pointer-events-none"
       />
 
       {/* Cursor Highlight (The actual "lamp" bulb effect) */}
       <div 
         ref={cursorRef}
-        className="pointer-events-none fixed z-[9999] w-4 h-4 rounded-full bg-white/20 blur-[1px] top-0 left-0 hidden md:block"
+        className="fixed z-[9999] w-4 h-4 rounded-full bg-white/20 blur-[1px] top-0 left-0 hidden md:block pointer-events-none"
         style={{
           boxShadow: "0 0 15px 2px rgba(255, 255, 255, 0.3)"
         }}

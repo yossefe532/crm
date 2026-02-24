@@ -41,6 +41,9 @@ router.get("/sources", (req, res, next) => {
   if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
   return requirePermission("lead_sources.read")(req, res, next)
 }, asyncHandler(leadController.listLeadSources))
+
+router.get("/archive/deleted", requirePermission("leads.read"), asyncHandler(leadController.listDeletedLeads))
+
 router.get("/:id", (req, res, next) => {
   if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
   return requirePermission("leads.read")(req, res, next)
@@ -81,6 +84,7 @@ router.post("/failures/:failureId/resolve", (req, res, next) => {
 }, asyncHandler(leadController.resolveFailure))
 
 router.delete("/:id", requirePermission("leads.delete"), asyncHandler(leadController.deleteLead))
+router.post("/:id/restore", requirePermission("leads.delete"), asyncHandler(leadController.restoreLead))
 
 router.post("/:id/assign", requirePermission("leads.assign"), asyncHandler(leadController.assignLead))
 router.post("/:id/unassign", requirePermission("leads.assign"), asyncHandler(leadController.unassignLead))
@@ -99,3 +103,26 @@ router.post("/:id/calls", (req, res, next) => {
   if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
   return requirePermission("leads.update")(req, res, next)
 }, asyncHandler(leadController.addCallLog))
+
+// New Lifecycle Routes
+router.post("/:id/advance", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("leads.update")(req, res, next)
+}, asyncHandler(leadController.advanceStage))
+
+router.post("/:id/deal", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("leads.update")(req, res, next)
+}, asyncHandler(leadController.submitDeal))
+
+router.post("/deals/:dealId/approve", asyncHandler(leadController.approveDeal))
+router.post("/deals/:dealId/reject", asyncHandler(leadController.rejectDeal))
+
+router.post("/:id/extension", (req, res, next) => {
+  if (req.user?.roles?.includes("team_leader") || req.user?.roles?.includes("sales")) return next()
+  return requirePermission("leads.update")(req, res, next)
+}, asyncHandler(leadController.requestExtension))
+
+router.post("/extensions/:extensionId/approve", asyncHandler(leadController.approveExtension))
+router.post("/extensions/:extensionId/reject", asyncHandler(leadController.rejectExtension))
+

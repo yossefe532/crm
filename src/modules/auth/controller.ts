@@ -3,6 +3,11 @@ import { authService } from "./service"
 import { isValidEmail, validatePasswordStrength } from "./validation"
 
 export const authController = {
+  getSetupStatus: async (req: Request, res: Response) => {
+    const status = await authService.getSetupStatus()
+    res.json(status)
+  },
+
   login: async (req: Request, res: Response) => {
     const email = String(req.body?.email || "")
     const password = String(req.body?.password || "")
@@ -13,18 +18,22 @@ export const authController = {
   },
 
   register: async (req: Request, res: Response) => {
-    const tenantName = String(req.body?.tenantName || "").trim()
+    const tenantName = req.body?.tenantName ? String(req.body.tenantName).trim() : "Default Company"
     const timezone = req.body?.timezone ? String(req.body.timezone) : undefined
     const email = String(req.body?.email || "")
     const password = String(req.body?.password || "")
     const phone = req.body?.phone ? String(req.body.phone) : undefined
+    const role = req.body?.role ? String(req.body.role) : undefined
+    const teamName = req.body?.teamName ? String(req.body.teamName) : undefined
 
-    if (!tenantName) throw { status: 400, message: "اسم الشركة/العميل مطلوب" }
+    // Only validate tenantName if it's the first setup (owner) - handled by service logic implicitly?
+    // Actually, service logic handles it. If setupStatus.hasOwner, tenantName is ignored/overridden.
+    
     if (!isValidEmail(email)) throw { status: 400, message: "صيغة البريد الإلكتروني غير صحيحة" }
     const strength = validatePasswordStrength(password)
     if (!strength.ok) throw { status: 400, message: strength.reasons[0] || "كلمة المرور ضعيفة" }
 
-    const result = await authService.register({ tenantName, timezone, email, password, phone })
+    const result = await authService.register({ tenantName, timezone, email, password, phone, role, teamName })
     res.json(result)
   },
 

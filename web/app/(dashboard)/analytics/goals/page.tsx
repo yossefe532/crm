@@ -30,6 +30,7 @@ export default function GoalsPage() {
   const queryClient = useQueryClient()
   const [planName, setPlanName] = useState("")
   const [period, setPeriod] = useState<"weekly" | "monthly">("weekly")
+  const [isPinned, setIsPinned] = useState(false)
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [targets, setTargets] = useState<Array<{ subjectType: "user" | "team" | "all"; subjectId: string; metricKey: string; targetValue: string }>>([])
@@ -41,10 +42,18 @@ export default function GoalsPage() {
     queryFn: () => goalsService.listPlans(token || undefined)
   })
 
+  useEffect(() => {
+    if (plans && plans.length > 0 && !selectedPlanId) {
+      const pinned = plans.find((p) => p.isPinned)
+      if (pinned) setSelectedPlanId(pinned.id)
+    }
+  }, [plans, selectedPlanId])
+
   const { data: report } = useQuery({
     queryKey: ["goal_report", selectedPlanId],
     queryFn: () => goalsService.report(selectedPlanId || "", token || undefined),
-    enabled: !!selectedPlanId
+    enabled: !!selectedPlanId,
+    refetchInterval: 1000
   })
 
   const { data: targetList } = useQuery({
@@ -54,10 +63,11 @@ export default function GoalsPage() {
   })
 
   const createPlanMutation = useMutation({
-    mutationFn: () => goalsService.createPlan({ name: planName, period }, token || undefined),
+    mutationFn: () => goalsService.createPlan({ name: planName, period, isPinned }, token || undefined),
     onSuccess: (plan) => {
       queryClient.invalidateQueries({ queryKey: ["goal_plans"] })
       setPlanName("")
+      setIsPinned(false)
       setSelectedPlanId(plan.id)
       setIsEditing(true)
     }
@@ -156,6 +166,16 @@ export default function GoalsPage() {
               <option value="weekly">أسبوعي</option>
               <option value="monthly">شهري</option>
             </Select>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="isPinned"
+                className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                checked={isPinned}
+                onChange={(e) => setIsPinned(e.target.checked)}
+              />
+              <label htmlFor="isPinned" className="text-sm font-medium text-gray-700">تثبيت كهدف عام</label>
+            </div>
             <Button
               type="button"
               disabled={!planName.trim() || createPlanMutation.isPending}
@@ -174,13 +194,14 @@ export default function GoalsPage() {
               <Button
                 key={plan.id}
                 variant="outline"
-                className={`w-full justify-start text-right font-normal ${selectedPlanId === plan.id ? "border-brand-500 bg-base-50 ring-1 ring-brand-500" : "border-base-200"}`}
+                className={`w-full justify-between text-right font-normal ${selectedPlanId === plan.id ? "border-brand-500 bg-base-50 ring-1 ring-brand-500" : "border-base-200"}`}
                 onClick={() => {
                   setSelectedPlanId(plan.id)
                   setIsEditing(false)
                 }}
               >
-                {plan.name} ({plan.period === "weekly" ? "أسبوعي" : "شهري"})
+                <span>{plan.name} ({plan.period === "weekly" ? "أسبوعي" : "شهري"})</span>
+                {plan.isPinned && <span title="هدف عام مثبت">📌</span>}
               </Button>
             ))}
           {(plans || []).length === 0 && <p className="text-sm text-base-500">لا توجد خطط بعد</p>}

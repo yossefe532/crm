@@ -16,7 +16,7 @@ export const useActivityLog = () => {
   return useQuery<AuditLogEntry[]>({
     queryKey: ["my-activity"],
     queryFn: async () => apiClient.get<AuditLogEntry[]>("/core/activity?limit=20", token || undefined),
-    staleTime: 60000,
-    refetchInterval: 30000
+    staleTime: 0,
+    refetchInterval: 1000
   })
 }

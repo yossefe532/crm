@@ -2,7 +2,7 @@
 
 import { useCountUp } from "../../lib/hooks/useCountUp"
 
-export const Stat = ({ label, value, change }: { label: string; value: string; change?: string | number }) => {
+export const Stat = ({ label, value, change, subtext }: { label: string; value: string; change?: string | number; subtext?: string }) => {
   const numeric = Number(value.replace(/[^0-9.-]/g, ""))
   const isNumeric = !Number.isNaN(numeric)
   const hasDecimal = value.includes(".")
@@ -18,6 +18,7 @@ export const Stat = ({ label, value, change }: { label: string; value: string; c
         <span className="text-2xl font-semibold text-base-900" suppressHydrationWarning>{formatted}</span>
         {change && <span className="text-xs font-semibold text-emerald-600">{change}</span>}
       </div>
+      {subtext && <p className="text-xs text-base-400 mt-1">{subtext}</p>}
     </div>
   )
 }

@@ -9,7 +9,7 @@ export const useLeadDeadline = (leadId: string) => {
     queryKey: ["lead_deadline", leadId],
     queryFn: async () => leadService.getDeadline(leadId, token || undefined) as Promise<LeadDeadline | null>,
     enabled: Boolean(leadId),
-    staleTime: 30000,
-    refetchInterval: 30000
+    staleTime: 0,
+    refetchInterval: 1000
   })
 }

@@ -9,6 +9,7 @@ export const useLead = (leadId: string) => {
     queryKey: ["lead", leadId],
     queryFn: async () => leadService.get(leadId, token || undefined),
     enabled: Boolean(leadId),
-    staleTime: 60000
+    staleTime: 0,
+    refetchInterval: 1000
   })
 }

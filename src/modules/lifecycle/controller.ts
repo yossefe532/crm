@@ -17,9 +17,15 @@ export const lifecycleController = {
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead_transition.created", entityType: "lead_transition", entityId: transition.id })
     res.json(transition)
   },
+  getStateByCode: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const state = await lifecycleService.getStateByCode(tenantId, req.params.code)
+    if (!state) throw { status: 404, message: "المرحلة غير موجودة" }
+    res.json(state)
+  },
   transitionLead: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
-    const state = await lifecycleService.transitionLead(tenantId, req.params.leadId, req.body.toStateId, req.user?.id)
+    const state = await lifecycleService.transitionLead(tenantId, req.params.leadId, req.body.toStateId, req.user?.id, req.body.answers)
     const event = await notificationService.publishEvent(tenantId, "lead.stage.completed", {
       leadId: req.params.leadId,
       stage: state.code,
@@ -30,6 +36,21 @@ export const lifecycleController = {
     await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.transitioned", entityType: "lead", entityId: req.params.leadId, metadata: { toStateId: req.body.toStateId } })
     intelligenceService.queueTrigger({ type: "lead_changed", tenantId, leadId: req.params.leadId, userId: req.user?.id })
     res.json(state)
+  },
+  failLead: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    if (!req.body.reason) throw { status: 400, message: "Reason is required for failure" }
+    await lifecycleService.failLead(tenantId, req.params.leadId, req.user?.id || null, req.body.reason)
+    const event = await notificationService.publishEvent(tenantId, "lead.failed", {
+      leadId: req.params.leadId,
+      failedBy: req.user?.id,
+      reason: req.body.reason,
+      targets: ["owner", "team_leader"]
+    })
+    await notificationService.queueDelivery(tenantId, event.id, "in_app")
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.failed", entityType: "lead", entityId: req.params.leadId, metadata: { reason: req.body.reason } })
+    intelligenceService.queueTrigger({ type: "lead_changed", tenantId, leadId: req.params.leadId, userId: req.user?.id })
+    res.json({ success: true })
   },
   createDeadline: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""

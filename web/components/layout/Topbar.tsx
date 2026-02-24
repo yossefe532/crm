@@ -4,16 +4,25 @@ import { useEffect, useState, useMemo } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useAuth } from "../../lib/auth/AuthContext"
 import { useLocale } from "../../lib/i18n/LocaleContext"
+import { useTheme } from "../../lib/theme/ThemeProvider"
 import { Button } from "../ui/Button"
 import { Avatar } from "../ui/Avatar"
 import { ThemeToggle } from "./ThemeToggle"
+import { NotificationBell } from "./NotificationBell"
 import { useUsers } from "../../lib/hooks/useUsers"
 
 export const Topbar = ({ onMenuToggle }: { onMenuToggle: () => void }) => {
   const router = useRouter()
   const pathname = usePathname()
   const { signOut, role, userId } = useAuth()
-  const { t, toggleLocale, dir } = useLocale()
+  const { t, locale, setLocale, dir } = useLocale()
+
+  const toggleLocale = () => {
+    const nextLocale = locale === "ar" ? "en" : "ar"
+    setLocale(nextLocale)
+    document.documentElement.lang = nextLocale
+    document.documentElement.dir = nextLocale === "ar" ? "rtl" : "ltr"
+  }
   const { data: users } = useUsers()
   const [cursorMode, setCursorMode] = useState<"custom" | "default">("custom")
   const roleLabel = role === "owner" ? t("role_owner") : role === "team_leader" ? t("role_team_leader") : role === "sales" ? t("role_sales") : ""
@@ -57,6 +66,7 @@ export const Topbar = ({ onMenuToggle }: { onMenuToggle: () => void }) => {
       <div className="hidden md:flex items-center gap-3">
         {!hidePreferences && (
           <>
+            <NotificationBell />
             <ThemeToggle />
             <Button variant="secondary" onClick={handleCursorToggle} aria-label={t("cursor")} title={t("cursor")}>
               {cursorMode === "custom" ? t("cursor_custom") : t("cursor_default")}

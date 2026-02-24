@@ -2,11 +2,6 @@ import "./globals.css"
 import { ReactNode } from "react"
 import { Providers } from "./providers"
 import { Metadata, Viewport } from "next"
-import dynamic from "next/dynamic"
-
-const FlashlightEffect = dynamic(() => import("../components/ui/FlashlightEffect"), {
-  ssr: false,
-})
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -36,6 +31,9 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "CRM Doctor",
   },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
   formatDetection: {
     telephone: false,
   },
@@ -46,7 +44,7 @@ import { ErrorBoundary } from "../components/ui/ErrorBoundary"
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
-      <body className="font-ar bg-base-50" suppressHydrationWarning>
+      <body className="font-ar bg-base-50 text-base-900" suppressHydrationWarning>
         <ErrorBoundary>
           {/* <FlashlightEffect /> */}
           <Providers>{children}</Providers>

@@ -29,6 +29,14 @@ export const coreService = {
     apiClient.post(`/core/users/${userId}/promote`, payload, token),
   deleteTeam: (teamId: string, token?: string) =>
     apiClient.delete(`/core/teams/${teamId}`, token),
+  updateTeam: (teamId: string, payload: { name: string }, token?: string) =>
+    apiClient.put<Team>(`/core/teams/${teamId}`, payload, token),
+  removeTeamMember: (teamId: string, userId: string, token?: string) =>
+    apiClient.delete(`/core/teams/${teamId}/members/${userId}`, token),
+  remindTeamMember: (teamId: string, payload: { userId: string; leadId: string; leadName: string }, token?: string) =>
+    apiClient.post<{ status: string }>(`/core/teams/${teamId}/remind`, payload, token),
+  demoteTeamLeader: (userId: string, payload: { newLeaderId?: string }, token?: string) =>
+    apiClient.post(`/core/users/${userId}/demote`, payload, token),
   listUserAudit: (userId: string, token?: string) =>
     apiClient.get<Array<{ id: string; action: string; entityType: string; entityId?: string | null; createdAt: string }>>(`/core/users/${userId}/audit`, token),
   createUser: (payload: { name: string; email: string; phone?: string; password?: string; role: string; teamId?: string; teamName?: string }, token?: string) =>
@@ -36,7 +44,11 @@ export const coreService = {
   createUserRequest: (payload: { name?: string; email?: string; phone?: string; teamId?: string; requestType?: string; payload?: any }, token?: string) =>
     apiClient.post<{ id: string; status: string }>("/core/user-requests", payload, token),
   listUserRequests: (token?: string) =>
-    apiClient.get<Array<{ id: string; status: string; requestType: string; payload: any; createdAt: string; requester?: User }>>("/core/user-requests", token),
+    apiClient.get<{ requests: Array<{ id: string; status: string; requestType: string; payload: any; createdAt: string; requester?: User }>; pendingRegistrations: User[] }>("/core/user-requests", token),
+  approveRegistration: (userId: string, token?: string) =>
+    apiClient.post<{ id: string; email: string; phone?: string }>(`/core/registrations/${userId}/approve`, {}, token),
+  updateUserRequest: (requestId: string, payload: any, token?: string) =>
+    apiClient.put<{ status: string }>(`/core/user-requests/${requestId}`, { payload }, token),
   decideUserRequest: (requestId: string, status: "approved" | "rejected", token?: string) =>
     apiClient.post(`/core/user-requests/${requestId}/decide`, { status }, token),
   listFinanceEntries: (token?: string) =>
