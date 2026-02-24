@@ -282,6 +282,7 @@ model RolePermission {
   tenantId     String   @db.Uuid @map("tenant_id")
   roleId       String   @db.Uuid @map("role_id")
   permissionId String   @db.Uuid @map("permission_id")
+  grantedBy    String?  @db.Uuid @map("granted_by")
   createdAt    DateTime @default(now()) @map("created_at")
 
   role Role @relation(fields: [roleId], references: [id])
@@ -316,6 +317,7 @@ model UserPermission {
   tenantId     String   @db.Uuid @map("tenant_id")
   userId       String   @db.Uuid @map("user_id")
   permissionId String   @db.Uuid @map("permission_id")
+  grantedBy    String?  @db.Uuid @map("granted_by")
   createdAt    DateTime @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id])
