@@ -426,7 +426,7 @@ model AuditLog {
   userId    String?  @db.Uuid @map("user_id")
   actorUserId String? @db.Uuid @map("actor_user_id") // Added missing column
   action    String
-  entity    String
+  entityType String   @map("entity_type") // Renamed from entity to entity_type
   entityId  String?  @map("entity_id")
   details   Json?
   ipAddress String?  @map("ip_address")
