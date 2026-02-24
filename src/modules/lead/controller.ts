@@ -202,14 +202,15 @@ export const leadController = {
     }
   },
   listLeads: async (req: Request, res: Response) => {
-    const tenantId = req.user?.tenantId || ""
+    if (!req.user || !req.user.tenantId) throw { status: 401, message: "User context missing" }
+    const tenantId = req.user.tenantId
     const { skip, take, page, pageSize } = getPagination(req.query.page as string, req.query.pageSize as string)
     const filters = {
       status: req.query.status as string,
       assignment: req.query.assignment as string
     }
     const leads = await leadService.listLeads(tenantId, skip, take, req.user, req.query.q as string, filters)
-    await logActivity({ tenantId, actorUserId: req.user?.id, action: "lead.listed", entityType: "lead" })
+    await logActivity({ tenantId, actorUserId: req.user.id, action: "lead.listed", entityType: "lead" })
     res.json({ data: leads, page, pageSize })
   },
   listTasks: async (req: Request, res: Response) => {

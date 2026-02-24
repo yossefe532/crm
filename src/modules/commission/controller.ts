@@ -4,14 +4,14 @@ import { logActivity } from "../../utils/activity"
 
 export const commissionController = {
   listLedger: async (req: Request, res: Response) => {
-    const tenantId = req.user?.tenantId || ""
-    const limit = req.query.limit ? Number(req.query.limit) : 50
-    const roles = req.user?.roles || []
-    const userId = (roles.includes("sales") || roles.includes("team_leader")) ? req.user?.id : undefined
+    if (!req.user?.tenantId) throw { status: 401, message: "Unauthorized: Missing tenant context" }
+    const { userId, limit } = req.query
+    // Only owner or team leader can see others? 
+    // Sales can only see their own.
+    const targetUserId = (req.user.roles.includes("owner") || req.user.roles.includes("team_leader")) ? (userId as string) : req.user.id
     
-    const entries = await commissionService.listLedger(tenantId, userId, limit)
-    await logActivity({ tenantId, actorUserId: req.user?.id, action: "commission.ledger.listed", entityType: "commission_ledger" })
-    res.json(entries)
+    const ledger = await commissionService.listLedger(req.user.tenantId, targetUserId, Number(limit) || 50)
+    res.json(ledger)
   },
   createPlan: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
