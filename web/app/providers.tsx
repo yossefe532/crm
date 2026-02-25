@@ -14,13 +14,12 @@ export const Providers = ({ children }: { children: ReactNode }) => {
   const [client] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-        refetchOnWindowFocus: true,
-        refetchOnMount: true,
-        refetchOnReconnect: true,
-        staleTime: 0,
-        gcTime: 1000 * 60 * 60 * 24, // 24 hours
-        refetchInterval: 1000, // Refresh every second
-      },
+          refetchOnWindowFocus: true,
+          refetchOnMount: true,
+          refetchOnReconnect: true,
+          staleTime: 1000 * 60 * 5,
+          gcTime: 1000 * 60 * 60 * 24, // 24 hours
+        },
     },
   }))
 

@@ -23,7 +23,7 @@ export const useLeads = (opts?: { query?: string; page?: number; pageSize?: numb
         callCount: lead.callCount ?? lead._count?.callLogs ?? 0
       }))
     },
-    refetchInterval: 1000, // Refresh every second
+    refetchInterval: 250, // Refresh every 250ms
     staleTime: 0,
   })
 }

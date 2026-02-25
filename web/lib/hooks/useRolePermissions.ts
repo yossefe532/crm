@@ -13,6 +13,6 @@ export const useRolePermissions = (roleId: string) => {
     },
     enabled: Boolean(roleId),
     staleTime: 0,
-    refetchInterval: 1000
+    refetchInterval: 250
   })
 }

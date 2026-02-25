@@ -12,7 +12,7 @@ export const useNotifications = (params: { page?: number; limit?: number; unread
     queryFn: async () => notificationService.list(params, token || undefined),
     enabled: !!token,
     staleTime: 0,
-    refetchInterval: 1000,
+    refetchInterval: 250,
   })
 }
 
@@ -22,7 +22,7 @@ export const useUnreadCount = () => {
     queryKey: ["notifications", "unread-count"],
     queryFn: async () => notificationService.getUnreadCount(token || undefined),
     enabled: !!token,
-    refetchInterval: 1000 // Refresh every second
+    refetchInterval: 250 // Refresh every 250ms
   })
 }
 

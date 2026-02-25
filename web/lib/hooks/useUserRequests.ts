@@ -9,6 +9,6 @@ export const useUserRequests = () => {
     queryKey: ["user_requests"],
     queryFn: async () => coreService.listUserRequests(token || undefined),
     staleTime: 0,
-    refetchInterval: 1000
+    refetchInterval: 250
   })
 }

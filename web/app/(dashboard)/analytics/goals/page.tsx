@@ -53,7 +53,7 @@ export default function GoalsPage() {
     queryKey: ["goal_report", selectedPlanId],
     queryFn: () => goalsService.report(selectedPlanId || "", token || undefined),
     enabled: !!selectedPlanId,
-    refetchInterval: 1000
+    refetchInterval: 250
   })
 
   const { data: targetList } = useQuery({

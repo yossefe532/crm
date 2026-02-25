@@ -9,6 +9,6 @@ export const useFinanceEntries = () => {
     queryKey: ["finance_entries"],
     queryFn: async () => coreService.listFinanceEntries(token || undefined),
     staleTime: 0,
-    refetchInterval: 1000
+    refetchInterval: 250
   })
 }

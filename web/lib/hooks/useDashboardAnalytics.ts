@@ -11,6 +11,6 @@ export const useDashboardAnalytics = () => {
       return data
     },
     staleTime: 0,
-    refetchInterval: 1000
+    refetchInterval: 250
   })
 }

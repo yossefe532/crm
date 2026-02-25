@@ -9,6 +9,6 @@ export const useRoles = () => {
     queryKey: ["roles"],
     queryFn: async () => coreService.listRoles(token || undefined),
     staleTime: 0,
-    refetchInterval: 1000
+    refetchInterval: 250
   })
 }

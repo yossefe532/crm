@@ -8,6 +8,6 @@ export const useLeadDeadlines = () => {
     queryKey: ["lead_deadlines"],
     queryFn: async () => leadService.listDeadlines(token || undefined),
     staleTime: 0,
-    refetchInterval: 1000
+    refetchInterval: 250
   })
 }

@@ -9,6 +9,6 @@ export const useTeams = () => {
     queryKey: ["teams"],
     queryFn: async () => coreService.listTeams(token || undefined),
     staleTime: 0,
-    refetchInterval: 1000
+    refetchInterval: 250
   })
 }

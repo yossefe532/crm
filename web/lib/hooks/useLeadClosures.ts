@@ -9,6 +9,6 @@ export const useLeadClosures = () => {
     queryKey: ["lead_closures"],
     queryFn: async () => leadService.listClosures(token || undefined),
     staleTime: 0,
-    refetchInterval: 1000
+    refetchInterval: 250
   })
 }

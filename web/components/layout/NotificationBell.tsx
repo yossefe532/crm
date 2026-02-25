@@ -56,7 +56,7 @@ export const NotificationBell = () => {
     queryKey: ["goal_report", pinnedPlan?.id],
     queryFn: () => goalsService.report(pinnedPlan?.id || "", token || undefined),
     enabled: !!pinnedPlan,
-    refetchInterval: 1000, // Real-time update
+    refetchInterval: 250, // Real-time update
   })
 
   // 2. Fetch User Notifications (New System)
