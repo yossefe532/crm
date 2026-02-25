@@ -123,8 +123,7 @@ export const notificationController = {
       url: "/notifications"
     })
     res.json({ status: "ok", message: "Notification sent" })
-  }
-}
+  },
 
   listEvents: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
