@@ -65,17 +65,17 @@
     --ring: 212.7 26.8% 83.9%;
 
     /* Base Colors Dark Override */
-    --base-0: 222 84% 5%;    /* Very dark blue/black */
-    --base-50: 222 47% 11%;   /* Dark background */
-    --base-100: 217 33% 17%;  /* Borders */
-    --base-200: 217 33% 20%;  /* Hover states */
-    --base-300: 215 20% 65%;  /* Muted text */
-    --base-400: 215 20% 75%;
-    --base-500: 210 40% 98%;  /* Main text */
-    --base-600: 210 40% 98%;
-    --base-700: 210 40% 98%;
-    --base-800: 210 40% 98%;
-    --base-900: 210 40% 98%;
+    --base-0: 15 23 42;    /* Very dark blue/black */
+    --base-50: 30 41 59;   /* Dark background */
+    --base-100: 51 65 85;  /* Borders */
+    --base-200: 71 85 105;  /* Hover states */
+    --base-300: 100 116 139;  /* Muted text */
+    --base-400: 148 163 184;
+    --base-500: 203 213 225;  /* Main text */
+    --base-600: 226 232 240;
+    --base-700: 241 245 249;
+    --base-800: 248 250 252;
+    --base-900: 255 255 255;
   }
 }
 

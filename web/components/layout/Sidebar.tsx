@@ -160,11 +160,8 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
 
             {/* Mobile Footer Actions */}
             <div className="mt-4 flex flex-col gap-3 border-t border-base-200 pt-4">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2">
                 <ThemeToggle />
-                <Button variant="outline" onClick={toggleLocale} className="w-full justify-center">
-                  {t("language")}
-                </Button>
               </div>
               <Button variant="danger" onClick={handleSignOut} className="w-full justify-center">
                 {t("logout")}

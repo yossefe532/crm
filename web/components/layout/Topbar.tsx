@@ -68,12 +68,6 @@ export const Topbar = ({ onMenuToggle }: { onMenuToggle: () => void }) => {
           <>
             <NotificationBell />
             <ThemeToggle />
-            <Button variant="secondary" onClick={handleCursorToggle} aria-label={t("cursor")} title={t("cursor")}>
-              {cursorMode === "custom" ? t("cursor_custom") : t("cursor_default")}
-            </Button>
-            <Button variant="secondary" onClick={toggleLocale} aria-label={t("language")} title={t("language")}>
-              {t("language")}
-            </Button>
           </>
         )}
         <Button variant="secondary" onClick={handleSignOut} aria-label={t("logout")} title={t("logout")}>
