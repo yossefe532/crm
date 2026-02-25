@@ -161,7 +161,7 @@
     --background-start-rgb: 0, 0, 0;
     --background-end-rgb: 0, 0, 0;
     
-    /* Dark Mode Overrides */
+    /* Dark Mode Overrides - Using RGB values to match tailwind.config.ts expectations */
     --base-0: 15 23 42;    /* Darkest Slate */
     --base-50: 30 41 59;
     --base-100: 51 65 85;
@@ -176,6 +176,27 @@
     
     --shadow-card: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
   }
+}
+
+:root[data-theme="dark"] {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+    
+    /* Dark Mode Overrides - Using RGB values to match tailwind.config.ts expectations */
+    --base-0: 15 23 42;    /* Darkest Slate */
+    --base-50: 30 41 59;
+    --base-100: 51 65 85;
+    --base-200: 71 85 105;
+    --base-300: 100 116 139;
+    --base-400: 148 163 184;
+    --base-500: 203 213 225;
+    --base-600: 226 232 240;
+    --base-700: 241 245 249;
+    --base-800: 248 250 252;
+    --base-900: 255 255 255; /* Lightest */
+    
+    --shadow-card: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
 }
 
 /* Custom Scrollbar */

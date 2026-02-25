@@ -15,7 +15,11 @@ const ThemeContext = createContext<ThemeContextValue | null>(null)
 const applyTheme = (next: Theme) => {
   if (typeof document === "undefined") return
   document.documentElement.dataset.theme = next
-  document.documentElement.classList.toggle("dark", next === "dark")
+  if (next === "dark") {
+    document.documentElement.classList.add("dark")
+  } else {
+    document.documentElement.classList.remove("dark")
+  }
   document.documentElement.classList.add("theme-ready")
   try {
     localStorage.setItem("crm_theme", next)
