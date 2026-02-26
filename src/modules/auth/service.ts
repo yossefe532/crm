@@ -9,6 +9,11 @@ import { cache } from "../../utils/cache"
 type AuthUser = { id: string; tenantId: string; roles: string[]; forceReset?: boolean }
 type AuthResult = { token: string; user: AuthUser }
 
+const normalizePasswordInput = (value: string) => {
+  const raw = String(value || "")
+  return raw.replace(/[\u200B-\u200D\u2060\uFEFF\u200E\u200F]/g, "").trim()
+}
+
 const assertJwtConfigured = () => {
   if (!env.jwtSecret) {
     throw { status: 500, message: "Server misconfigured" }
@@ -78,11 +83,12 @@ export const authService = {
 
   login: async (input: { email: string; password: string }): Promise<AuthResult> => {
     const email = normalizeEmail(input.email)
+    const password = normalizePasswordInput(input.password)
     const user = await prisma.user.findFirst({
       where: { email, deletedAt: null, status: "active" }
     })
     if (!user) throw { status: 401, message: "بيانات الدخول غير صحيحة" }
-    const ok = await verifyPassword(input.password, user.passwordHash)
+    const ok = await verifyPassword(password, user.passwordHash)
     if (!ok) throw { status: 401, message: "بيانات الدخول غير صحيحة" }
 
     // Run role fetching and last login update in parallel for speed
@@ -218,10 +224,10 @@ export const authService = {
       where: { id: authUser.id, tenantId: authUser.tenantId, deletedAt: null, status: "active" }
     })
     if (!user) throw { status: 401, message: "Unauthorized" }
-    const ok = await verifyPassword(input.currentPassword, user.passwordHash)
+    const ok = await verifyPassword(normalizePasswordInput(input.currentPassword), user.passwordHash)
     if (!ok) throw { status: 400, message: "كلمة المرور الحالية غير صحيحة. إذا كنت مسجلاً من جلسة قديمة بعد تغيير كلمة المرور، قم بتسجيل الخروج ثم تسجيل الدخول بكلمة المرور الأخيرة." }
 
-    const passwordHash = await hashPassword(input.newPassword)
+    const passwordHash = await hashPassword(normalizePasswordInput(input.newPassword))
     await prisma.user.update({
       where: { id: user.id },
       data: { passwordHash, mustChangePassword: false }
@@ -235,7 +241,7 @@ export const authService = {
     if (!authUser) throw { status: 401, message: "Unauthorized" }
     const user = await prisma.user.findFirst({ where: { id: authUser.id, tenantId: authUser.tenantId, deletedAt: null, status: "active" } })
     if (!user) throw { status: 401, message: "Unauthorized" }
-    const ok = await verifyPassword(input.currentPassword, user.passwordHash)
+    const ok = await verifyPassword(normalizePasswordInput(input.currentPassword), user.passwordHash)
     if (!ok) throw { status: 400, message: "كلمة المرور الحالية غير صحيحة. إذا كنت مسجلاً من جلسة قديمة بعد تغيير كلمة المرور، قم بتسجيل الخروج ثم تسجيل الدخول بكلمة المرور الأخيرة." }
     if (input.email) {
       const normalized = normalizeEmail(input.email)
@@ -260,7 +266,7 @@ export const authService = {
     })
     if (!user) throw { status: 401, message: "Unauthorized" }
 
-    const ok = await verifyPassword(input.currentPassword, user.passwordHash)
+    const ok = await verifyPassword(normalizePasswordInput(input.currentPassword), user.passwordHash)
     if (!ok) throw { status: 400, message: "كلمة المرور الحالية غير صحيحة. إذا كنت مسجلاً من جلسة قديمة بعد تغيير كلمة المرور، قم بتسجيل الخروج ثم تسجيل الدخول بكلمة المرور الأخيرة." }
 
     const nextEmail = input.email ? normalizeEmail(input.email) : undefined
@@ -269,7 +275,7 @@ export const authService = {
       if (exists) throw { status: 409, message: "البريد الإلكتروني مستخدم بالفعل" }
     }
 
-    const nextPasswordHash = input.newPassword ? await hashPassword(input.newPassword) : undefined
+    const nextPasswordHash = input.newPassword ? await hashPassword(normalizePasswordInput(input.newPassword)) : undefined
 
     await prisma.$transaction(async (tx) => {
       await tx.user.update({
