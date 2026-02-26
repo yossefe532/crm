@@ -167,46 +167,58 @@ export const NotificationBell = () => {
 
               {/* Regular Notifications */}
               <div className="divide-y divide-base-100">
+                <AnimatePresence initial={false}>
                 {notifications && notifications.length > 0 ? (
                   notifications.map((notification) => (
-                    <div 
-                        key={notification.id} 
-                        className={`p-4 hover:bg-base-50 transition-colors cursor-pointer ${!notification.isRead ? 'bg-blue-50/30' : ''}`}
+                    <motion.div 
+                        key={notification.id}
+                        initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, height: "auto", scale: 1 }}
+                        exit={{ opacity: 0, height: 0, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                        className={`hover:bg-base-50 transition-colors cursor-pointer ${!notification.isRead ? 'bg-blue-50/30' : ''}`}
                         onClick={() => handleNotificationClick(notification)}
                     >
-                      <div className="flex gap-3">
+                      <div className="p-4 flex gap-3">
                         <div className="mt-1 flex-shrink-0">
                              {getNotificationIcon(notification.type)}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start gap-2">
-                             <p className={`text-sm ${!notification.isRead ? 'font-semibold text-base-900' : 'font-medium text-base-700'}`}>
-                                {notification.title}
-                             </p>
-                             {!notification.isRead && (
-                                <span className="h-1.5 w-1.5 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
-                             )}
+                            <p className={`text-sm ${!notification.isRead ? 'font-semibold text-base-900' : 'font-medium text-base-700'}`}>
+                              {notification.title}
+                            </p>
+                            {!notification.isRead && (
+                              <span className="inline-block h-2 w-2 flex-shrink-0 rounded-full bg-brand-600" />
+                            )}
                           </div>
-                          <p className="text-xs text-base-500 mt-1 line-clamp-2">
+                          <p className="mt-1 text-xs text-base-500 line-clamp-2">
                             {notification.message}
                           </p>
-                          <p className="text-[10px] text-base-400 mt-2">
+                          <p className="mt-1 text-[10px] text-base-400">
                             {new Date(notification.createdAt).toLocaleDateString("ar-EG", {
+                              day: "numeric",
+                              month: "short",
                               hour: "2-digit",
                               minute: "2-digit",
                             })}
                           </p>
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   ))
                 ) : (
                   !pinnedPlan && (
-                    <div className="p-8 text-center text-base-500">
+                    <motion.div 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        className="p-8 text-center text-base-500"
+                    >
                       <p className="text-sm">لا توجد إشعارات جديدة</p>
-                    </div>
+                    </motion.div>
                   )
                 )}
+                </AnimatePresence>
               </div>
             </div>
             

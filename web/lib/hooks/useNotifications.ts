@@ -1,6 +1,6 @@
 "use client"
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query"
 import { useAuth } from "../auth/AuthContext"
 import { notificationService } from "../services/notificationService"
 import { Notification } from "../types"
@@ -13,6 +13,7 @@ export const useNotifications = (params: { page?: number; limit?: number; unread
     enabled: !!token,
     staleTime: 0,
     refetchInterval: 250,
+    placeholderData: keepPreviousData, // Keep previous data while fetching new data to prevent flickering
   })
 }
 
