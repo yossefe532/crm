@@ -218,15 +218,20 @@ export const authService = {
       where: { id: authUser.id, tenantId: authUser.tenantId, deletedAt: null, status: "active" }
     })
     if (!user) throw { status: 401, message: "Unauthorized" }
+    // Verify old password
     const ok = await verifyPassword(input.currentPassword, user.passwordHash)
     if (!ok) throw { status: 401, message: "كلمة المرور الحالية غير صحيحة" }
 
+    // Create new hash
     const passwordHash = await hashPassword(input.newPassword)
+    
+    // Update DB
     await prisma.user.update({
       where: { id: user.id },
       data: { passwordHash, mustChangePassword: false }
     })
 
+    // Return new token
     const roles = await getRolesForUser(user.tenantId, user.id)
     const freshUser: AuthUser = { id: user.id, tenantId: user.tenantId, roles }
     return { token: issueToken(freshUser), user: freshUser }

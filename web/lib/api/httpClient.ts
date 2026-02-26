@@ -87,7 +87,7 @@ export const request = async <T>(
 
     if (response.status === 401 && !url.includes("/auth/login")) {
       logout()
-      if (typeof window !== "undefined") {
+      if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
         window.location.href = "/login"
       }
     }
