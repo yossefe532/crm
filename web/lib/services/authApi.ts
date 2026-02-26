@@ -21,5 +21,9 @@ export const authApi = {
   changePassword: (payload: { currentPassword: string; newPassword: string; confirmPassword: string }, token?: string) =>
     apiClient.post<AuthResult>("/auth/change-password", payload, token),
   updateProfile: (payload: { currentPassword: string; email?: string; phone?: string }, token?: string) =>
-    apiClient.post<{ status: string }>("/auth/update-profile", payload, token)
+    apiClient.post<{ status: string }>("/auth/update-profile", payload, token),
+  updateCredentials: (
+    payload: { currentPassword: string; email?: string; phone?: string; newPassword?: string; confirmPassword?: string },
+    token?: string
+  ) => apiClient.post<AuthResult>("/auth/update-credentials", payload, token)
 }

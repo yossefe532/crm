@@ -14,12 +14,12 @@ export const Providers = ({ children }: { children: ReactNode }) => {
   const [client] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-          refetchOnWindowFocus: false, // Prevent loop on 401
+           refetchOnWindowFocus: false,
           refetchOnMount: true,
           refetchOnReconnect: true,
-          retry: false, // Don't retry failed requests immediately
+           retry: false,
           staleTime: 1000 * 60 * 5,
-          gcTime: 1000 * 60 * 60 * 24, // 24 hours
+           gcTime: 1000 * 60 * 60 * 24,
         },
     },
   }))

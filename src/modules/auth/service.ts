@@ -218,20 +218,15 @@ export const authService = {
       where: { id: authUser.id, tenantId: authUser.tenantId, deletedAt: null, status: "active" }
     })
     if (!user) throw { status: 401, message: "Unauthorized" }
-    // Verify old password
     const ok = await verifyPassword(input.currentPassword, user.passwordHash)
-    if (!ok) throw { status: 401, message: "كلمة المرور الحالية غير صحيحة" }
+    if (!ok) throw { status: 400, message: "كلمة المرور الحالية غير صحيحة" }
 
-    // Create new hash
     const passwordHash = await hashPassword(input.newPassword)
-    
-    // Update DB
     await prisma.user.update({
       where: { id: user.id },
       data: { passwordHash, mustChangePassword: false }
     })
 
-    // Return new token
     const roles = await getRolesForUser(user.tenantId, user.id)
     const freshUser: AuthUser = { id: user.id, tenantId: user.tenantId, roles }
     return { token: issueToken(freshUser), user: freshUser }
@@ -241,7 +236,7 @@ export const authService = {
     const user = await prisma.user.findFirst({ where: { id: authUser.id, tenantId: authUser.tenantId, deletedAt: null, status: "active" } })
     if (!user) throw { status: 401, message: "Unauthorized" }
     const ok = await verifyPassword(input.currentPassword, user.passwordHash)
-    if (!ok) throw { status: 401, message: "كلمة المرور الحالية غير صحيحة" }
+    if (!ok) throw { status: 400, message: "كلمة المرور الحالية غير صحيحة" }
     if (input.email) {
       const normalized = normalizeEmail(input.email)
       const exists = await prisma.user.findFirst({ where: { email: normalized, id: { not: user.id }, deletedAt: null } })
@@ -252,6 +247,44 @@ export const authService = {
       await prisma.user.update({ where: { id: user.id }, data: { phone: input.phone } })
     }
     return { status: "ok" }
+  },
+
+  updateCredentials: async (
+    authUser: AuthUser | undefined | null,
+    input: { currentPassword: string; email?: string; phone?: string; newPassword?: string }
+  ): Promise<AuthResult & { status?: string }> => {
+    if (!authUser) throw { status: 401, message: "Unauthorized" }
+
+    const user = await prisma.user.findFirst({
+      where: { id: authUser.id, tenantId: authUser.tenantId, deletedAt: null, status: "active" }
+    })
+    if (!user) throw { status: 401, message: "Unauthorized" }
+
+    const ok = await verifyPassword(input.currentPassword, user.passwordHash)
+    if (!ok) throw { status: 400, message: "كلمة المرور الحالية غير صحيحة" }
+
+    const nextEmail = input.email ? normalizeEmail(input.email) : undefined
+    if (nextEmail) {
+      const exists = await prisma.user.findFirst({ where: { email: nextEmail, id: { not: user.id }, deletedAt: null } })
+      if (exists) throw { status: 409, message: "البريد الإلكتروني مستخدم بالفعل" }
+    }
+
+    const nextPasswordHash = input.newPassword ? await hashPassword(input.newPassword) : undefined
+
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          ...(nextEmail ? { email: nextEmail } : {}),
+          ...(input.phone !== undefined ? { phone: input.phone } : {}),
+          ...(nextPasswordHash ? { passwordHash: nextPasswordHash, mustChangePassword: false } : {})
+        }
+      })
+    })
+
+    const roles = await getRolesForUser(user.tenantId, user.id)
+    const freshUser: AuthUser = { id: user.id, tenantId: user.tenantId, roles }
+    return { token: issueToken(freshUser), user: freshUser }
   },
 
   me: async (user: AuthUser | undefined | null) => {

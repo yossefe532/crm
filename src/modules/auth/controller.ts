@@ -63,5 +63,27 @@ export const authController = {
     if (email && !isValidEmail(email)) throw { status: 400, message: "صيغة البريد الإلكتروني غير صحيحة" }
     const result = await authService.updateProfile(req.user as any, { currentPassword, email, phone })
     res.json(result)
+  },
+
+  updateCredentials: async (req: Request, res: Response) => {
+    const currentPassword = String(req.body?.currentPassword || "")
+    const email = req.body?.email ? String(req.body.email) : undefined
+    const phone = req.body?.phone ? String(req.body.phone) : undefined
+    const newPassword = req.body?.newPassword ? String(req.body.newPassword) : undefined
+    const confirmPassword = req.body?.confirmPassword ? String(req.body.confirmPassword) : undefined
+
+    if (!currentPassword) throw { status: 400, message: "كلمة المرور الحالية مطلوبة" }
+    if (!email && phone === undefined && !newPassword) throw { status: 400, message: "لا توجد بيانات للتحديث" }
+    if (email && !isValidEmail(email)) throw { status: 400, message: "صيغة البريد الإلكتروني غير صحيحة" }
+
+    if (newPassword) {
+      if (!confirmPassword) throw { status: 400, message: "تأكيد كلمة المرور غير مطابق" }
+      if (newPassword !== confirmPassword) throw { status: 400, message: "تأكيد كلمة المرور غير مطابق" }
+      const strength = validatePasswordStrength(newPassword)
+      if (!strength.ok) throw { status: 400, message: strength.reasons[0] || "كلمة المرور ضعيفة" }
+    }
+
+    const result = await authService.updateCredentials(req.user as any, { currentPassword, email, phone, newPassword })
+    res.json(result)
   }
 }

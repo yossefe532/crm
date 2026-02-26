@@ -11,7 +11,7 @@ import { coreService } from "../../../lib/services/coreService"
 import { FileInput } from "../../../components/ui/FileInput"
 
 export default function AccountPage() {
-  const { token } = useAuth()
+  const { token, signIn } = useAuth()
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
   const [currentPassword, setCurrentPassword] = useState("")
@@ -29,6 +29,10 @@ export default function AccountPage() {
       setMessage({ tone: "error", text: "كلمة المرور الحالية مطلوبة" })
       return
     }
+    if (!email && !phone && !newPassword && !confirmPassword) {
+      setMessage({ tone: "error", text: "لا توجد بيانات للتحديث" })
+      return
+    }
     if ((newPassword || confirmPassword) && (!newPassword || !confirmPassword)) {
       setMessage({ tone: "error", text: "يرجى إدخال كلمة المرور الجديدة وتأكيدها" })
       return
@@ -39,33 +43,36 @@ export default function AccountPage() {
     }
     setLoading(true)
     try {
-      let updatedPassword = false
-      let updatedProfile = false
-      if (newPassword) {
-        await authApi.changePassword({ currentPassword, newPassword, confirmPassword }, token || undefined)
-        updatedPassword = true
-      }
-      if (email || phone) {
-        await authApi.updateProfile({ currentPassword, email: email || undefined, phone: phone || undefined }, token || undefined)
-        updatedProfile = true
-      }
-      const messageText = updatedPassword && updatedProfile
+      const result = await authApi.updateCredentials(
+        {
+          currentPassword,
+          email: email || undefined,
+          phone: phone || undefined,
+          newPassword: newPassword || undefined,
+          confirmPassword: confirmPassword || undefined
+        },
+        token || undefined
+      )
+
+      const roles = result.user.roles || []
+      const nextRole = roles.includes("owner") ? "owner" : roles.includes("team_leader") ? "team_leader" : "sales"
+      signIn({ token: result.token, role: nextRole, userId: result.user.id, tenantId: result.user.tenantId, forceReset: false })
+
+      const messageText = newPassword && (email || phone)
         ? "تم تحديث كلمة المرور وبيانات الحساب"
-        : updatedPassword
+        : newPassword
           ? "تم تحديث كلمة المرور"
           : "تم تحديث بيانات الحساب"
       setMessage({ tone: "success", text: messageText })
       setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
+      setEmail("")
+      setPhone("")
     } catch (err) {
       const apiErr = err as { status?: number; message?: string; details?: Array<{ message?: string }> }
       const detailsMessage = apiErr?.details?.find((item) => item?.message)?.message
-      if (apiErr?.status === 401) {
-        setMessage({ tone: "error", text: detailsMessage || apiErr?.message || "كلمة المرور الحالية غير صحيحة" })
-      } else {
-        setMessage({ tone: "error", text: detailsMessage || apiErr?.message || "حدث خطأ غير متوقع" })
-      }
+      setMessage({ tone: "error", text: detailsMessage || apiErr?.message || "حدث خطأ غير متوقع" })
     } finally {
       setLoading(false)
     }
