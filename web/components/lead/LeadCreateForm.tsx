@@ -116,7 +116,7 @@ export const LeadCreateForm = () => {
       }
     },
     onSuccess: (data: unknown) => {
-      // Check for request response (has requestType or status=pending)
+        // Check for request response (has requestType or status=pending)
       const requestData = data as { requestType?: string; status?: string }
       if (requestData?.requestType === "create_lead" || (role === "sales" && requestData?.status === "pending")) {
         setMessage("تم إرسال طلب إضافة العميل للموافقة")
@@ -127,7 +127,9 @@ export const LeadCreateForm = () => {
             { type: "role", value: "owner" },
             `طلب إضافة عميل جديد: ${name}`,
             ["push", "in_app"],
-            token || undefined
+            token || undefined,
+            // Add metadata with absolute actionUrl
+            { actionUrl: "/requests" }
           )
           
           if (myTeam?.leaderUserId) {
@@ -135,7 +137,8 @@ export const LeadCreateForm = () => {
               { type: "user", value: myTeam.leaderUserId },
               `طلب إضافة عميل جديد من ${users?.find(u => u.id === userId)?.name || "عضو فريق"}`,
               ["push", "in_app"],
-              token || undefined
+              token || undefined,
+              { actionUrl: "/requests" }
             )
           }
         } catch {}

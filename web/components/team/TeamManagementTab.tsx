@@ -344,7 +344,14 @@ export const TeamManagementTab = () => {
                     <tbody className="divide-y divide-base-100">
                         {stuckLeads.map(lead => (
                             <tr key={lead.id} className="group hover:bg-base-50">
-                                <td className="py-3 pr-4 font-medium">{lead.name}</td>
+                                <td className="py-3 pr-4 font-medium">
+                                    <div 
+                                      className="font-medium text-base-900 cursor-pointer hover:text-brand-600 hover:underline"
+                                      onClick={() => window.location.href = `/leads/${lead.id}`}
+                                    >
+                                      {lead.name}
+                                    </div>
+                                </td>
                                 <td className="py-3">
                                     <div className="flex items-center gap-2">
                                         <Avatar src={lead.assignedUser?.profile?.avatar} name={lead.assignedUser?.name} size="xs" />

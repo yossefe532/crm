@@ -648,7 +648,9 @@ export default function UsersSettingsPage() {
                              "bg-gray-300"
                            }`} />
                            <div>
-                             <p className="font-medium text-sm text-gray-900 group-hover:text-indigo-600 transition-colors">{lead.name}</p>
+                             <Link href={`/leads/${lead.id}`} className="font-medium text-sm text-gray-900 group-hover:text-indigo-600 transition-colors hover:underline">
+                               {lead.name}
+                             </Link>
                              <p className="text-xs text-gray-500 font-mono">{lead.phone || "بدون رقم"}</p>
                            </div>
                          </div>

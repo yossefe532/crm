@@ -79,8 +79,22 @@ export const NotificationBell = () => {
     
     // Fix Action URL routing
     if (notification.actionUrl) {
-        // Ensure url starts with /
-        const url = notification.actionUrl.startsWith('/') ? notification.actionUrl : `/${notification.actionUrl}`
+        // Handle relative vs absolute URLs correctly
+        let url = notification.actionUrl;
+        
+        // Remove trailing slash if present to avoid //
+        if (url.endsWith('/')) url = url.slice(0, -1);
+        
+        // Ensure it starts with / if it's a relative path and not http
+        if (!url.startsWith('http') && !url.startsWith('/')) {
+            url = `/${url}`;
+        }
+        
+        // Special case for 'connect' URLs which might be malformed in older notifications
+        if (url.includes('connect') && !url.includes('/connect')) {
+             url = `/connect`;
+        }
+
         router.push(url)
         setIsOpen(false)
         return

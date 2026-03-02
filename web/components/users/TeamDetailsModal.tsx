@@ -184,7 +184,10 @@ export const TeamDetailsModal = ({ team, isOpen, onClose }: TeamDetailsModalProp
                     </div>
                 )})}
                 {(!team.members || team.members.length === 0) && (
-                    <p className="text-sm text-base-500 text-center py-4">لا يوجد أعضاء في هذا الفريق</p>
+                    <div className="flex flex-col items-center justify-center py-8 text-base-500 gap-2">
+                        <UserMinus className="h-10 w-10 opacity-20" />
+                        <p className="text-sm">لا يوجد أعضاء في هذا الفريق</p>
+                    </div>
                 )}
             </div>
         </div>
