@@ -102,6 +102,10 @@ export default function RequestsPage() {
     const outgoing: typeof all = []
 
     all.forEach(req => {
+      // Filter out failed requests if user wants (Usually failed requests are handled or old)
+      // But specifically, the user asked to hide failed customer requests from user requests
+      if (req.status === 'failed') return
+
       // Outgoing: Requests I created
       if (req.requester?.id === userId) {
         outgoing.push(req)

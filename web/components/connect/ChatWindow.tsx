@@ -101,6 +101,8 @@ export const ChatWindow = () => {
         }
         return data
     },
+    enabled: !!token,
+    staleTime: 1000 * 60 * 5, // 5 minutes cache
     initialData: () => {
         if (typeof window !== 'undefined') {
             const cached = localStorage.getItem('cached_conversations')
@@ -114,8 +116,7 @@ export const ChatWindow = () => {
         }
         return []
     },
-    enabled: !!token,
-    staleTime: 1000 * 60 * 5 // 5 minutes
+    refetchInterval: 10000 // Less frequent polling
   })
 
   const { data: messages = [], isLoading: isLoadingMessages } = useQuery({
@@ -127,6 +128,8 @@ export const ChatWindow = () => {
         }
         return data
     },
+    enabled: !!activeId && !!token,
+    staleTime: 1000 * 60, // 1 minute
     initialData: () => {
         if (typeof window !== 'undefined' && activeId) {
             const cached = localStorage.getItem(`cached_messages_${activeId}`)
@@ -139,9 +142,7 @@ export const ChatWindow = () => {
             }
         }
         return []
-    },
-    enabled: !!activeId && !!token,
-    staleTime: Infinity // We rely on socket updates
+    }
   })
 
   // Mutations

@@ -77,13 +77,34 @@ export const NotificationBell = () => {
       markAsRead(notification.id)
     }
     
+    // Fix Action URL routing
     if (notification.actionUrl) {
-      router.push(notification.actionUrl)
-      setIsOpen(false)
-    } else if (notification.entityType === 'lead' && notification.entityId) {
-      router.push(`/leads/${notification.entityId}`)
-      setIsOpen(false)
+        // Ensure url starts with /
+        const url = notification.actionUrl.startsWith('/') ? notification.actionUrl : `/${notification.actionUrl}`
+        router.push(url)
+        setIsOpen(false)
+        return
     }
+
+    // Default routing based on entity type
+    if (notification.entityType === 'lead' && notification.entityId) {
+      router.push(`/leads/${notification.entityId}`)
+    } else if (notification.entityType === 'user_request') {
+      router.push('/requests')
+    } else if (notification.entityType === 'task') {
+      router.push('/tasks') // Or specific task page
+    } else if (notification.entityType === 'message') {
+      router.push('/connect')
+    } else {
+      // Fallback or specific logic
+      if (notification.title.includes("طلب")) {
+         router.push('/requests')
+      } else if (notification.title.includes("رسالة")) {
+         router.push('/connect')
+      }
+    }
+    
+    setIsOpen(false)
   }
 
   return (

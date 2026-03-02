@@ -209,12 +209,13 @@ export const LeadList = () => {
           <div key={lead.id} className="rounded-xl border border-base-100 p-4">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <p 
-                  className="text-sm font-semibold text-base-900 cursor-pointer hover:text-brand-600 transition-colors"
-                  onClick={() => setSelectedLeadId(lead.id)}
+                <div 
+                  className="text-sm font-medium text-base-900 cursor-pointer hover:text-brand-600 hover:underline transition-colors"
+                  onClick={() => router.push(`/leads/${lead.id}`)}
                 >
                   {lead.name}
-                </p>
+                </div>
+                <div className="text-xs text-base-500 font-normal mt-0.5">{lead.phone}</div>
                 {lead.isWrongNumber && (
                   <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200 mr-2 text-xs">
                     رقم خاطئ ⚠️
