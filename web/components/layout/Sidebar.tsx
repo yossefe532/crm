@@ -110,7 +110,17 @@ export const Sidebar = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
     <>
       {/* Desktop Sidebar */}
       <aside className={`theme-surface hidden h-full w-64 flex-col ${borderClass} border-base-200 bg-base-0 px-5 py-6 ${textAlign} md:flex`} dir={dir}>
-        <div className="mb-8 text-lg font-semibold text-base-900">{t("app_title")}</div>
+        <div className="mb-8">
+          <Link href="/" className="flex items-center gap-2" data-no-loader>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-brand-600 to-brand-700 shadow-sm">
+              <span className="text-lg font-bold text-white">D</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-lg font-bold text-base-900 leading-none">Doctor CRM</span>
+              <span className="text-[10px] font-medium text-brand-600 mt-0.5">v2.5 Updated</span>
+            </div>
+          </Link>
+        </div>
         <nav className="flex flex-1 flex-col gap-2 overflow-y-auto">
           {items.map((item) => (
             <Link
