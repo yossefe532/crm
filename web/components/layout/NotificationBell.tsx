@@ -90,9 +90,10 @@ export const NotificationBell = () => {
             url = `/${url}`;
         }
         
-        // Special case for 'connect' URLs which might be malformed in older notifications
-        if (url.includes('connect') && !url.includes('/connect')) {
-             url = `/connect`;
+        // Force hard navigation for critical paths to ensure state reset
+        if (url.includes('/connect') || url.includes('/requests')) {
+             window.location.href = url;
+             return;
         }
 
         router.push(url)
@@ -104,17 +105,17 @@ export const NotificationBell = () => {
     if (notification.entityType === 'lead' && notification.entityId) {
       router.push(`/leads/${notification.entityId}`)
     } else if (notification.entityType === 'user_request') {
-      router.push('/requests')
+      window.location.href = '/requests'
     } else if (notification.entityType === 'task') {
       router.push('/tasks') // Or specific task page
     } else if (notification.entityType === 'message') {
-      router.push('/connect')
+      window.location.href = '/connect'
     } else {
       // Fallback or specific logic
       if (notification.title.includes("طلب")) {
-         router.push('/requests')
+         window.location.href = '/requests'
       } else if (notification.title.includes("رسالة")) {
-         router.push('/connect')
+         window.location.href = '/connect'
       }
     }
     

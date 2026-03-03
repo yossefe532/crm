@@ -102,7 +102,7 @@ export const ChatWindow = () => {
         return data
     },
     enabled: !!token,
-    staleTime: 1000 * 60 * 5, // 5 minutes cache
+    staleTime: 1000 * 30, // Reduce stale time to 30s to force fresher updates
     initialData: () => {
         if (typeof window !== 'undefined') {
             const cached = localStorage.getItem('cached_conversations')
@@ -116,7 +116,8 @@ export const ChatWindow = () => {
         }
         return []
     },
-    refetchInterval: 10000 // Less frequent polling
+    initialDataUpdatedAt: () => Date.now(), // Treat initial data as fresh to avoid immediate refetch flicker
+    refetchInterval: 5000 // Increase frequency back to 5s for responsiveness
   })
 
   const { data: messages = [], isLoading: isLoadingMessages } = useQuery({
