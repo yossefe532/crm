@@ -51,6 +51,8 @@ export const coreService = {
     apiClient.put<{ status: string }>(`/core/user-requests/${requestId}`, { payload }, token),
   decideUserRequest: (requestId: string, status: "approved" | "rejected", token?: string) =>
     apiClient.post(`/core/user-requests/${requestId}/decide`, { status }, token),
+  deleteUserRequest: (requestId: string, token?: string) =>
+    apiClient.delete(`/core/user-requests/${requestId}`, token),
   listFinanceEntries: (token?: string) =>
     apiClient.get<Array<{ id: string; entryType: string; category: string; amount: number; note?: string | null; occurredAt: string }>>("/core/finance", token),
   createFinanceEntry: (payload: { entryType: "income" | "expense"; category: string; amount: number; note?: string; occurredAt?: string }, token?: string) =>

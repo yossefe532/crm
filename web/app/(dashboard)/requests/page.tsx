@@ -95,6 +95,24 @@ export default function RequestsPage() {
     }
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      setProcessingId(id)
+      try {
+        await coreService.deleteUserRequest(id, token || undefined)
+      } finally {
+        setProcessingId(null)
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-requests"] })
+      toast.success("تم حذف الطلب بنجاح")
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || "فشل حذف الطلب")
+    }
+  })
+
   // Filter requests logic
   const { incomingRequests, outgoingRequests } = useMemo(() => {
     const all = requests || []
@@ -386,6 +404,23 @@ export default function RequestsPage() {
                                 رفض
                             </Button>
                             </>
+                        )}
+                        {/* Owner can delete requests regardless of status */}
+                        {role === "owner" && (
+                             <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-gray-400 hover:text-red-600"
+                                disabled={processingId === req.id}
+                                onClick={() => {
+                                    if (confirm("هل أنت متأكد من حذف هذا الطلب نهائياً؟")) {
+                                        deleteMutation.mutate(req.id)
+                                    }
+                                }}
+                            >
+                                <span className="sr-only">حذف</span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                            </Button>
                         )}
                         </div>
                     </div>

@@ -874,6 +874,11 @@ export const coreService = {
         });
     }),
 
+  deleteUserRequest: (tenantId: string, requestId: string) =>
+    prisma.userRequest.deleteMany({
+      where: { id: requestId, tenantId }
+    }),
+
   approveRegistration: async (tenantId: string, userId: string, actorId: string) => {
     const user = await prisma.user.findFirst({ where: { id: userId, tenantId, status: "inactive" } })
     if (!user) throw { status: 404, message: "المستخدم غير موجود أو مفعل بالفعل" }

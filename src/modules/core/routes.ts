@@ -32,6 +32,8 @@ router.post("/user-requests/:requestId/decide", (req, res, next) => {
   return requirePermission("user_requests.decide")(req, res, next)
 }, asyncHandler(coreController.decideUserRequest))
 
+router.delete("/user-requests/:requestId", requireOwner, asyncHandler(coreController.deleteUserRequest))
+
 router.post("/registrations/:userId/approve", requireOwner, asyncHandler(coreController.approveRegistration))
 
 router.post("/roles", requireOwner, requirePermission("roles.create"), asyncHandler(coreController.createRole))

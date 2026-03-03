@@ -1060,9 +1060,36 @@ export const coreController = {
       }
     }
 
-    const updatedRequest = await coreService.decideUserRequest(tenantId, req.params.requestId, { status, decidedBy: userId })
+    // Update request status
+    const updatedRequest = await coreService.updateUserRequest(tenantId, request.id, { status, decidedBy: userId, decidedAt: new Date(), result: resultData })
+    
+    // Notify requester
+    try {
+        const requester = await prisma.user.findUnique({ where: { id: request.requestedBy } })
+        if (requester) {
+            notificationService.broadcast(
+                { type: "user", value: requester.id },
+                `تم ${status === "approved" ? "قبول" : "رفض"} طلبك: ${request.requestType === 'create_lead' ? 'إضافة عميل' : request.requestType}`,
+                ["push", "in_app"],
+                userId,
+                { actionUrl: "/requests" }
+            )
+        }
+    } catch {}
+
     res.json({ request: updatedRequest, ...resultData })
   },
+
+  deleteUserRequest: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    // Only owner can delete requests
+    if (!req.user?.roles?.includes("owner")) throw { status: 403, message: "غير مصرح للمالك فقط" }
+    
+    await coreService.deleteUserRequest(tenantId, req.params.requestId)
+    await logActivity({ tenantId, actorUserId: req.user?.id, action: "user_request.deleted", entityType: "user_request", entityId: req.params.requestId })
+    res.json({ status: "ok" })
+  },
+
   createFinanceEntry: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
     const entryType = String(req.body?.entryType || "").toLowerCase()
