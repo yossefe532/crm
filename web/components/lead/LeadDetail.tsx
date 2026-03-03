@@ -169,7 +169,16 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
   }
 
   const phoneDigits = (lead.phone || "").replace(/\D/g, "");
-  const whatsappLink = phoneDigits ? `https://wa.me/${phoneDigits}` : "";
+  // Add Egypt code (20) if missing for 11-digit numbers starting with 01
+  const formattedWhatsappPhone = phoneDigits.length === 11 && phoneDigits.startsWith('01') 
+    ? `20${phoneDigits.substring(1)}` // Remove leading 0 and add 20
+    : phoneDigits.length === 11 && phoneDigits.startsWith('20') 
+      ? phoneDigits // Already has 20 but maybe no +
+      : phoneDigits.length === 10 && phoneDigits.startsWith('1')
+        ? `20${phoneDigits}` // Missing 0 and 20 (e.g. 10xxxxxxxx)
+        : phoneDigits; // Fallback
+
+  const whatsappLink = formattedWhatsappPhone ? `https://wa.me/${formattedWhatsappPhone}` : "";
   const callLink = lead.phone ? `tel:${lead.phone}` : "";
   
   // Check if the lead is marked as wrong number

@@ -880,10 +880,10 @@ export const coreService = {
     }),
 
   approveRegistration: async (tenantId: string, userId: string, actorId: string) => {
-    const user = await prisma.user.findFirst({ where: { id: userId, tenantId, status: "inactive" } })
+    const user = await prisma.user.findFirst({ where: { id: userId, tenantId, status: "inactive" }, include: { profile: true } })
     if (!user) throw { status: 404, message: "المستخدم غير موجود أو مفعل بالفعل" }
 
-    await prisma.user.update({
+    const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: { status: "active" }
     })
@@ -912,10 +912,26 @@ export const coreService = {
         await prisma.note.delete({ where: { id: note.id } })
     }
 
-    return {
-        id: user.id,
-        email: user.email,
-        phone: user.phone
+    // Send WhatsApp notification
+    if (user.phone) {
+      let phone = user.phone.replace(/\D/g, "")
+      // Add Egypt code (20) if missing
+      if (phone.length === 11 && phone.startsWith('01')) {
+          phone = `20${phone.substring(1)}`
+      } else if (phone.length === 10 && phone.startsWith('1')) {
+          phone = `20${phone}`
+      }
+      
+      const message = `مرحباً ${user.profile?.firstName || "مستخدم"}! 👋\nتم تفعيل حسابك بنجاح في نظام CRM Doctor.\nيمكنك تسجيل الدخول الآن باستخدام بريدك الإلكتروني.`
+      
+      // Try using wa.me link as a fallback if no integration exists, 
+      // but in backend we usually use an API. Assuming we might log it or use a service.
+      // For now, we ensure the phone is formatted correctly in database or just for the action.
+      // Since we don't have a WhatsApp API integrated yet, this logic prepares the phone number
+      // for any future integration or manual link generation.
+      console.log(`[WhatsApp] Sending welcome to ${phone}: ${message}`)
     }
+
+    return updatedUser
   }
 }
