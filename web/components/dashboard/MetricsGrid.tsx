@@ -21,6 +21,7 @@ export const MetricsGrid = () => {
     if (metric.label === "إجمالي العملاء" || metric.label === "Total Leads") {
       return {
         ...metric,
+        change: undefined,
         // value: Use backend value because leads list is paginated
         href: "/pipeline"
       }
@@ -28,6 +29,7 @@ export const MetricsGrid = () => {
     if (metric.label === "عملاء جدد" || metric.label === "عملاء جدد (شهري)" || metric.label === "New Leads") {
       return {
         ...metric,
+        change: undefined,
         // value: Use backend value
         href: "/pipeline"
       }
@@ -38,6 +40,7 @@ export const MetricsGrid = () => {
         ...metric,
         label: "المستخدمين النشطين",
         value: totalUsers.toLocaleString("ar-EG"),
+        change: undefined,
         subtext: `مبيعات: ${salesCount} | تيم ليدر: ${teamLeaderCount}`,
         href: "/settings/users"
       }

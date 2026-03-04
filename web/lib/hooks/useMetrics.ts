@@ -6,8 +6,8 @@ export const useMetrics = () => {
 
   const metrics: PerformanceMetric[] = data?.keyMetrics?.map(m => ({
     label: m.label,
-    value: m.value.toLocaleString("ar-EG"),
-    change: m.change
+    value: String(m.value),
+    change: `${m.change > 0 ? "+" : ""}${m.change}%`
   })) || []
 
   return { data: metrics, isLoading, isError }
