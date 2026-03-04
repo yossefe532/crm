@@ -37,13 +37,13 @@ export default function PipelinePage() {
       <div className="hidden md:block space-y-4">
         <div className="flex gap-2 w-full max-w-xs">
           <button
-            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${view === "team" ? "bg-brand-600 text-white shadow-sm" : "bg-white text-base-700 border border-base-200 hover:bg-base-50"}`}
+            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${view === "team" ? "bg-brand-600 text-white shadow-sm" : "bg-base-0 text-base-700 border border-base-200 hover:bg-base-50 dark:hover:bg-base-100"}`}
             onClick={() => setView("team")}
           >
             عرض القائمة
           </button>
           <button
-            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${view === "kanban" ? "bg-brand-600 text-white shadow-sm" : "bg-white text-base-700 border border-base-200 hover:bg-base-50"}`}
+            className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${view === "kanban" ? "bg-brand-600 text-white shadow-sm" : "bg-base-0 text-base-700 border border-base-200 hover:bg-base-50 dark:hover:bg-base-100"}`}
             onClick={() => setView("kanban")}
           >
             عرض اللوحة

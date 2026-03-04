@@ -123,14 +123,14 @@ export const LeadProgress = ({ stages, activeIndex = 0, onStageChange, readOnly,
           const isComplete = index < activeIndex
           const isActive = index === activeIndex
           
-          let circleClass = "bg-white border-2 border-base-300 text-base-400 w-12 h-12"
+          let circleClass = "bg-base-0 border-2 border-base-300 text-base-400 w-12 h-12"
           let textClass = "text-base-500 font-medium"
           
           if (isComplete) {
-            circleClass = "bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-200 w-12 h-12"
+            circleClass = "bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-200/70 dark:shadow-emerald-500/30 w-12 h-12"
             textClass = "text-emerald-700 font-bold"
           } else if (isActive) {
-            circleClass = "bg-brand-500 border-brand-500 text-white shadow-lg shadow-brand-200 scale-125 ring-4 ring-brand-100 w-14 h-14"
+            circleClass = "bg-brand-500 border-brand-500 text-white shadow-lg shadow-brand-200/70 dark:shadow-brand-500/30 scale-125 ring-4 ring-brand-100 dark:ring-brand-500/30 w-14 h-14"
             textClass = "text-brand-700 font-bold"
           }
 
@@ -185,14 +185,14 @@ export const LeadProgress = ({ stages, activeIndex = 0, onStageChange, readOnly,
           const isComplete = index < activeIndex
           const isActive = index === activeIndex
           
-          let circleClass = "bg-white border-2 border-base-300 text-base-400 w-16 h-16"
+          let circleClass = "bg-base-0 border-2 border-base-300 text-base-400 w-16 h-16"
           let textClass = "text-base-500 font-medium"
           
           if (isComplete) {
-            circleClass = "bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-200 w-16 h-16"
+            circleClass = "bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-200/70 dark:shadow-emerald-500/30 w-16 h-16"
             textClass = "text-emerald-700 font-bold"
           } else if (isActive) {
-            circleClass = "bg-brand-500 border-brand-500 text-white shadow-lg shadow-brand-200 scale-125 ring-4 ring-brand-100 w-20 h-20"
+            circleClass = "bg-brand-500 border-brand-500 text-white shadow-lg shadow-brand-200/70 dark:shadow-brand-500/30 scale-125 ring-4 ring-brand-100 dark:ring-brand-500/30 w-20 h-20"
             textClass = "text-brand-700 font-bold"
           }
 

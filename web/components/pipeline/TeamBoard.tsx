@@ -37,7 +37,7 @@ const LeadCard = ({ id, name, code, owner, role, onDelete }: { id: string; name:
       style={style}
       {...attributes}
       {...listeners}
-      className={`touch-ripple rounded-xl border border-base-100 bg-white p-3 ${isDragging ? "opacity-60" : ""}`}
+      className={`touch-ripple rounded-xl border border-base-200 bg-base-0 p-3 shadow-sm ${isDragging ? "opacity-60" : ""}`}
     >
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-base-900 truncate max-w-[120px]">{name}</p>
@@ -54,7 +54,7 @@ const LeadCard = ({ id, name, code, owner, role, onDelete }: { id: string; name:
                 onDelete(id)
               }
             }}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/15 dark:text-red-300 dark:hover:bg-red-500/25 transition-colors"
             title="نقل للمهملات"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -70,7 +70,7 @@ const LeadCard = ({ id, name, code, owner, role, onDelete }: { id: string; name:
             e.stopPropagation()
             router.push(`/leads/${id}`)
           }}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-50 text-brand-600 hover:bg-brand-100 dark:bg-brand-500/15 dark:text-brand-500 dark:hover:bg-brand-500/25 transition-colors"
           title="تفاصيل العميل"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

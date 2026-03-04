@@ -44,8 +44,8 @@ const KanbanLane = ({ id, title, count, children }: { id: string; title: string;
   return (
     <div 
       ref={setNodeRef} 
-      className={`w-[85vw] max-w-[300px] flex-shrink-0 flex flex-col rounded-xl border border-base-200 bg-base-50/50 p-3 lg:w-[280px] transition-colors ${
-        isOver ? "bg-brand-50 border-brand-300 ring-2 ring-brand-100" : ""
+      className={`w-[85vw] max-w-[300px] flex-shrink-0 flex flex-col rounded-xl border border-base-200 bg-base-50/70 dark:bg-base-100/40 p-3 lg:w-[280px] transition-colors ${
+        isOver ? "bg-brand-50 dark:bg-brand-500/10 border-brand-300 dark:border-brand-500 ring-2 ring-brand-100 dark:ring-brand-500/30" : ""
       }`}
     >
       <div className="mb-3 flex items-center justify-between px-1">
@@ -59,7 +59,7 @@ const KanbanLane = ({ id, title, count, children }: { id: string; title: string;
           }`}></span>
           {title}
         </h4>
-        <Badge variant="outline" className="bg-white shadow-sm border border-base-100 text-xs px-2 py-0.5 min-w-[24px] justify-center">{count}</Badge>
+        <Badge variant="outline" className="bg-base-0 shadow-sm border border-base-200 text-xs px-2 py-0.5 min-w-[24px] justify-center">{count}</Badge>
       </div>
       <div className="flex-1 space-y-3 overflow-y-auto min-h-[100px] scrollbar-thin scrollbar-thumb-base-300 scrollbar-track-transparent pr-1 pl-1 -mr-1 -ml-1 py-1">
         {children}
@@ -93,7 +93,7 @@ const KanbanCard = ({ lead, usersById, teamsById, role, notifyMutation, onDelete
       <div 
         ref={setNodeRef} 
         style={style} 
-        className="opacity-30 rounded-lg border border-base-200 bg-white p-3 shadow-sm h-[120px]" 
+        className="opacity-30 rounded-lg border border-base-200 bg-base-0 p-3 shadow-sm h-[120px]" 
       />
     )
   }
@@ -104,7 +104,7 @@ const KanbanCard = ({ lead, usersById, teamsById, role, notifyMutation, onDelete
       style={style} 
       {...attributes} 
       {...listeners} 
-      className="touch-manipulation group relative rounded-lg border border-base-200 bg-white p-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing"
+      className="touch-manipulation group relative rounded-lg border border-base-200 bg-base-0 p-3 shadow-sm hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing"
     >
       <div className="flex items-start justify-between mb-2">
         <div>
@@ -129,7 +129,7 @@ const KanbanCard = ({ lead, usersById, teamsById, role, notifyMutation, onDelete
         )}
       </div>
 
-      <div className="flex items-center justify-end gap-2 pt-2 border-t border-base-50">
+      <div className="flex items-center justify-end gap-2 pt-2 border-t border-base-100 dark:border-base-200">
         {role === "owner" && (
           <button
              onPointerDown={(e) => e.stopPropagation()}
@@ -141,7 +141,7 @@ const KanbanCard = ({ lead, usersById, teamsById, role, notifyMutation, onDelete
                  onDelete(lead.id)
                }
              }}
-             className="relative z-10 flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+             className="relative z-10 flex h-7 w-7 items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-500/15 dark:text-red-300 dark:hover:bg-red-500/25 transition-colors"
              title="نقل للمهملات"
            >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -159,7 +159,7 @@ const KanbanCard = ({ lead, usersById, teamsById, role, notifyMutation, onDelete
              e.stopPropagation()
              router.push(`/leads/${lead.id}`)
            }}
-           className="relative z-10 flex h-7 w-7 items-center justify-center rounded-full bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors"
+           className="relative z-10 flex h-7 w-7 items-center justify-center rounded-full bg-brand-50 text-brand-600 hover:bg-brand-100 dark:bg-brand-500/15 dark:text-brand-500 dark:hover:bg-brand-500/25 transition-colors"
            title="تفاصيل العميل"
          >
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -171,7 +171,7 @@ const KanbanCard = ({ lead, usersById, teamsById, role, notifyMutation, onDelete
              target="_blank"
              rel="noopener noreferrer"
              onPointerDown={(e) => { e.stopPropagation() }}
-             className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
+             className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25 transition-colors"
              title="واتساب"
            >
              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
@@ -181,7 +181,7 @@ const KanbanCard = ({ lead, usersById, teamsById, role, notifyMutation, onDelete
         {(role === "owner" || role === "team_leader") && lead.assignedUserId && (
           <Button
             variant="ghost"
-            className="h-7 w-7 rounded-full p-0 text-amber-600 hover:bg-amber-50"
+            className="h-7 w-7 rounded-full p-0 text-amber-600 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-500/20"
             disabled={notifyMutation.isPending}
             onPointerDown={(e) => { e.stopPropagation() }}
             onClick={(e) => {
@@ -392,7 +392,7 @@ export const KanbanBoard = ({ leads }: { leads?: Lead[] }) => {
           <DragOverlay dropAnimation={dropAnimation}>
             {activeLead ? (
               <div className="rotate-2 cursor-grabbing opacity-90 w-[280px]">
-                 <div className="rounded-lg border border-brand-200 bg-white p-3 shadow-xl">
+                 <div className="rounded-lg border border-brand-200 dark:border-brand-500/40 bg-base-0 p-3 shadow-xl">
                     <h5 className="text-sm font-semibold text-base-900">{activeLead.name}</h5>
                     <p className="text-xs text-base-500 mt-1">{activeLead.leadCode}</p>
                  </div>
