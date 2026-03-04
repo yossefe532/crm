@@ -222,6 +222,15 @@ export type Notification = {
   } | null
 }
 
+export type NotificationSetting = {
+  id: string
+  eventKey: string
+  channels: string[]
+  fallbackChannel?: string | null
+  isEnabled: boolean
+  mutedUntil?: string | null
+}
+
 export type PerformanceMetric = {
   label: string
   value: string

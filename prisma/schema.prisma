@@ -91,6 +91,9 @@ model Tenant {
   notificationRules NotificationRule[]
   notificationDeliveries NotificationDelivery[]
   notificationQuotas NotificationQuota[]
+  pushSubscriptions PushSubscription[]
+  notificationSettings NotificationUserSetting[]
+  notificationQueueItems NotificationQueueItem[]
   goalPlans    GoalPlan[]
   goalTargets  GoalTarget[]
   scheduledJobs ScheduledJob[]
@@ -139,6 +142,9 @@ model User {
   leadMetricsDaily LeadMetricsDaily[]
   disciplineIndexSnapshots DisciplineIndexSnapshot[]
   notificationQuotas NotificationQuota[]
+  pushSubscriptions PushSubscription[]
+  notificationSettings NotificationUserSetting[]
+  notificationQueueItems NotificationQueueItem[]
   poolMembers PoolMember[]
   filesCreated File[]
   iconAssetsCreated IconAsset[]
@@ -1575,6 +1581,7 @@ model NotificationDelivery {
   tenant Tenant @relation(fields: [tenantId], references: [id])
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   sender User?  @relation("NotificationSender", fields: [senderId], references: [id])
+  queueItems NotificationQueueItem[]
 
   @@index([tenantId, userId])
   @@index([tenantId, isRead])
@@ -1597,6 +1604,77 @@ model NotificationQuota {
 
   @@unique([tenantId, userId, channel, period])
   @@map("notification_quotas")
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  userId    String   @db.Uuid @map("user_id")
+  endpoint  String
+  p256dhKey String   @map("p256dh_key")
+  authKey   String   @map("auth_key")
+  userAgent String?  @map("user_agent")
+  isActive  Boolean  @default(true) @map("is_active")
+  lastSeenAt DateTime @default(now()) @map("last_seen_at")
+  lastSuccessAt DateTime? @map("last_success_at")
+  lastFailureAt DateTime? @map("last_failure_at")
+  failureReason String? @map("failure_reason")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, endpoint])
+  @@index([tenantId, userId, isActive])
+  @@map("push_subscriptions")
+}
+
+model NotificationUserSetting {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  userId    String   @db.Uuid @map("user_id")
+  eventKey  String   @map("event_key")
+  channels  Json
+  fallbackChannel String? @map("fallback_channel")
+  isEnabled Boolean @default(true) @map("is_enabled")
+  mutedUntil DateTime? @map("muted_until")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, eventKey])
+  @@index([tenantId, userId, isEnabled])
+  @@map("notification_user_settings")
+}
+
+model NotificationQueueItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid @map("tenant_id")
+  userId    String   @db.Uuid @map("user_id")
+  notificationId String? @db.Uuid @map("notification_id")
+  eventKey  String   @map("event_key")
+  channel   String
+  fallbackChannel String? @map("fallback_channel")
+  payload   Json
+  status    String   @default("pending")
+  attempts  Int      @default(0)
+  maxAttempts Int    @default(3) @map("max_attempts")
+  nextRetryAt DateTime @default(now()) @map("next_retry_at")
+  lastError String?  @map("last_error")
+  sentAt    DateTime? @map("sent_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  notification NotificationDelivery? @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status, nextRetryAt])
+  @@index([tenantId, userId, eventKey])
+  @@map("notification_queue_items")
 }
 
 model GoalPlan {

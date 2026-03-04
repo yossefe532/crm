@@ -15,9 +15,15 @@ router.delete("/:id", asyncHandler(notificationController.archive))
 
 // --- Existing/Admin Routes ---
 router.get("/vapid-key", asyncHandler(notificationController.getVapidKey))
+router.get("/subscription-status", asyncHandler(notificationController.subscriptionStatus))
 router.post("/subscribe", asyncHandler(notificationController.subscribe))
+router.post("/unsubscribe", asyncHandler(notificationController.unsubscribe))
 router.post("/test-push", asyncHandler(notificationController.testPush))
 router.post("/broadcast", asyncHandler(notificationController.broadcast))
+router.get("/settings", asyncHandler(notificationController.getUserSettings))
+router.put("/settings", asyncHandler(notificationController.updateUserSetting))
+router.get("/queue", requirePermission("notifications.read"), asyncHandler(notificationController.listQueue))
+router.post("/queue/process", requirePermission("notifications.create"), asyncHandler(notificationController.processQueue))
 
 router.get("/events", requirePermission("notifications.read"), asyncHandler(notificationController.listEvents))
 router.delete("/events", requirePermission("notifications.read"), asyncHandler(notificationController.clearEvents))

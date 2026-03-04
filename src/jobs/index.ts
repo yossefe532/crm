@@ -11,6 +11,7 @@ import { runGoalCleanupJob } from "./goalCleanupJob"
 import { runGoalCheckJob } from "./goalCheckJob"
 
 import { taskReminderJob } from "./taskReminderJob"
+import { runNotificationQueueJob } from "./notificationQueueJob"
 
 export const startJobs = () => {
   cron.schedule("*/5 * * * *", async () => {
@@ -18,6 +19,14 @@ export const startJobs = () => {
       await taskReminderJob()
     } catch (error) {
       console.error("Task reminder job failed", error)
+    }
+  }, { timezone: env.cronTimezone })
+
+  cron.schedule("* * * * *", async () => {
+    try {
+      await runNotificationQueueJob()
+    } catch (error) {
+      console.error("Notification queue schedule failed", error)
     }
   }, { timezone: env.cronTimezone })
 

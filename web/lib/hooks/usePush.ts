@@ -17,27 +17,32 @@ const urlBase64ToUint8Array = (base64String: string) => {
 export const usePush = () => {
   const [isSubscribed, setIsSubscribed] = useState(false)
 
-  useEffect(() => {
-    if ("serviceWorker" in navigator && "PushManager" in window) {
-      navigator.serviceWorker.register("/sw.js").then((registration) => {
-        navigator.serviceWorker.addEventListener("message", (event) => {
-          if (event.data && (event.data.type === "PLAY_SOUND" || event.data.type === "PUSH_RECEIVED")) {
-            const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3")
-            audio.play().catch(() => null)
-            
-            // Dispatch event for components to listen
-            window.dispatchEvent(new CustomEvent("push-notification", { detail: event.data.payload }))
-          }
-        })
-
-        registration.pushManager.getSubscription().then((subscription) => {
-          if (subscription) {
-            setIsSubscribed(true)
-          }
-        })
-      })
+  const refreshStatus = useCallback(async () => {
+    if (!("serviceWorker" in navigator && "PushManager" in window)) {
+      setIsSubscribed(false)
+      return
     }
+    const registration = await navigator.serviceWorker.register("/sw.js")
+    const localSubscription = await registration.pushManager.getSubscription()
+    const serverStatus = await notificationService.getSubscriptionStatus().catch(() => ({ isSubscribed: false }))
+    setIsSubscribed(Boolean(localSubscription) && Boolean(serverStatus?.isSubscribed))
   }, [])
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator && "PushManager" in window)) return
+    const onMessage = (event: MessageEvent) => {
+      if (event.data && (event.data.type === "PLAY_SOUND" || event.data.type === "PUSH_RECEIVED")) {
+        const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3")
+        audio.play().catch(() => null)
+        window.dispatchEvent(new CustomEvent("push-notification", { detail: event.data.payload }))
+      }
+    }
+    navigator.serviceWorker.addEventListener("message", onMessage)
+    refreshStatus().catch(() => null)
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", onMessage)
+    }
+  }, [refreshStatus])
 
   const subscribe = async () => {
     if (!("serviceWorker" in navigator)) return
@@ -51,11 +56,24 @@ export const usePush = () => {
       })
 
       await notificationService.subscribe(subscription)
-      setIsSubscribed(true)
+      await refreshStatus()
     } catch {
       return
     }
   }
 
-  return { isSubscribed, subscribe }
+  const unsubscribe = async () => {
+    if (!("serviceWorker" in navigator)) return
+    const registration = await navigator.serviceWorker.ready
+    const subscription = await registration.pushManager.getSubscription()
+    if (!subscription) {
+      setIsSubscribed(false)
+      return
+    }
+    await notificationService.unsubscribe(subscription.endpoint).catch(() => null)
+    await subscription.unsubscribe().catch(() => null)
+    await refreshStatus()
+  }
+
+  return { isSubscribed, subscribe, unsubscribe, refreshStatus }
 }

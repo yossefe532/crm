@@ -1,4 +1,3 @@
-
 import webpush from "web-push"
 import { prisma } from "../../prisma/client"
 import { env } from "../../config/env"
@@ -11,6 +10,32 @@ if (env.vapidPublicKey && env.vapidPrivateKey) {
     env.vapidPrivateKey
   )
 }
+
+type PushPayload = {
+  title: string
+  body: string
+  url?: string
+  tag?: string
+  metadata?: Record<string, unknown>
+}
+
+type PushSubscriptionInput = {
+  endpoint: string
+  expirationTime?: number | null
+  keys?: {
+    p256dh?: string
+    auth?: string
+  }
+}
+
+const toJsonPayload = (payload: PushPayload) =>
+  JSON.stringify({
+    title: payload.title,
+    body: payload.body,
+    url: payload.url || "/notifications",
+    tag: payload.tag || "crm-doctor",
+    metadata: payload.metadata || {}
+  })
 
 export const pushService = {
   getPublicKey: () => env.vapidPublicKey,
@@ -39,34 +64,54 @@ export const pushService = {
     return policy
   },
 
-  subscribe: async (tenantId: string, userId: string, subscription: any) => {
-    // Store subscription in Note model using relatedTo/relatedId
-    // relatedTo: "push_subscription"
-    // relatedId: userId (Note: relatedId is UUID, so this fits if userId is UUID)
-    
-    const subString = JSON.stringify(subscription)
-    
-    // Check if subscription already exists to avoid duplicates
-    const existing = await prisma.note.findFirst({
+  subscribe: async (tenantId: string, userId: string, subscription: PushSubscriptionInput, userAgent?: string) => {
+    if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
+      throw new Error("Invalid push subscription payload")
+    }
+
+    await prisma.pushSubscription.upsert({
       where: {
+        tenantId_endpoint: {
+          tenantId,
+          endpoint: subscription.endpoint
+        }
+      },
+      update: {
+        userId,
+        p256dhKey: subscription.keys.p256dh,
+        authKey: subscription.keys.auth,
+        userAgent: userAgent?.slice(0, 500),
+        isActive: true,
+        lastSeenAt: new Date(),
+        failureReason: null
+      },
+      create: {
         tenantId,
-        relatedTo: "push_subscription",
-        relatedId: userId,
-        content: { contains: subString } 
+        userId,
+        endpoint: subscription.endpoint,
+        p256dhKey: subscription.keys.p256dh,
+        authKey: subscription.keys.auth,
+        userAgent: userAgent?.slice(0, 500),
+        isActive: true
       }
     })
+  },
 
-    if (!existing) {
-      await prisma.note.create({
-        data: {
-          tenantId,
-          relatedTo: "push_subscription",
-          relatedId: userId,
-          content: subString,
-          createdBy: userId
-        }
-      })
-    }
+  unsubscribe: async (tenantId: string, userId: string, endpoint: string) => {
+    await prisma.pushSubscription.updateMany({
+      where: { tenantId, userId, endpoint },
+      data: {
+        isActive: false,
+        lastSeenAt: new Date()
+      }
+    })
+  },
+
+  hasActiveSubscription: async (tenantId: string, userId: string) => {
+    const count = await prisma.pushSubscription.count({
+      where: { tenantId, userId, isActive: true }
+    })
+    return count > 0
   },
 
   send: async (tenantId: string, userId: string, payload: { title: string; body: string; url?: string }) => {
@@ -146,27 +191,56 @@ export const pushService = {
     }
 
     // Get subscriptions
-    const subscriptions = await prisma.note.findMany({
+    const subscriptions = await prisma.pushSubscription.findMany({
       where: {
         tenantId,
-        relatedTo: "push_subscription",
-        relatedId: userId
+        userId,
+        isActive: true
       }
     })
 
+    let sentCount = 0
+    const errors: string[] = []
+
     // Send notifications
-    for (const subNote of subscriptions) {
+    for (const subscription of subscriptions) {
       try {
-        const subscription = JSON.parse(subNote.content)
-        await webpush.sendNotification(subscription, JSON.stringify(payload))
-      } catch (error) {
-        console.error(`[Push] Failed to send to user ${userId}:`, error)
-        // If 410 Gone, delete the subscription
-        if ((error as any)?.statusCode === 410) {
-          await prisma.note.delete({ where: { id: subNote.id } })
+        const webPushSubscription: webpush.PushSubscription = {
+          endpoint: subscription.endpoint,
+          expirationTime: null,
+          keys: {
+            p256dh: subscription.p256dhKey,
+            auth: subscription.authKey
+          }
         }
+        await webpush.sendNotification(webPushSubscription, toJsonPayload(payload))
+        sentCount += 1
+        await prisma.pushSubscription.update({
+          where: { id: subscription.id },
+          data: {
+            isActive: true,
+            lastSuccessAt: new Date(),
+            lastFailureAt: null,
+            failureReason: null,
+            lastSeenAt: new Date()
+          }
+        })
+      } catch (error) {
+        const statusCode = (error as { statusCode?: number })?.statusCode
+        const reason = error instanceof Error ? error.message : "Unknown push error"
+        errors.push(reason)
+        await prisma.pushSubscription.update({
+          where: { id: subscription.id },
+          data: {
+            isActive: statusCode === 404 || statusCode === 410 ? false : subscription.isActive,
+            lastFailureAt: new Date(),
+            failureReason: reason.slice(0, 500)
+          }
+        })
       }
     }
+
+    return { sentCount, attempted: subscriptions.length, errors }
   },
 
   broadcast: async (tenantId: string, target: { type: "all" | "role" | "user"; value?: string }, message: string) => {

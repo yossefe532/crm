@@ -78,3 +78,23 @@ export const useArchiveAll = () => {
     }
   })
 }
+
+export const useNotificationSettings = () => {
+  const { token } = useAuth()
+  return useQuery({
+    queryKey: ["notifications", "settings"],
+    queryFn: async () => notificationService.getSettings(),
+    enabled: !!token
+  })
+}
+
+export const useUpsertNotificationSetting = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (payload: { eventKey: string; channels: string[]; fallbackChannel?: string | null; isEnabled?: boolean; mutedUntil?: string | null }) =>
+      notificationService.upsertSetting(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications", "settings"] })
+    }
+  })
+}

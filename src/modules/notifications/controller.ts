@@ -81,8 +81,27 @@ export const notificationController = {
   subscribe: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
     const userId = req.user?.id || ""
-    await pushService.subscribe(tenantId, userId, req.body.subscription)
+    await pushService.subscribe(tenantId, userId, req.body.subscription, req.get("user-agent") || undefined)
     res.json({ status: "ok" })
+  },
+
+  unsubscribe: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const userId = req.user?.id || ""
+    const endpoint = String(req.body?.endpoint || "")
+    if (!endpoint) {
+      res.status(400).json({ message: "endpoint is required" })
+      return
+    }
+    await notificationService.removeSubscription(tenantId, userId, endpoint)
+    res.json({ status: "ok" })
+  },
+
+  subscriptionStatus: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const userId = req.user?.id || ""
+    const status = await notificationService.getSubscriptionState(tenantId, userId)
+    res.json(status)
   },
 
   broadcast: async (req: Request, res: Response) => {
@@ -117,11 +136,19 @@ export const notificationController = {
   testPush: async (req: Request, res: Response) => {
     const tenantId = req.user?.tenantId || ""
     const userId = req.user?.id || ""
-    await pushService.send(tenantId, userId, {
+    await notificationService.send({
+      tenantId,
+      userId,
+      type: "system",
+      eventKey: "notification.test_push",
       title: "تجربة الإشعارات",
-      body: "هذا إشعار تجريبي للتأكد من عمل النظام بشكل صحيح ✅",
-      url: "/notifications"
+      message: "هذا إشعار تجريبي للتأكد من عمل النظام بشكل صحيح ✅",
+      actionUrl: "/notifications",
+      channels: ["push"],
+      fallbackChannel: "sms",
+      metadata: { testPush: true }
     })
+    await notificationService.processQueueBatch(25)
     res.json({ status: "ok", message: "Notification sent" })
   },
 
@@ -172,6 +199,46 @@ export const notificationController = {
         end: (raw.quietHours as Record<string, unknown> | undefined)?.end || "08:00"
       }
     })
+  },
+
+  getUserSettings: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const userId = req.user?.id || ""
+    const settings = await notificationService.getUserSettings(tenantId, userId)
+    res.json(settings)
+  },
+
+  updateUserSetting: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const userId = req.user?.id || ""
+    const { eventKey, channels, fallbackChannel, isEnabled, mutedUntil } = req.body || {}
+    if (!eventKey || !Array.isArray(channels)) {
+      res.status(400).json({ message: "eventKey and channels are required" })
+      return
+    }
+
+    const setting = await notificationService.upsertUserSetting(tenantId, userId, {
+      eventKey: String(eventKey),
+      channels,
+      fallbackChannel: fallbackChannel || null,
+      isEnabled: typeof isEnabled === "boolean" ? isEnabled : true,
+      mutedUntil: mutedUntil ? new Date(mutedUntil) : null
+    })
+    res.json(setting)
+  },
+
+  processQueue: async (req: Request, res: Response) => {
+    const limit = Number(req.body?.limit || 100)
+    const result = await notificationService.processQueueBatch(limit)
+    res.json(result)
+  },
+
+  listQueue: async (req: Request, res: Response) => {
+    const tenantId = req.user?.tenantId || ""
+    const status = req.query.status ? String(req.query.status) : undefined
+    const limit = Number(req.query.limit || 100)
+    const items = await notificationService.listQueue(tenantId, status, limit)
+    res.json(items)
   },
 
   updatePolicy: async (req: Request, res: Response) => {

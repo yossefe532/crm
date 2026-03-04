@@ -1,9 +1,11 @@
 import { apiClient } from "../api/client"
-import { NotificationEvent, Notification } from "../types"
+import { NotificationEvent, Notification, NotificationSetting } from "../types"
 
 export const notificationService = {
   getVapidKey: () => apiClient.get<{ publicKey: string }>("/notifications/vapid-key"),
+  getSubscriptionStatus: () => apiClient.get<{ isSubscribed: boolean }>("/notifications/subscription-status"),
   subscribe: (subscription: any) => apiClient.post("/notifications/subscribe", { subscription }),
+  unsubscribe: (endpoint: string) => apiClient.post("/notifications/unsubscribe", { endpoint }),
   testPush: () => apiClient.post("/notifications/test-push", {}),
   broadcast: (target: { type: "all" | "role" | "user" | "users" | "team"; value?: string | string[] }, message: string, channels?: string[], token?: string) =>
     apiClient.post("/notifications/broadcast", { target, message, channels }, token),
@@ -24,4 +26,7 @@ export const notificationService = {
   markAsRead: (id: string, token?: string) => apiClient.patch(`/notifications/${id}/read`, {}, token),
   archive: (id: string, token?: string) => apiClient.delete(`/notifications/${id}`, token),
   archiveAll: (token?: string) => apiClient.delete("/notifications", token),
+  getSettings: () => apiClient.get<NotificationSetting[]>("/notifications/settings"),
+  upsertSetting: (payload: { eventKey: string; channels: string[]; fallbackChannel?: string | null; isEnabled?: boolean; mutedUntil?: string | null }) =>
+    apiClient.put("/notifications/settings", payload),
 }
