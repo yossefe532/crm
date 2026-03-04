@@ -177,7 +177,7 @@ export default function LeadDetailPage() {
           <div className="mb-4 text-lg font-medium text-red-600">تعذر تحميل بيانات العميل</div>
           <div className="text-sm text-base-500 mb-2">تأكد من الاتصال بالإنترنت أو صلاحيات الوصول</div>
           {(leadError as any)?.message && (
-            <div className="text-xs text-red-500 bg-red-50 p-2 rounded border border-red-100 mb-4">
+            <div className="mb-4 rounded border border-rose-200 bg-rose-50 p-2 text-xs text-rose-700 dark:border-rose-500/35 dark:bg-rose-500/12 dark:text-rose-300">
               {(leadError as any).message}
             </div>
           )}

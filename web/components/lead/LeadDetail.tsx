@@ -197,9 +197,9 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
     <div className="space-y-6 animate-fadeIn">
       {/* Wrong Number Alert for Owner */}
       {isWrongNumber && role === 'owner' && (
-        <div className="bg-rose-50 border border-rose-100 rounded-lg p-4 flex flex-col md:flex-row items-center justify-between gap-4 animate-pulse-slow shadow-sm">
+        <div className="animate-pulse-slow flex flex-col items-center justify-between gap-4 rounded-lg border border-rose-200 bg-rose-50 p-4 shadow-sm dark:border-rose-500/30 dark:bg-rose-500/12 md:flex-row">
             <div className="flex items-center gap-3">
-                <div className="bg-rose-100 p-2.5 rounded-full">
+                <div className="rounded-full bg-rose-100 p-2.5 dark:bg-rose-500/20">
                     <span className="text-xl">📞</span>
                 </div>
                 <div>
@@ -222,7 +222,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
                 </Button>
                 <Button 
                     variant="outline"
-                    className="flex-1 md:flex-none border-rose-200 text-rose-700 hover:bg-rose-100"
+                    className="flex-1 md:flex-none border-rose-200 text-rose-700 hover:bg-rose-100 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/20"
                     onClick={() => unassignMutation.mutate()}
                     disabled={unassignMutation.isPending}
                 >
@@ -230,7 +230,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
                 </Button>
                  <Button 
                     variant="ghost"
-                    className="flex-1 md:flex-none text-rose-600 hover:bg-rose-100"
+                    className="flex-1 md:flex-none text-rose-600 hover:bg-rose-100 dark:text-rose-300 dark:hover:bg-rose-500/20"
                     onClick={() => setIsDeleteModalOpen(true)}
                 >
                     حذف
@@ -240,7 +240,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
       )}
 
       {/* Header Card */}
-      <div className="bg-white dark:bg-[#111111] rounded-xl shadow-sm border border-base-200 p-4 md:p-6 relative overflow-hidden">
+      <div className="relative overflow-hidden rounded-xl border border-base-200 bg-base-0 p-4 shadow-sm md:p-6">
         {/* Decorative background element */}
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-500 to-brand-300"></div>
         
@@ -250,9 +250,9 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
                 <Avatar 
                 name={lead.name} 
                 size="lg" 
-                className="h-16 w-16 md:h-20 md:w-20 text-xl md:text-2xl bg-brand-50 text-brand-600 border-2 border-white shadow-md"
+                className="h-16 w-16 border-2 border-base-0 bg-brand-50 text-xl text-brand-600 shadow-md dark:bg-brand-500/20 dark:text-brand-300 md:h-20 md:w-20 md:text-2xl"
                 />
-                <span className={`absolute bottom-0 right-0 w-4 h-4 md:w-5 md:h-5 rounded-full border-2 border-white ${
+                <span className={`absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-base-0 md:h-5 md:w-5 ${
                     lead.priority === 'high' ? 'bg-red-500' : 
                     lead.priority === 'low' ? 'bg-green-500' : 'bg-yellow-500'
                 }`} title={`أولوية: ${lead.priority === 'high' ? 'عالية' : lead.priority === 'low' ? 'منخفضة' : 'عادية'}`}></span>
@@ -280,7 +280,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
                     <span className={`truncate ${lead.phone ? (isWrongNumber ? "text-rose-600 font-bold line-through decoration-2" : "text-base-900 dark:text-white font-medium") : "text-base-400"}`}>
                         {lead.phone || "لا يوجد هاتف"}
                     </span>
-                    {isWrongNumber && <span className="text-[10px] md:text-xs text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-full font-bold shrink-0">⚠️ رقم خاطئ</span>}
+                    {isWrongNumber && <span className="shrink-0 rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-bold text-rose-600 dark:bg-rose-500/20 dark:text-rose-300 md:text-xs">⚠️ رقم خاطئ</span>}
                     </span>
                     {role === 'owner' && (
                         <button 
@@ -311,7 +311,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
                   href={`https://wa.me/${lead.phone.replace(/\D/g, "").replace(/^0/, "20")}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="btn btn-sm btn-ghost gap-2 text-emerald-600 hover:bg-emerald-50"
+                  className="btn btn-sm btn-ghost gap-2 text-emerald-600 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-500/20"
                 >
                   <span className="w-5 h-5 flex items-center justify-center">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
@@ -321,7 +321,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
                 <a 
                    href={`tel:${lead.phone}`}
                    onClick={() => setIsCallDialogOpen(true)}
-                   className="btn btn-sm btn-ghost gap-2 text-blue-600 hover:bg-blue-50"
+                   className="btn btn-sm btn-ghost gap-2 text-blue-600 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-500/20"
                  >
                   <span className="w-5 h-5 flex items-center justify-center">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
@@ -345,7 +345,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
             {(lead.status === 'meeting' || lead.status === 'site_visit') && !isOwnerAssignedToOther && (
                 <Button
                     variant="outline"
-                    className="flex-1 md:flex-none border-blue-300 text-blue-700 hover:bg-blue-50 gap-2"
+                    className="flex-1 gap-2 border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-500/40 dark:text-blue-300 dark:hover:bg-blue-500/20 md:flex-none"
                     onClick={() => setIsSiteVisitDialogOpen(true)}
                 >
                     <span className="w-4 h-4 flex items-center justify-center">📅</span>
@@ -355,7 +355,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
                 {role === "owner" && (
                   <Button
                     variant="outline"
-                    className="flex-1 md:flex-none border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 gap-2"
+                    className="flex-1 gap-2 border-rose-200 text-rose-600 hover:border-rose-300 hover:bg-rose-50 dark:border-rose-500/40 dark:text-rose-300 dark:hover:bg-rose-500/20 md:flex-none"
                     onClick={() => setIsDeleteModalOpen(true)}
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -519,7 +519,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
         {/* Main Content */}
         <div className="space-y-6">
           {/* Tabs */}
-          <div className="bg-white dark:bg-[#111111] rounded-xl shadow-sm border border-base-200 p-1 flex gap-1 overflow-x-auto">
+          <div className="flex gap-1 overflow-x-auto rounded-xl border border-base-200 bg-base-0 p-1 shadow-sm">
             <button
               onClick={() => setActiveTab("details")}
               className={`flex-1 min-w-[120px] px-4 py-2.5 text-sm font-medium rounded-lg transition-all text-center ${
@@ -589,7 +589,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
                     <div className="group">
                       <dt className="text-xs font-semibold text-base-400 mb-1.5 uppercase tracking-wider">مصدر العميل</dt>
                       <dd className="text-sm font-medium text-base-900 dark:text-white flex items-center gap-2">
-                  <Badge variant="outline" className="bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                  <Badge variant="outline" className="bg-base-100 text-base-700 dark:bg-base-800 dark:text-base-200">
                     {lead.sourceLabel || "غير محدد"}
                   </Badge>
                 </dd>
@@ -629,7 +629,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
                   <div className="relative border-r-2 border-base-100 dark:border-base-800 mr-4 space-y-8 py-2">
                     {activities.map((activity) => (
                       <div key={activity.id} className="relative pr-8 group">
-                        <div className={`absolute -right-[9px] top-1.5 h-4 w-4 rounded-full border-2 border-white dark:border-[#111111] shadow-sm z-10 ${
+                        <div className={`absolute -right-[9px] top-1.5 z-10 h-4 w-4 rounded-full border-2 border-base-0 shadow-sm ${
                           activity.type === 'call' ? 'bg-blue-500' : 'bg-purple-500'
                         }`}></div>
                         
@@ -642,7 +642,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
                           </span>
                         </div>
                         
-                        <div className="text-sm text-base-700 dark:text-base-300 bg-white dark:bg-base-900 border border-base-200 dark:border-base-800 p-4 rounded-xl shadow-sm group-hover:shadow-md transition-shadow">
+                        <div className="rounded-xl border border-base-200 bg-base-0 p-4 text-sm text-base-700 shadow-sm transition-shadow group-hover:shadow-md dark:border-base-700 dark:text-base-300">
                           {activity.type === 'call' ? (
                             <div className="space-y-2">
                                 <div className="flex items-center gap-2">
@@ -697,7 +697,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
                         <span className="text-2xl">📝</span>
                         <div>
                             <h4 className="font-bold text-amber-800 dark:text-amber-500">ملاحظات هامة</h4>
-                            <p className="text-xs text-amber-600/70">هذه الملاحظات خاصة ولا تظهر للعميل</p>
+                            <p className="text-xs text-amber-700/80 dark:text-amber-300/80">هذه الملاحظات خاصة ولا تظهر للعميل</p>
                         </div>
                     </div>
                   <p className="text-sm text-base-900 dark:text-base-100 whitespace-pre-wrap leading-loose">
@@ -735,7 +735,7 @@ export const LeadDetail = ({ leadId, showProgress = true }: { leadId: string; sh
               <Avatar 
                 name={assignedUser?.name || assignedUser?.email} 
                 size="md" 
-                className="bg-white border shadow-sm"
+                className="border border-base-200 bg-base-0 shadow-sm dark:border-base-700"
               />
               <div className="overflow-hidden">
                 <p className="text-sm font-bold text-base-900 dark:text-white truncate">

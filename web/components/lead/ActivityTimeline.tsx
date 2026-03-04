@@ -37,17 +37,17 @@ export const ActivityTimeline = ({ leadId }: { leadId: string }) => {
 
   return (
     <Card title="سجل النشاط">
-      <div className="relative border-r border-gray-200 pr-4">
+      <div className="relative border-r border-base-200 pr-4">
         {(timeline || []).map((event) => (
           <div key={event.id} className="mb-6 last:mb-0">
-            <div className="absolute -right-1.5 mt-1.5 h-3 w-3 rounded-full border border-white bg-gray-200" />
+            <div className="absolute -right-1.5 mt-1.5 h-3 w-3 rounded-full border border-base-0 bg-base-300" />
             <div className="flex items-center gap-2">
               <span className="text-lg">{getEventIcon(event.type)}</span>
-              <time className="text-sm text-gray-500">
+              <time className="text-sm text-base-500">
                 {format(new Date(event.date), "PP p", { locale: ar })}
               </time>
             </div>
-            <div className="mt-1 rounded-lg border border-base-100 bg-base-50 p-3">
+            <div className="mt-1 rounded-lg border border-base-200 bg-base-50 p-3">
               <p className="font-medium text-base-900">{getEventTitle(event)}</p>
               {event.type === "note" && <p className="mt-1 text-sm text-base-700">{event.details.content}</p>}
               {event.actor && (

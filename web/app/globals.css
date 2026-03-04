@@ -238,6 +238,61 @@ td {
   border-color: var(--border-color);
 }
 
+/* Meetings - react-big-calendar dark mode support */
+.meeting-calendar .rbc-calendar,
+.meeting-calendar .rbc-month-view,
+.meeting-calendar .rbc-time-view,
+.meeting-calendar .rbc-agenda-view {
+  background-color: rgb(var(--base-0) / 1);
+  color: rgb(var(--base-900) / 1);
+  border-color: rgb(var(--base-200) / 1);
+}
+
+.meeting-calendar .rbc-header,
+.meeting-calendar .rbc-time-header-content,
+.meeting-calendar .rbc-time-content,
+.meeting-calendar .rbc-time-header,
+.meeting-calendar .rbc-month-row + .rbc-month-row,
+.meeting-calendar .rbc-day-bg + .rbc-day-bg,
+.meeting-calendar .rbc-time-content > * + * > * {
+  border-color: rgb(var(--base-200) / 1);
+}
+
+.meeting-calendar .rbc-off-range-bg {
+  background-color: rgb(var(--base-50) / 0.7);
+}
+
+.meeting-calendar .rbc-toolbar button {
+  background-color: rgb(var(--base-0) / 1);
+  color: rgb(var(--base-700) / 1);
+  border: 1px solid rgb(var(--base-300) / 1);
+}
+
+.meeting-calendar .rbc-toolbar button:hover,
+.meeting-calendar .rbc-toolbar button:focus {
+  background-color: rgb(var(--base-50) / 1);
+  color: rgb(var(--base-900) / 1);
+}
+
+.meeting-calendar .rbc-toolbar button.rbc-active {
+  background-color: rgb(var(--brand-500) / 0.25);
+  border-color: rgb(var(--brand-500) / 0.45);
+  color: rgb(var(--base-900) / 1);
+}
+
+.meeting-calendar .rbc-today {
+  background-color: rgb(var(--brand-500) / 0.12);
+}
+
+.meeting-calendar .rbc-event {
+  background-color: rgb(var(--brand-500) / 0.9);
+  border-color: rgb(var(--brand-600) / 1);
+}
+
+.meeting-calendar .rbc-show-more {
+  color: rgb(var(--brand-600) / 1);
+}
+
 *:focus-visible {
   outline: 2px solid rgba(212, 175, 55, 0.7);
   outline-offset: 2px;

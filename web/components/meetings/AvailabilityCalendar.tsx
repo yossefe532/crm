@@ -42,7 +42,7 @@ export const AvailabilityCalendar = ({ date, onDateChange }: { date?: Date, onDa
 
   return (
     <Card title="توفر التقويم">
-      <div className="h-[600px] overflow-x-auto">
+      <div className="meeting-calendar h-[600px] overflow-x-auto rounded-lg border border-base-200 bg-base-0 p-2">
         <div className="h-full min-w-[600px]">
           <Calendar 
             localizer={localizer} 

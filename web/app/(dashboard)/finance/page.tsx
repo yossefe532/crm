@@ -183,6 +183,14 @@ export default function FinancePage() {
     }))
   }, [filteredEntries, selectedYear, selectedMonth])
 
+  const chartTooltipStyle = {
+    backgroundColor: "rgb(var(--base-0))",
+    border: "1px solid rgb(var(--base-200))",
+    borderRadius: "10px",
+    boxShadow: "var(--shadow-card)",
+    color: "rgb(var(--base-900))"
+  } as const
+
 
   if (role !== "owner") {
     return <Card title="المالية">غير مصرح لك بالوصول لهذه الصفحة</Card>
@@ -191,7 +199,7 @@ export default function FinancePage() {
   return (
     <div className="space-y-6 p-6">
       {/* Header & Filters */}
-      <div className="flex flex-col xl:flex-row justify-between items-center gap-4 bg-white dark:bg-base-900 p-4 rounded-xl shadow-sm border border-base-200">
+      <div className="flex flex-col items-center justify-between gap-4 rounded-xl border border-base-200 bg-base-0 p-4 shadow-sm xl:flex-row">
         <h1 className="text-2xl font-bold text-base-900 dark:text-white">المالية</h1>
         <div className="flex flex-wrap gap-2 justify-center w-full md:w-auto">
           <Select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-32">
@@ -233,17 +241,17 @@ export default function FinancePage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-emerald-50 border-emerald-100">
-          <div className="text-emerald-600 text-sm font-medium">إجمالي الدخل</div>
-          <div className="text-2xl font-bold text-emerald-700">{stats.income.toLocaleString()} ج.م</div>
+        <Card className="border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+          <div className="text-sm font-medium text-emerald-700 dark:text-emerald-300">إجمالي الدخل</div>
+          <div className="text-2xl font-bold text-emerald-800 dark:text-emerald-200">{stats.income.toLocaleString()} ج.م</div>
         </Card>
-        <Card className="bg-rose-50 border-rose-100">
-          <div className="text-rose-600 text-sm font-medium">إجمالي المصروفات</div>
-          <div className="text-2xl font-bold text-rose-700">{stats.expense.toLocaleString()} ج.م</div>
+        <Card className="border-rose-200 bg-rose-50 dark:border-rose-500/30 dark:bg-rose-500/10">
+          <div className="text-sm font-medium text-rose-700 dark:text-rose-300">إجمالي المصروفات</div>
+          <div className="text-2xl font-bold text-rose-800 dark:text-rose-200">{stats.expense.toLocaleString()} ج.م</div>
         </Card>
-        <Card className={`border-base-200 ${stats.net >= 0 ? 'bg-blue-50 border-blue-100' : 'bg-orange-50 border-orange-100'}`}>
+        <Card className={`border-base-200 ${stats.net >= 0 ? 'bg-blue-50 border-blue-200 dark:bg-blue-500/10 dark:border-blue-500/30' : 'bg-orange-50 border-orange-200 dark:bg-orange-500/10 dark:border-orange-500/30'}`}>
           <div className="text-base-600 text-sm font-medium">صافي الربح</div>
-          <div className={`text-2xl font-bold ${stats.net >= 0 ? 'text-blue-700' : 'text-orange-700'}`}>
+          <div className={`text-2xl font-bold ${stats.net >= 0 ? 'text-blue-800 dark:text-blue-300' : 'text-orange-800 dark:text-orange-300'}`}>
             {stats.net.toLocaleString()} ج.م
           </div>
         </Card>
@@ -269,7 +277,11 @@ export default function FinancePage() {
                     <Cell key={`cell-income-${index}`} fill={FINANCE_COLORS[index % FINANCE_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip
+                  contentStyle={chartTooltipStyle}
+                  itemStyle={{ color: "rgb(var(--base-800))" }}
+                  labelStyle={{ color: "rgb(var(--base-600))" }}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -293,7 +305,11 @@ export default function FinancePage() {
                     <Cell key={`cell-${index}`} fill={FINANCE_COLORS[index % FINANCE_COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip
+                  contentStyle={chartTooltipStyle}
+                  itemStyle={{ color: "rgb(var(--base-800))" }}
+                  labelStyle={{ color: "rgb(var(--base-600))" }}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -303,11 +319,15 @@ export default function FinancePage() {
           <div className="h-[300px] w-full" dir="ltr">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dailyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="day" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgb(var(--base-200))" />
+                <XAxis dataKey="day" stroke="rgb(var(--base-500))" />
+                <YAxis stroke="rgb(var(--base-500))" />
+                <Tooltip
+                  contentStyle={chartTooltipStyle}
+                  itemStyle={{ color: "rgb(var(--base-800))" }}
+                  labelStyle={{ color: "rgb(var(--base-600))" }}
+                />
+                <Legend wrapperStyle={{ color: "rgb(var(--base-700))" }} />
                 <Bar dataKey="income" fill="#10B981" name="دخل" />
                 <Bar dataKey="expense" fill="#EF4444" name="صرف" />
               </BarChart>
@@ -361,7 +381,7 @@ export default function FinancePage() {
                         <Button 
                           size="sm" 
                           variant="ghost" 
-                          className="text-rose-600 hover:bg-rose-50"
+                          className="text-rose-600 hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-500/20"
                           onClick={() => setDeleteConfirmationId(entry.id)}
                         >
                           حذف

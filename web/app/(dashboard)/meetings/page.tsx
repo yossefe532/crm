@@ -20,7 +20,7 @@ export default function MeetingsPage() {
       <UpcomingMeetings />
       <div className="md:hidden">
         <button
-          className="rounded-md border border-base-200 bg-white px-3 py-2 text-sm text-base-700 shadow-sm"
+          className="rounded-md border border-base-200 bg-base-0 px-3 py-2 text-sm text-base-700 shadow-sm transition-colors hover:bg-base-50"
           onClick={() => setShowCalendar((v) => !v)}
         >
           {showCalendar ? "إخفاء التقويم" : "عرض التقويم"}
@@ -28,7 +28,7 @@ export default function MeetingsPage() {
       </div>
       <div className="md:block">
         {(showCalendar || typeof window === "undefined") && (
-          <div className="overflow-x-auto rounded-lg border border-base-200 bg-white p-2 md:p-4">
+          <div className="overflow-x-auto rounded-lg border border-base-200 bg-base-0 p-2 md:p-4">
             <AvailabilityCalendar date={date} onDateChange={setDate} />
           </div>
         )}

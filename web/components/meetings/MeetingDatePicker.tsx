@@ -131,7 +131,7 @@ export const MeetingDatePicker = ({ date: propDate, onDateChange }: { date?: Dat
             ))}
           </div>
           {deadlineWarning && (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+            <div className="rounded-xl border border-amber-300/70 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/12 dark:text-amber-300">
               تنبيه تمديد: يرجى تأكيد المواعيد قبل {format(deadlineWarning, "PPpp", { locale: ar })}.
             </div>
           )}
