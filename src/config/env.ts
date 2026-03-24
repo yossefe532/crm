@@ -7,13 +7,17 @@ const resolveDatabaseUrl = () => {
     const postgresUrl = process.env.POSTGRES_URL || '';
     const postgresqlUrl = process.env.POSTGRESQL_URL || '';
     const databasePrivateUrl = process.env.DATABASE_PRIVATE_URL || '';
+    const dynamicUrlCandidates = Object.entries(process.env)
+        .filter(([key, value]) => Boolean(value) && /(POSTGRES|DATABASE).*(URL)|URL.*(POSTGRES|DATABASE)/i.test(key))
+        .map(([key, value]) => ({ key, value: value || '' }));
     const urlCandidates = [
         { key: 'DATABASE_URL', value: databaseUrl },
         { key: 'POSTGRES_URL', value: postgresUrl },
         { key: 'POSTGRESQL_URL', value: postgresqlUrl },
-        { key: 'DATABASE_PRIVATE_URL', value: databasePrivateUrl }
+        { key: 'DATABASE_PRIVATE_URL', value: databasePrivateUrl },
+        ...dynamicUrlCandidates
     ].filter((item) => Boolean(item.value));
-    const nonNeonCandidate = urlCandidates.find((item) => !item.value.includes('neon.tech'));
+    const nonNeonCandidate = urlCandidates.find((item) => !item.value.includes('neon.tech') && item.value.includes('postgres'));
     if (nonNeonCandidate) {
         console.log('[env] using database url from', nonNeonCandidate.key);
         return nonNeonCandidate.value;
