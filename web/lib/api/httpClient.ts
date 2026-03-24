@@ -34,6 +34,16 @@ const getStorage = (key: string) => {
   }
 }
 
+const directApiOrigin =
+  process.env.NEXT_PUBLIC_API_DIRECT_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_ORIGIN ||
+  "https://observant-achievement-production-bb94.up.railway.app"
+
+const getDirectApiUrl = (url: string) => {
+  if (!url.startsWith("/api")) return null
+  return `${directApiOrigin}${url}`
+}
+
 export const request = async <T>(
   url: string,
   method: HttpMethod,
@@ -41,39 +51,55 @@ export const request = async <T>(
   token?: string
 ): Promise<T> => {
   const timeoutMs = Number(process.env.NEXT_PUBLIC_API_TIMEOUT_MS || "20000")
-  const controller = typeof AbortController !== "undefined" ? new AbortController() : null
-  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null
   const effectiveToken = token || getCookie("auth_token") || getStorage("auth_token") || undefined
   const effectiveRole = getCookie("auth_role") || getStorage("auth_role") || undefined
   const effectiveUserId = getCookie("auth_user_id") || getStorage("auth_user_id") || undefined
   const effectiveTenantId = getCookie("auth_tenant_id") || getStorage("auth_tenant_id") || undefined
 
-  let response: Response
-  try {
-    response = await fetch(url, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        ...(effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {}),
-        ...(effectiveUserId ? { "x-user-id": effectiveUserId } : {}),
-        ...(effectiveTenantId ? { "x-tenant-id": effectiveTenantId } : {}),
-        ...(effectiveRole ? { "x-roles": effectiveRole } : {})
-      },
-      body: body ? JSON.stringify(body) : undefined
-      , ...(controller ? { signal: controller.signal } : {})
-    })
-  } catch (err) {
-    if (timer) clearTimeout(timer as unknown as number)
-    const isAbort = (err as any)?.name === "AbortError"
-    const msg = isAbort ? "انتهت مهلة الاتصال بالخادم" : (err as { message?: string })?.message
-    logger.error("api.network_error", { url, method, message: (err as { message?: string })?.message })
-    if (typeof window !== "undefined") {
-      // toast.error(isAbort ? "انتهت مهلة الاتصال بالخادم" : "تعذر الاتصال بالخادم")
-      console.error(isAbort ? "انتهت مهلة الاتصال بالخادم" : "تعذر الاتصال بالخادم")
+  const sendRequest = async (targetUrl: string) => {
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null
+    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null
+    try {
+      return await fetch(targetUrl, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          ...(effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : {}),
+          ...(effectiveUserId ? { "x-user-id": effectiveUserId } : {}),
+          ...(effectiveTenantId ? { "x-tenant-id": effectiveTenantId } : {}),
+          ...(effectiveRole ? { "x-roles": effectiveRole } : {})
+        },
+        body: body ? JSON.stringify(body) : undefined,
+        ...(controller ? { signal: controller.signal } : {})
+      })
+    } catch (err) {
+      const isAbort = (err as any)?.name === "AbortError"
+      const msg = isAbort ? "انتهت مهلة الاتصال بالخادم" : (err as { message?: string })?.message
+      logger.error("api.network_error", { url: targetUrl, method, message: (err as { message?: string })?.message })
+      if (typeof window !== "undefined") {
+        console.error(isAbort ? "انتهت مهلة الاتصال بالخادم" : "تعذر الاتصال بالخادم")
+      }
+      throw { status: 0, message: msg || "تعذر الاتصال بالخادم" } satisfies ApiError
+    } finally {
+      if (timer) clearTimeout(timer as unknown as number)
     }
-    throw { status: 0, message: msg || "تعذر الاتصال بالخادم" } satisfies ApiError
   }
-  if (timer) clearTimeout(timer as unknown as number)
+
+  let responseUrl = url
+  let response: Response
+  response = await sendRequest(url)
+
+  const directApiUrl = getDirectApiUrl(url)
+  if (!response.ok && directApiUrl && directApiUrl !== url && [502, 503, 504].includes(response.status)) {
+    try {
+      const fallbackResponse = await sendRequest(directApiUrl)
+      if (fallbackResponse.ok || ![502, 503, 504].includes(fallbackResponse.status)) {
+        response = fallbackResponse
+        responseUrl = directApiUrl
+      }
+    } catch {
+    }
+  }
 
   if (!response.ok) {
     const contentType = response.headers.get("content-type") || ""
@@ -83,9 +109,9 @@ export const request = async <T>(
     } else {
       payload.rawText = await response.text().catch(() => "")
     }
-    logger.error("api.error", { status: response.status, url, payload, contentType })
+    logger.error("api.error", { status: response.status, url: responseUrl, payload, contentType })
 
-    if (response.status === 401 && !url.includes("/auth/login")) {
+    if (response.status === 401 && !responseUrl.includes("/auth/login")) {
       logout()
       if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
         window.location.href = "/login"
