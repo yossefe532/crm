@@ -11,19 +11,11 @@ const resolveDatabaseUrl = () => {
     const isTemplateReference = (value) => /\$\{\{[^}]+\}\}/.test(value);
     const isPostgresUrl = (value) => /^postgres(ql)?:\/\//i.test(value);
     const isUsableRuntimeUrl = (value) => Boolean(value) && isPostgresUrl(value) && !isTemplateReference(value);
-    const normalizeNeonHost = (host) => {
-        const normalizedHost = host.toLowerCase();
-        if (normalizedHost.includes('neon.tech') && normalizedHost.includes('-pooler.')) {
-            return normalizedHost.replace('-pooler.', '.');
-        }
-        return host;
-    };
     const withRequiredSslMode = (url) => {
         try {
             const parsed = new URL(url);
-            const host = normalizeNeonHost(parsed.hostname);
+            const host = parsed.hostname.toLowerCase();
             const mustUseSsl = host.includes('neon.tech') || host.includes('railway');
-            parsed.hostname = host;
             if (mustUseSsl && !parsed.searchParams.has('sslmode')) {
                 parsed.searchParams.set('sslmode', 'require');
             }
@@ -57,7 +49,7 @@ const resolveDatabaseUrl = () => {
         console.log('[env] using fallback usable database url from', usableCandidates[0].key);
         return withRequiredSslMode(usableCandidates[0].value);
     }
-    const pgHost = normalizeNeonHost(process.env.PGHOST || process.env.POSTGRES_HOST || '');
+    const pgHost = process.env.PGHOST || process.env.POSTGRES_HOST || '';
     const pgPort = process.env.PGPORT || process.env.POSTGRES_PORT || '5432';
     const pgUser = process.env.PGUSER || process.env.POSTGRES_USER || '';
     const pgPassword = process.env.PGPASSWORD || process.env.POSTGRES_PASSWORD || '';
