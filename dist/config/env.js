@@ -11,11 +11,27 @@ const resolveDatabaseUrl = () => {
     const isTemplateReference = (value) => /\$\{\{[^}]+\}\}/.test(value);
     const isPostgresUrl = (value) => /^postgres(ql)?:\/\//i.test(value);
     const isUsableRuntimeUrl = (value) => Boolean(value) && isPostgresUrl(value) && !isTemplateReference(value);
+    const toNeonPoolerHost = (host) => {
+        const normalized = host.toLowerCase();
+        if (!normalized.includes('neon.tech') || normalized.includes('-pooler.')) {
+            return host;
+        }
+        const firstDot = host.indexOf('.');
+        if (firstDot === -1) {
+            return host;
+        }
+        const prefix = host.slice(0, firstDot);
+        const suffix = host.slice(firstDot + 1);
+        return `${prefix}-pooler.${suffix}`;
+    };
     const withRequiredSslMode = (url) => {
         try {
             const parsed = new URL(url);
             const host = parsed.hostname.toLowerCase();
             const mustUseSsl = host.includes('neon.tech') || host.includes('railway');
+            if (host.includes('neon.tech')) {
+                parsed.hostname = toNeonPoolerHost(parsed.hostname);
+            }
             if (mustUseSsl && !parsed.searchParams.has('sslmode')) {
                 parsed.searchParams.set('sslmode', 'require');
             }
