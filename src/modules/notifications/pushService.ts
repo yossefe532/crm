@@ -3,12 +3,18 @@ import { prisma } from "../../prisma/client"
 import { env } from "../../config/env"
 
 // Initialize web-push with keys
+let vapidConfigured = false
 if (env.vapidPublicKey && env.vapidPrivateKey) {
-  webpush.setVapidDetails(
-    "mailto:admin@example.com",
-    env.vapidPublicKey,
-    env.vapidPrivateKey
-  )
+  try {
+    webpush.setVapidDetails(
+      "mailto:admin@example.com",
+      env.vapidPublicKey,
+      env.vapidPrivateKey
+    )
+    vapidConfigured = true
+  } catch (error) {
+    console.error("Invalid VAPID configuration:", error)
+  }
 }
 
 type PushPayload = {
@@ -115,7 +121,7 @@ export const pushService = {
   },
 
   send: async (tenantId: string, userId: string, payload: { title: string; body: string; url?: string }) => {
-    if (!env.vapidPublicKey || !env.vapidPrivateKey) {
+    if (!vapidConfigured || !env.vapidPublicKey || !env.vapidPrivateKey) {
       // console.warn("[Push] VAPID keys not configured")
       return
     }
