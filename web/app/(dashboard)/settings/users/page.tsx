@@ -30,10 +30,18 @@ export default function UsersSettingsPage() {
   
   // Safely extract requests array
   const requests = useMemo(() => {
-      if (!requestsData) return []
-      if (Array.isArray(requestsData)) return requestsData
-      // @ts-ignore
-      return requestsData.requests || []
+      let list = []
+      if (requestsData) {
+        if (Array.isArray(requestsData)) list = requestsData
+        // @ts-ignore
+        else list = requestsData.requests || []
+      }
+      
+      // Filter out lead requests and non-pending ones
+      return list.filter((req: any) => 
+        req.status === 'pending' && 
+        req.requestType !== 'create_lead'
+      )
   }, [requestsData])
 
   const { data: teams } = useTeams()
