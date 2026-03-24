@@ -7,14 +7,19 @@ const resolveDatabaseUrl = () => {
     const isTemplateReference = (value: string) => /\$\{\{[^}]+\}\}/.test(value);
     const isPostgresUrl = (value: string) => /^postgres(ql)?:\/\//i.test(value);
     const isUsableRuntimeUrl = (value: string) => Boolean(value) && isPostgresUrl(value) && !isTemplateReference(value);
+    const normalizeNeonHost = (host: string) => {
+        const normalizedHost = host.toLowerCase();
+        if (normalizedHost.includes('neon.tech') && normalizedHost.includes('-pooler.')) {
+            return normalizedHost.replace('-pooler.', '.');
+        }
+        return host;
+    };
     const withRequiredSslMode = (url: string) => {
         try {
             const parsed = new URL(url);
-            const host = parsed.hostname.toLowerCase();
+            const host = normalizeNeonHost(parsed.hostname);
             const mustUseSsl = host.includes('neon.tech') || host.includes('railway');
-            if (host.includes('neon.tech') && host.includes('-pooler.')) {
-                parsed.hostname = host.replace('-pooler.', '.');
-            }
+            parsed.hostname = host;
             if (mustUseSsl && !parsed.searchParams.has('sslmode')) {
                 parsed.searchParams.set('sslmode', 'require');
             }
@@ -48,7 +53,7 @@ const resolveDatabaseUrl = () => {
         return withRequiredSslMode(usableCandidates[0].value);
     }
 
-    const pgHost = process.env.PGHOST || process.env.POSTGRES_HOST || '';
+    const pgHost = normalizeNeonHost(process.env.PGHOST || process.env.POSTGRES_HOST || '');
     const pgPort = process.env.PGPORT || process.env.POSTGRES_PORT || '5432';
     const pgUser = process.env.PGUSER || process.env.POSTGRES_USER || '';
     const pgPassword = process.env.PGPASSWORD || process.env.POSTGRES_PASSWORD || '';
