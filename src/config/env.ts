@@ -7,6 +7,19 @@ const resolveDatabaseUrl = () => {
     const isTemplateReference = (value: string) => /\$\{\{[^}]+\}\}/.test(value);
     const isPostgresUrl = (value: string) => /^postgres(ql)?:\/\//i.test(value);
     const isUsableRuntimeUrl = (value: string) => Boolean(value) && isPostgresUrl(value) && !isTemplateReference(value);
+    const withRequiredSslMode = (url: string) => {
+        try {
+            const parsed = new URL(url);
+            const host = parsed.hostname.toLowerCase();
+            const mustUseSsl = host.includes('neon.tech') || host.includes('railway');
+            if (mustUseSsl && !parsed.searchParams.has('sslmode')) {
+                parsed.searchParams.set('sslmode', 'require');
+            }
+            return parsed.toString();
+        } catch {
+            return url;
+        }
+    };
     const knownUrlCandidates = [
         { key: 'DATABASE_URL', value: process.env.DATABASE_URL || '' },
         { key: 'DATABASE_PRIVATE_URL', value: process.env.DATABASE_PRIVATE_URL || '' },
@@ -25,11 +38,11 @@ const resolveDatabaseUrl = () => {
     const preferredCandidate = usableCandidates.find((candidate) => !candidate.value.toLowerCase().includes('neon.tech'));
     if (preferredCandidate) {
         console.log('[env] using database url from', preferredCandidate.key);
-        return preferredCandidate.value;
+        return withRequiredSslMode(preferredCandidate.value);
     }
     if (usableCandidates.length > 0) {
         console.log('[env] using fallback usable database url from', usableCandidates[0].key);
-        return usableCandidates[0].value;
+        return withRequiredSslMode(usableCandidates[0].value);
     }
 
     const pgHost = process.env.PGHOST || process.env.POSTGRES_HOST || '';
@@ -49,7 +62,7 @@ const resolveDatabaseUrl = () => {
     }
 
     console.log('[env] using fallback database url from DATABASE_URL');
-    return databaseUrl;
+    return withRequiredSslMode(databaseUrl);
 };
 
 export const env = {
