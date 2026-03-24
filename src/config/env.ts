@@ -12,6 +12,9 @@ const resolveDatabaseUrl = () => {
             const parsed = new URL(url);
             const host = parsed.hostname.toLowerCase();
             const mustUseSsl = host.includes('neon.tech') || host.includes('railway');
+            if (host.includes('neon.tech') && host.includes('-pooler.')) {
+                parsed.hostname = host.replace('-pooler.', '.');
+            }
             if (mustUseSsl && !parsed.searchParams.has('sslmode')) {
                 parsed.searchParams.set('sslmode', 'require');
             }
