@@ -1061,19 +1061,24 @@ export const coreController = {
     }
 
     // Update request status
-    const updatedRequest = await coreService.updateUserRequest(tenantId, request.id, { status, decidedBy: userId, decidedAt: new Date(), result: resultData })
+    const updatedRequest = await coreService.decideUserRequest(tenantId, request.id, { status, decidedBy: userId })
     
     // Notify requester
     try {
         const requester = await prisma.user.findUnique({ where: { id: request.requestedBy } })
         if (requester) {
-            notificationService.broadcast(
-                { type: "user", value: requester.id },
-                `تم ${status === "approved" ? "قبول" : "رفض"} طلبك: ${request.requestType === 'create_lead' ? 'إضافة عميل' : request.requestType}`,
-                ["push", "in_app"],
-                userId,
-                { actionUrl: "/requests" }
-            )
+            await notificationService.send({
+                tenantId,
+                userId: requester.id,
+                senderId: userId,
+                type: "system",
+                channels: ["push", "in_app"],
+                title: "تحديث حالة الطلب",
+                message: `تم ${status === "approved" ? "قبول" : "رفض"} طلبك: ${request.requestType === "create_lead" ? "إضافة عميل" : request.requestType}`,
+                entityType: "user_request",
+                entityId: request.id,
+                actionUrl: "/requests"
+            })
         }
     } catch {}
 
