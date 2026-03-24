@@ -3,24 +3,33 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const resolveDatabaseUrl = () => {
-    const databaseUrl = process.env.DATABASE_URL || '';
-    const postgresUrl = process.env.POSTGRES_URL || '';
-    const postgresqlUrl = process.env.POSTGRESQL_URL || '';
-    const databasePrivateUrl = process.env.DATABASE_PRIVATE_URL || '';
+    const normalize = (value: string) => value.trim();
+    const isTemplateReference = (value: string) => /\$\{\{[^}]+\}\}/.test(value);
+    const isPostgresUrl = (value: string) => /^postgres(ql)?:\/\//i.test(value);
+    const isUsableRuntimeUrl = (value: string) => Boolean(value) && isPostgresUrl(value) && !isTemplateReference(value);
+    const knownUrlCandidates = [
+        { key: 'DATABASE_URL', value: process.env.DATABASE_URL || '' },
+        { key: 'DATABASE_PRIVATE_URL', value: process.env.DATABASE_PRIVATE_URL || '' },
+        { key: 'DATABASE_PUBLIC_URL', value: process.env.DATABASE_PUBLIC_URL || '' },
+        { key: 'POSTGRES_URL', value: process.env.POSTGRES_URL || '' },
+        { key: 'POSTGRESQL_URL', value: process.env.POSTGRESQL_URL || '' },
+        { key: 'POSTGRES_PUBLIC_URL', value: process.env.POSTGRES_PUBLIC_URL || '' }
+    ];
     const dynamicUrlCandidates = Object.entries(process.env)
         .filter(([key, value]) => Boolean(value) && /(POSTGRES|DATABASE).*(URL)|URL.*(POSTGRES|DATABASE)/i.test(key))
         .map(([key, value]) => ({ key, value: value || '' }));
-    const urlCandidates = [
-        { key: 'DATABASE_URL', value: databaseUrl },
-        { key: 'POSTGRES_URL', value: postgresUrl },
-        { key: 'POSTGRESQL_URL', value: postgresqlUrl },
-        { key: 'DATABASE_PRIVATE_URL', value: databasePrivateUrl },
-        ...dynamicUrlCandidates
-    ].filter((item) => Boolean(item.value));
-    const nonNeonCandidate = urlCandidates.find((item) => !item.value.includes('neon.tech') && item.value.includes('postgres'));
-    if (nonNeonCandidate) {
-        console.log('[env] using database url from', nonNeonCandidate.key);
-        return nonNeonCandidate.value;
+    const mergedCandidates = [...knownUrlCandidates, ...dynamicUrlCandidates]
+        .map((candidate) => ({ key: candidate.key, value: normalize(candidate.value) }))
+        .filter((candidate, index, array) => array.findIndex((item) => item.key === candidate.key) === index);
+    const usableCandidates = mergedCandidates.filter((candidate) => isUsableRuntimeUrl(candidate.value));
+    const preferredCandidate = usableCandidates.find((candidate) => !candidate.value.toLowerCase().includes('neon.tech'));
+    if (preferredCandidate) {
+        console.log('[env] using database url from', preferredCandidate.key);
+        return preferredCandidate.value;
+    }
+    if (usableCandidates.length > 0) {
+        console.log('[env] using fallback usable database url from', usableCandidates[0].key);
+        return usableCandidates[0].value;
     }
 
     const pgHost = process.env.PGHOST || process.env.POSTGRES_HOST || '';
@@ -28,12 +37,15 @@ const resolveDatabaseUrl = () => {
     const pgUser = process.env.PGUSER || process.env.POSTGRES_USER || '';
     const pgPassword = process.env.PGPASSWORD || process.env.POSTGRES_PASSWORD || '';
     const pgDatabase = process.env.PGDATABASE || process.env.POSTGRES_DB || '';
+    const pgSslMode = process.env.PGSSLMODE || process.env.POSTGRES_SSLMODE || 'require';
     const hasPgParts = Boolean(pgHost && pgUser && pgPassword && pgDatabase);
-    const isNeonUrl = databaseUrl.includes('neon.tech');
+    const databaseUrl = normalize(process.env.DATABASE_URL || '');
+    const isNeonUrl = databaseUrl.toLowerCase().includes('neon.tech');
+    const isMissingOrTemplateDatabaseUrl = !databaseUrl || isTemplateReference(databaseUrl);
 
-    if (hasPgParts && (isNeonUrl || !databaseUrl)) {
+    if (hasPgParts && (isNeonUrl || isMissingOrTemplateDatabaseUrl)) {
         console.log('[env] using constructed database url from PG* variables');
-        return `postgresql://${encodeURIComponent(pgUser)}:${encodeURIComponent(pgPassword)}@${pgHost}:${pgPort}/${pgDatabase}`;
+        return `postgresql://${encodeURIComponent(pgUser)}:${encodeURIComponent(pgPassword)}@${pgHost}:${pgPort}/${pgDatabase}?sslmode=${encodeURIComponent(pgSslMode)}`;
     }
 
     console.log('[env] using fallback database url from DATABASE_URL');
