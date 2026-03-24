@@ -6,7 +6,6 @@ export const errorHandler = (err: unknown, req: Request, res: Response, next: Ne
   const rawMessage = (err as { message?: string })?.message || "حدث خطأ في الخادم"
   const dbConnectivityError =
     rawMessage.includes("Can't reach database server") ||
-    rawMessage.includes("prisma.user.findFirst") ||
     rawMessage.includes("PrismaClientInitializationError") ||
     rawMessage.includes("P1001")
   const status = dbConnectivityError ? 503 : (rawStatus || 500)
