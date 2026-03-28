@@ -22,6 +22,7 @@ import { router as authRouter } from "./modules/auth/routes"
 import { router as goalsRouter } from "./modules/goals/routes"
 import { router as conversationRouter } from "./modules/conversations/routes"
 import { router as taskRouter } from "./modules/tasks/routes"
+import { prisma } from "./prisma/client"
 
 export const createApp = () => {
   const app = express()
@@ -52,7 +53,16 @@ export const createApp = () => {
     timestamp: new Date().toISOString()
   }))
 
-  app.get("/api/health", (_req, res) => res.json({ ok: true }))
+  app.get("/api/health", async (_req, res) => {
+    let db = false
+    try {
+      await prisma.$queryRaw`SELECT 1`
+      db = true
+    } catch {
+      db = false
+    }
+    res.json({ ok: true, db })
+  })
   app.get("/api/debug-env", (_req, res) => {
     const dbUrl = process.env.DATABASE_URL || "NOT_SET"
     const maskedDbUrl = dbUrl.length > 20 

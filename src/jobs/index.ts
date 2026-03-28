@@ -14,6 +14,19 @@ import { taskReminderJob } from "./taskReminderJob"
 import { runNotificationQueueJob } from "./notificationQueueJob"
 
 export const startJobs = () => {
+  const withDb = async <T>(fn: () => Promise<T>) => {
+    try {
+      await prisma.$queryRaw`SELECT 1`
+    } catch (e) {
+      console.error("[jobs] DB unreachable, skipping scheduled run", e)
+      return
+    }
+    try {
+      await fn()
+    } catch (e) {
+      console.error("[jobs] scheduled task error", e)
+    }
+  }
   cron.schedule("*/5 * * * *", async () => {
     try {
       await taskReminderJob()
@@ -30,46 +43,42 @@ export const startJobs = () => {
     }
   }, { timezone: env.cronTimezone })
 
-  cron.schedule("0 */6 * * *", async () => {
+  cron.schedule("0 */6 * * *", async () => withDb(async () => {
     const tenants = await prisma.tenant.findMany({ where: { deletedAt: null }, select: { id: true } })
     await Promise.all(tenants.map((t: { id: string }) => runLeadCountdownJob(t.id)))
-  }, { timezone: env.cronTimezone })
+  }), { timezone: env.cronTimezone })
 
-  cron.schedule("0 */2 * * *", async () => {
+  cron.schedule("0 */2 * * *", async () => withDb(async () => {
     const tenants = await prisma.tenant.findMany({ where: { deletedAt: null }, select: { id: true } })
     await Promise.all(tenants.map((t: { id: string }) => runCallCheckJob(t.id)))
-  }, { timezone: env.cronTimezone })
+  }), { timezone: env.cronTimezone })
 
-  cron.schedule("*/30 * * * *", async () => {
+  cron.schedule("*/30 * * * *", async () => withDb(async () => {
     const tenants = await prisma.tenant.findMany({ where: { deletedAt: null }, select: { id: true } })
     await Promise.all(tenants.map((t: { id: string }) => runMeetingDeadlineJob(t.id)))
-  }, { timezone: env.cronTimezone })
+  }), { timezone: env.cronTimezone })
 
-  cron.schedule("* * * * *", async () => {
-    try {
-      await meetingReminderJob()
-    } catch (error) {
-      console.error("Meeting reminder job failed", error)
-    }
-  }, { timezone: env.cronTimezone })
+  cron.schedule("* * * * *", async () => withDb(async () => {
+    await meetingReminderJob()
+  }), { timezone: env.cronTimezone })
 
-  cron.schedule("0 * * * *", async () => {
+  cron.schedule("0 * * * *", async () => withDb(async () => {
     const tenants = await prisma.tenant.findMany({ where: { deletedAt: null }, select: { id: true } })
     await Promise.all(tenants.map((t: { id: string }) => runGoalCheckJob(t.id)))
-  }, { timezone: env.cronTimezone })
+  }), { timezone: env.cronTimezone })
 
-  cron.schedule("0 1 * * *", async () => {
+  cron.schedule("0 1 * * *", async () => withDb(async () => {
     const tenants = await prisma.tenant.findMany({ where: { deletedAt: null }, select: { id: true } })
     await Promise.all(tenants.map((t: { id: string }) => runDailyReportJob(t.id)))
-  }, { timezone: env.cronTimezone })
+  }), { timezone: env.cronTimezone })
 
-  cron.schedule("0 2 * * *", async () => {
+  cron.schedule("0 2 * * *", async () => withDb(async () => {
     const tenants = await prisma.tenant.findMany({ where: { deletedAt: null }, select: { id: true } })
     await Promise.all(tenants.map((t: { id: string }) => runGoalCleanupJob(t.id)))
-  }, { timezone: env.cronTimezone })
+  }), { timezone: env.cronTimezone })
 
-  cron.schedule("0 9 * * 1", async () => {
+  cron.schedule("0 9 * * 1", async () => withDb(async () => {
     const tenants = await prisma.tenant.findMany({ where: { deletedAt: null }, select: { id: true } })
     await Promise.all(tenants.map((t: { id: string }) => runWeeklyReportJob(t.id)))
-  }, { timezone: env.cronTimezone })
+  }), { timezone: env.cronTimezone })
 }
