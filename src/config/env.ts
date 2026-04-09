@@ -24,10 +24,18 @@ const resolveDatabaseUrl = () => {
         try {
             const parsed = new URL(url);
             const host = parsed.hostname.toLowerCase();
-            const mustUseSsl = host.includes('neon.tech') || host.includes('railway');
+            const mustUseSsl = host.includes('neon.tech') || host.includes('railway') || host.includes('supabase');
             if (host.includes('neon.tech')) {
                 parsed.hostname = toNeonPoolerHost(parsed.hostname);
             }
+            
+            // We must add pgbouncer=true to avoid prepared statement errors
+            // since the user is experiencing the "prepared statement does not exist" issue
+            // which means the database is behind a connection pooler.
+            if (!parsed.searchParams.has('pgbouncer')) {
+                parsed.searchParams.set('pgbouncer', 'true');
+            }
+            
             if (mustUseSsl && !parsed.searchParams.has('sslmode')) {
                 parsed.searchParams.set('sslmode', 'require');
             }
@@ -74,7 +82,7 @@ const resolveDatabaseUrl = () => {
 
     if (hasPgParts && (isNeonUrl || isMissingOrTemplateDatabaseUrl)) {
         console.log('[env] using constructed database url from PG* variables');
-        return `postgresql://${encodeURIComponent(pgUser)}:${encodeURIComponent(pgPassword)}@${pgHost}:${pgPort}/${pgDatabase}?sslmode=${encodeURIComponent(pgSslMode)}`;
+        return withRequiredSslMode(`postgresql://${encodeURIComponent(pgUser)}:${encodeURIComponent(pgPassword)}@${pgHost}:${pgPort}/${pgDatabase}?sslmode=${encodeURIComponent(pgSslMode)}`);
     }
 
     console.log('[env] using fallback database url from DATABASE_URL');
@@ -93,3 +101,6 @@ export const env = {
     vapidPrivateKey: process.env.VAPID_PRIVATE_KEY || '',
     ownerPhoneNumber: process.env.OWNER_PHONE_NUMBER || ''
 };
+
+// Force Prisma to use the resolved URL
+process.env.DATABASE_URL = env.databaseUrl;
